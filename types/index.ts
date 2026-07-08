@@ -20,6 +20,13 @@ export type Usuario = {
   foto_url?: string | null;
   selfie_url?: string | null;
   documento_url?: string | null;
+  cpf?: string | null;
+  data_nascimento?: string | null;
+  documento_tipo?: string | null;
+  documento_numero?: string | null;
+  documento_orgao_emissor?: string | null;
+  documento_uf?: string | null;
+  cadastro_completo?: boolean;
   latitude?: number | null;
   longitude?: number | null;
   localizacao_accuracy?: number | null;
