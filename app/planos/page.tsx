@@ -37,22 +37,22 @@ export default function PlanosPage() {
         <section className="card" style={{ maxWidth: 980, margin: '0 auto' }}>
           <span className="badge">Planos e preços</span>
           <h1>Planos AgroMarket</h1>
-          <p className="muted">Cadastre grátis no lançamento. Para vender mais rápido, solicite destaque e apareça acima nas buscas.</p>
+          <p className="muted">Cadastre grátis no lançamento. Para vender mais rápido, solicite destaque, vitrine ou patrocinado e apareça melhor no app.</p>
 
           <div className="notice">
-            Pagamento inicial por PIX/manual. O vendedor solicita destaque, o administrador confirma e libera pelo painel. Os valores abaixo são editados no admin.
+            Pagamentos são processados conforme o gateway configurado no AgroMarket. Após a confirmação, o administrador aprova e libera o benefício no painel.
           </div>
 
           <section className="section">
             <h2>Anúncio comum</h2>
             <div className="card" style={{ background: '#f8faf4' }}>
-              <h3 style={{ marginTop: 0 }}>Grátis no lançamento</h3>
+              <h3 style={{ marginTop: 0 }}>Anuncie Grátis</h3>
               <p className="muted">O vendedor pode criar anúncio com foto, descrição, cidade, WhatsApp, vitrine e compartilhamento.</p>
               <ul style={{ paddingLeft: 20, lineHeight: 1.7 }}>
                 <li>Cadastro gratuito.</li>
                 <li>Anúncio comum gratuito no período de lançamento.</li>
-                <li>Aprovação manual pelo administrador.</li>
-                <li>Vitrine liberada gratuitamente no lançamento.</li>
+                <li>Aprovação pelo administrador.</li>
+                <li>Lojinha opcional com mensalidade ou liberação administrativa.</li>
               </ul>
             </div>
           </section>
@@ -70,7 +70,7 @@ export default function PlanosPage() {
                     <ul style={{ paddingLeft: 20, lineHeight: 1.7 }}>
                       <li>Aparece acima na busca.</li>
                       <li>Recebe selo de destaque.</li>
-                      <li>Admin libera manualmente.</li>
+                      <li>Liberação após aprovação.</li>
                     </ul>
                   </div>
                 ))}
@@ -95,20 +95,21 @@ export default function PlanosPage() {
           )}
 
           <section className="card" style={{ background: '#fff' }}>
-            <h2>Como funciona hoje</h2>
+            <h2>Como funciona</h2>
             <ol style={{ paddingLeft: 20, lineHeight: 1.7 }}>
-              <li>Vendedor cria e aprova o anúncio.</li>
-              <li>Vendedor solicita destaque no painel.</li>
-              <li>Admin combina pagamento por PIX ou gateway configurado.</li>
-              <li>Admin aprova o destaque no painel.</li>
-              <li>O anúncio passa a aparecer como destaque até a data final.</li>
+              <li>Vendedor cria anúncio, vitrine ou solicitação de destaque.</li>
+              <li>O sistema registra a solicitação no painel.</li>
+              <li>Pagamento segue o gateway configurado pelo AgroMarket.</li>
+              <li>Admin aprova o benefício no painel.</li>
+              <li>O anúncio, vitrine ou banner passa a aparecer pelo período contratado.</li>
             </ol>
           </section>
 
           <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 24 }}>
             <Link className="btn btn-primary" href="/painel/anuncios">Solicitar destaque</Link>
+            <Link className="btn btn-secondary" href="/painel/patrocinado">Solicitar patrocinado</Link>
+            <Link className="btn btn-secondary" href="/painel/vitrine">Minha vitrine</Link>
             <Link className="btn btn-secondary" href="/regras">Ver regras</Link>
-            <Link className="btn btn-secondary" href="/anuncios">Ver anúncios</Link>
           </div>
         </section>
       </div>
