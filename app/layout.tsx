@@ -35,7 +35,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             <p>Divulgação de produtos agro, animais, serviços rurais, máquinas e empregos.</p>
             <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap', marginTop: 10, fontWeight: 800 }}>
               <Link href="/termos">Termos de uso</Link>
+              <Link href="/regras">Regras</Link>
               <Link href="/seguranca">Segurança</Link>
+              <Link href="/planos">Planos</Link>
               <Link href="/anuncios">Anúncios</Link>
             </div>
           </div>
