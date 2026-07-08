@@ -4,6 +4,9 @@ export type TipoAnuncio = 'produto' | 'animal' | 'servico' | 'emprego' | 'maquin
 export type StatusAnuncio = 'pendente' | 'aprovado' | 'recusado' | 'pausado' | 'vendido' | 'expirado' | 'bloqueado';
 export type StatusDenuncia = 'aberta' | 'em_analise' | 'resolvida' | 'ignorada';
 export type StatusDestaqueSolicitacao = 'pendente' | 'aprovado' | 'recusado' | 'cancelado' | 'expirado';
+export type TipoPlanoMonetizacao = 'destaque' | 'vitrine' | 'assinatura';
+export type ProvedorPagamento = 'asaas' | 'efi';
+export type AmbientePagamento = 'sandbox' | 'producao';
 
 export type Usuario = {
   id: string;
@@ -131,6 +134,34 @@ export type DestaqueSolicitacao = {
   aprovado_em?: string | null;
   inicio_em?: string | null;
   fim_em?: string | null;
+  created_at?: string;
+  updated_at?: string;
+};
+
+export type MonetizacaoPlano = {
+  id: string;
+  codigo: string;
+  nome: string;
+  tipo: TipoPlanoMonetizacao;
+  dias?: number | null;
+  preco: number;
+  descricao?: string | null;
+  ativo: boolean;
+  ordem: number;
+  created_at?: string;
+  updated_at?: string;
+};
+
+export type PagamentoConfiguracao = {
+  id: string;
+  provedor: ProvedorPagamento;
+  ativo: boolean;
+  ambiente: AmbientePagamento;
+  nome_exibicao: string;
+  pix_chave?: string | null;
+  webhook_url?: string | null;
+  credenciais_configuradas: boolean;
+  observacao?: string | null;
   created_at?: string;
   updated_at?: string;
 };
