@@ -2,16 +2,18 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { Eye, Pause, Pencil, Play, RefreshCcw, Trash2, CheckCircle2 } from 'lucide-react';
+import { CheckCircle2, Eye, Pause, Pencil, Play, RefreshCcw, Sparkles, Trash2 } from 'lucide-react';
 import AuthGuard from '@/components/AuthGuard';
 import { supabase } from '@/lib/supabase';
 import { formatMoney } from '@/lib/whatsapp';
-import type { Anuncio, FotoAnuncio, StatusAnuncio } from '@/types';
+import type { Anuncio, DestaqueSolicitacao, FotoAnuncio, StatusAnuncio } from '@/types';
 import EmptyState from '@/components/EmptyState';
 
 type AnuncioLinha = Anuncio & {
   fotos_anuncios?: FotoAnuncio[];
 };
+
+type DiasDestaque = 7 | 15 | 30;
 
 const STATUS_LABEL: Record<StatusAnuncio, string> = {
   pendente: 'Aguardando aprovação',
@@ -28,8 +30,14 @@ function capa(ad: AnuncioLinha) {
   return fotos.find((foto) => foto.principal)?.url_foto || fotos[0]?.url_foto || null;
 }
 
+function formatarData(data?: string | null) {
+  if (!data) return null;
+  return new Date(data).toLocaleDateString('pt-BR');
+}
+
 function MeusAnuncios() {
   const [anuncios, setAnuncios] = useState<AnuncioLinha[]>([]);
+  const [solicitacoes, setSolicitacoes] = useState<Record<string, DestaqueSolicitacao>>({});
   const [loading, setLoading] = useState(true);
   const [loadingId, setLoadingId] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
@@ -41,14 +49,28 @@ function MeusAnuncios() {
       return;
     }
 
-    const { data } = await supabase
-      .from('anuncios')
-      .select('*, categorias(*), fotos_anuncios(*)')
-      .eq('usuario_id', userData.user.id)
-      .neq('status', 'expirado')
-      .order('created_at', { ascending: false });
+    const [{ data: ads }, { data: pedidos }] = await Promise.all([
+      supabase
+        .from('anuncios')
+        .select('*, categorias(*), fotos_anuncios(*)')
+        .eq('usuario_id', userData.user.id)
+        .neq('status', 'expirado')
+        .order('created_at', { ascending: false }),
+      supabase
+        .from('destaque_solicitacoes')
+        .select('*')
+        .eq('usuario_id', userData.user.id)
+        .in('status', ['pendente', 'aprovado'])
+        .order('created_at', { ascending: false })
+    ]);
 
-    setAnuncios((data || []) as AnuncioLinha[]);
+    const mapa: Record<string, DestaqueSolicitacao> = {};
+    ((pedidos || []) as DestaqueSolicitacao[]).forEach((pedido) => {
+      if (!mapa[pedido.anuncio_id]) mapa[pedido.anuncio_id] = pedido;
+    });
+
+    setSolicitacoes(mapa);
+    setAnuncios((ads || []) as AnuncioLinha[]);
     setLoading(false);
   }
 
@@ -73,6 +95,31 @@ function MeusAnuncios() {
     setLoadingId(null);
   }
 
+  async function solicitarDestaque(ad: AnuncioLinha, dias: DiasDestaque) {
+    const ok = confirm(`Solicitar destaque por ${dias} dias para o anúncio "${ad.titulo}"?\n\nO admin irá analisar e liberar manualmente.`);
+    if (!ok) return;
+
+    setLoadingId(ad.id);
+    setMessage(null);
+
+    const { data: userData } = await supabase.auth.getUser();
+    const { error } = await supabase.from('destaque_solicitacoes').insert({
+      anuncio_id: ad.id,
+      usuario_id: userData.user?.id,
+      dias,
+      status: 'pendente'
+    });
+
+    if (error) {
+      setMessage(error.message.includes('duplicate') ? 'Esse anúncio já tem uma solicitação de destaque pendente.' : error.message);
+    } else {
+      setMessage('Solicitação de destaque enviada. Aguarde a liberação do administrador.');
+      await load();
+    }
+
+    setLoadingId(null);
+  }
+
   async function pausar(ad: AnuncioLinha) {
     await atualizarAnuncio(ad.id, { status: 'pausado' as StatusAnuncio }, 'Anúncio pausado. Ele saiu da busca pública.');
   }
@@ -82,7 +129,7 @@ function MeusAnuncios() {
   }
 
   async function vendido(ad: AnuncioLinha) {
-    await atualizarAnuncio(ad.id, { status: 'vendido' as StatusAnuncio }, 'Anúncio marcado como vendido.');
+    await atualizarAnuncio(ad.id, { status: 'vendido' as StatusAnuncio, destaque: false, destaque_inicio: null, destaque_fim: null }, 'Anúncio marcado como vendido.');
   }
 
   async function renovar(ad: AnuncioLinha) {
@@ -100,7 +147,7 @@ function MeusAnuncios() {
   async function excluir(ad: AnuncioLinha) {
     const ok = confirm(`Excluir o anúncio "${ad.titulo}"?\n\nEle será removido da busca, da vitrine e da sua lista.`);
     if (!ok) return;
-    await atualizarAnuncio(ad.id, { status: 'expirado' as StatusAnuncio }, 'Anúncio excluído.');
+    await atualizarAnuncio(ad.id, { status: 'expirado' as StatusAnuncio, destaque: false, destaque_inicio: null, destaque_fim: null }, 'Anúncio excluído.');
   }
 
   if (loading) return <div className="card">Carregando...</div>;
@@ -117,6 +164,8 @@ function MeusAnuncios() {
           const podeAtivar = ad.status === 'pausado' || ad.status === 'vendido';
           const podeVendido = ad.status === 'aprovado' || ad.status === 'pausado';
           const podeRenovar = ad.status === 'aprovado' || ad.status === 'pausado' || ad.status === 'vendido';
+          const pedidoDestaque = solicitacoes[ad.id];
+          const destaqueFim = formatarData(ad.destaque_fim);
 
           return (
             <article className="card" key={ad.id} style={{ overflow: 'hidden', padding: 0 }}>
@@ -126,9 +175,9 @@ function MeusAnuncios() {
                 </div>
 
                 <div style={{ padding: 14, minWidth: 0 }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'flex-start' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'flex-start', flexWrap: 'wrap' }}>
                     <span className={`badge status-${ad.status}`}>{STATUS_LABEL[ad.status] || ad.status}</span>
-                    {ad.destaque && <span className="badge">Destaque</span>}
+                    {ad.destaque && <span className="badge"><Sparkles size={14} /> Destaque</span>}
                   </div>
 
                   <h2 style={{ margin: '10px 0 4px', fontSize: 20, lineHeight: 1.1 }}>{ad.titulo}</h2>
@@ -139,6 +188,23 @@ function MeusAnuncios() {
               </div>
 
               <div style={{ padding: 14, display: 'grid', gap: 10 }}>
+                {ad.destaque && <div className="notice">Anúncio destacado{destaqueFim ? ` até ${destaqueFim}` : ''}.</div>}
+                {!ad.destaque && pedidoDestaque?.status === 'pendente' && <div className="notice">Destaque solicitado por {pedidoDestaque.dias} dias. Aguardando admin.</div>}
+
+                {ad.status === 'aprovado' && !ad.destaque && pedidoDestaque?.status !== 'pendente' && (
+                  <div className="card" style={{ background: '#f8faf4' }}>
+                    <strong>Destacar anúncio</strong>
+                    <p className="muted" style={{ marginTop: 4 }}>Solicite destaque para aparecer acima na busca e na página inicial.</p>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8 }}>
+                      {[7, 15, 30].map((dias) => (
+                        <button key={dias} className="btn btn-secondary" disabled={isLoading} onClick={() => solicitarDestaque(ad, dias as DiasDestaque)}>
+                          {dias} dias
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
                   <Link className="btn btn-secondary" href={`/painel/editar/${ad.id}`}><Pencil size={16} /> Editar</Link>
                   <Link className="btn btn-secondary" href={`/anuncio/${ad.slug}`}><Eye size={16} /> Ver</Link>
@@ -178,7 +244,7 @@ export default function MeusAnunciosPage() {
       <main className="page">
         <div className="container">
           <div className="section-head">
-            <div><h1>Meus anúncios</h1><p>Edite, pause, marque como vendido ou exclua seus anúncios.</p></div>
+            <div><h1>Meus anúncios</h1><p>Edite, pause, marque como vendido, exclua ou solicite destaque.</p></div>
             <Link className="btn btn-primary" href="/anunciar">Novo anúncio</Link>
           </div>
           <MeusAnuncios />
