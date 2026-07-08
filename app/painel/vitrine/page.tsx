@@ -2,7 +2,7 @@
 
 import { ChangeEvent, FormEvent, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
-import { ImagePlus, Store } from 'lucide-react';
+import { ImagePlus, Lock, Send, Store } from 'lucide-react';
 import AuthGuard from '@/components/AuthGuard';
 import { supabase } from '@/lib/supabase';
 import { slugify } from '@/lib/slug';
@@ -37,31 +37,7 @@ function MinhaVitrineContent() {
       setPerfil(usuario);
 
       const { data: vitrineData } = await supabase.from('vitrines').select('*').eq('usuario_id', userData.user.id).maybeSingle();
-
-      if (vitrineData) {
-        setVitrine(vitrineData as Vitrine);
-      } else {
-        const baseSlug = `${slugify(usuario?.nome || 'vendedor')}-${userData.user.id.slice(0, 6)}`;
-        const nova = {
-          usuario_id: userData.user.id,
-          nome_vitrine: usuario?.nome || 'Minha vitrine',
-          slug: baseSlug,
-          descricao: 'Vitrine de produtos e serviços no AgroMarket.',
-          cidade: usuario?.cidade || '',
-          estado: usuario?.estado || 'TO',
-          whatsapp: usuario?.whatsapp || '',
-          vitrine_ativa: true,
-          plano: 'gratis_lancamento',
-          gratis_ate: new Date(Date.now() + 180 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10),
-          logo_object_fit: 'cover',
-          logo_object_position: 'center',
-          banner_object_position: 'center'
-        };
-
-        const { data: criada } = await supabase.from('vitrines').insert(nova).select('*').single();
-        setVitrine(criada as Vitrine);
-      }
-
+      setVitrine((vitrineData || null) as Vitrine | null);
       setLoading(false);
     }
 
@@ -70,6 +46,40 @@ function MinhaVitrineContent() {
 
   function update<K extends keyof Vitrine>(key: K, value: Vitrine[K]) {
     setVitrine((prev) => prev ? { ...prev, [key]: value } : prev);
+  }
+
+  async function solicitarVitrine() {
+    if (!perfil) return;
+
+    setSaving(true);
+    setMessage(null);
+
+    const baseSlug = `${slugify(perfil.nome || 'vendedor')}-${perfil.id.slice(0, 6)}`;
+    const nova = {
+      usuario_id: perfil.id,
+      nome_vitrine: perfil.nome || 'Minha vitrine',
+      slug: baseSlug,
+      descricao: 'Vitrine de produtos e serviços no AgroMarket.',
+      cidade: perfil.cidade || '',
+      estado: perfil.estado || 'TO',
+      whatsapp: perfil.whatsapp || '',
+      vitrine_ativa: false,
+      plano: 'aguardando_aprovacao',
+      gratis_ate: null,
+      logo_object_fit: 'cover',
+      logo_object_position: 'center',
+      banner_object_position: 'center'
+    };
+
+    const { data, error } = await supabase.from('vitrines').insert(nova).select('*').single();
+
+    if (error) setMessage(error.message);
+    else {
+      setVitrine(data as Vitrine);
+      setMessage('Solicitação de vitrine enviada. Você já pode preparar a lojinha, mas ela só fica pública após autorização do admin.');
+    }
+
+    setSaving(false);
   }
 
   async function selecionarImagem(e: ChangeEvent<HTMLInputElement>, tipo: 'logo' | 'banner') {
@@ -129,24 +139,47 @@ function MinhaVitrineContent() {
     if (error) setMessage(error.message);
     else {
       setVitrine(data as Vitrine);
-      setMessage('Vitrine salva.');
+      setMessage(vitrine.vitrine_ativa ? 'Vitrine salva.' : 'Vitrine salva. Ela continua aguardando autorização do admin para ficar pública.');
     }
 
     setSaving(false);
   }
 
   if (loading) return <div className="card">Carregando sua vitrine...</div>;
-  if (!vitrine) return <div className="card">Não foi possível carregar sua vitrine.</div>;
+
+  if (!vitrine) {
+    return (
+      <div className="card" style={{ maxWidth: 680, margin: '0 auto' }}>
+        {message && <div className="notice">{message}</div>}
+        <span className="badge"><Lock size={14} /> Vitrine com autorização</span>
+        <h2>Sua lojinha ainda não está liberada</h2>
+        <p className="muted">Para evitar lojas falsas, a vitrine só é criada quando você solicita e o administrador autoriza. Você pode anunciar normalmente mesmo sem vitrine.</p>
+        <div style={{ display: 'grid', gap: 10 }}>
+          <button className="btn btn-primary btn-full" type="button" onClick={solicitarVitrine} disabled={saving}>
+            <Send size={18} /> {saving ? 'Enviando solicitação...' : 'Solicitar liberação da vitrine'}
+          </button>
+          <Link className="btn btn-secondary btn-full" href="/anunciar">Anunciar sem vitrine</Link>
+          <Link className="btn btn-secondary btn-full" href="/painel/perfil">Voltar ao perfil</Link>
+        </div>
+      </div>
+    );
+  }
 
   const linkPublico = `/vendedor/${vitrine.slug}`;
   const logoFit = vitrine.logo_object_fit || 'cover';
   const logoPosition = vitrine.logo_object_position || 'center';
   const bannerPosition = vitrine.banner_object_position || 'center';
+  const aguardandoAutorizacao = !vitrine.vitrine_ativa;
 
   return (
     <div className="grid grid-2">
       <form className="form card" onSubmit={salvar}>
         {message && <div className="notice">{message}</div>}
+        {aguardandoAutorizacao && (
+          <div className="notice">
+            Sua vitrine foi solicitada e está aguardando autorização. Você pode preparar a lojinha, mas ela só ficará pública depois da liberação do administrador.
+          </div>
+        )}
 
         <div className="card" style={{ background: '#f8faf4' }}>
           <h3 style={{ marginTop: 0 }}>Imagens da vitrine</h3>
@@ -248,12 +281,12 @@ function MinhaVitrineContent() {
       </form>
 
       <aside className="card">
-        <h2>Prévia da vitrine</h2>
-        <p className="muted">No lançamento, a vitrine está liberada gratuitamente para atrair vendedores.</p>
+        <h2>Prévia da lojinha</h2>
+        <p className="muted">A vitrine é uma lojinha pública, mas só aparece para compradores depois da autorização do admin.</p>
         <div style={{ display: 'grid', gap: 8, margin: '14px 0' }}>
           <span className="badge">Plano: {vitrine.plano === 'gratis_lancamento' ? 'Grátis no lançamento' : vitrine.plano}</span>
           {vitrine.gratis_ate && <span className="badge">Grátis até: {new Date(vitrine.gratis_ate).toLocaleDateString('pt-BR')}</span>}
-          <span className="badge">Status: {vitrine.vitrine_ativa ? 'Ativa' : 'Desativada'}</span>
+          <span className="badge">Status: {vitrine.vitrine_ativa ? 'Pública' : 'Aguardando autorização'}</span>
         </div>
 
         <div className="card" style={{ background: '#f8faf4', padding: 0, overflow: 'hidden' }}>
@@ -270,8 +303,13 @@ function MinhaVitrineContent() {
         </div>
 
         <div style={{ display: 'grid', gap: 10, marginTop: 14 }}>
-          <Link className="btn btn-primary btn-full" href={linkPublico}>Abrir minha vitrine</Link>
-          <Link className="btn btn-secondary btn-full" href="/painel">Voltar ao painel</Link>
+          {vitrine.vitrine_ativa ? (
+            <Link className="btn btn-primary btn-full" href={linkPublico}>Abrir lojinha pública</Link>
+          ) : (
+            <button className="btn btn-secondary btn-full" type="button" disabled>Disponível após autorização</button>
+          )}
+          <Link className="btn btn-secondary btn-full" href="/anunciar">Anunciar sem vitrine</Link>
+          <Link className="btn btn-secondary btn-full" href="/painel/perfil">Voltar ao perfil</Link>
         </div>
       </aside>
     </div>
@@ -286,7 +324,7 @@ export default function MinhaVitrinePage() {
           <div className="section-head">
             <div>
               <h1>Minha vitrine</h1>
-              <p>Configure seu perfil público com todos os seus produtos.</p>
+              <p>Configure sua lojinha pública. A publicação depende da autorização do administrador.</p>
             </div>
           </div>
           <MinhaVitrineContent />
