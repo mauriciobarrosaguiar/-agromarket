@@ -8,7 +8,7 @@ const tabs = [
   { href: '/', label: 'Início', icon: Home },
   { href: '/anuncios', label: 'Buscar', icon: Search },
   { href: '/anunciar', label: 'Anunciar', icon: PlusCircle },
-  { href: '/painel/vitrine', label: 'Vitrine', icon: Store },
+  { href: '/vitrines', label: 'Vitrine', icon: Store },
   { href: '/painel/perfil', label: 'Perfil', icon: UserRound }
 ];
 
