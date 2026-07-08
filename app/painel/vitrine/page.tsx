@@ -1,10 +1,12 @@
 'use client';
 
-import { FormEvent, useEffect, useState } from 'react';
+import { ChangeEvent, FormEvent, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
+import { ImagePlus, Store } from 'lucide-react';
 import AuthGuard from '@/components/AuthGuard';
 import { supabase } from '@/lib/supabase';
 import { slugify } from '@/lib/slug';
+import { uploadVitrineImagem } from '@/lib/upload';
 import type { Usuario, Vitrine } from '@/types';
 
 function MinhaVitrineContent() {
@@ -12,7 +14,10 @@ function MinhaVitrineContent() {
   const [vitrine, setVitrine] = useState<Vitrine | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [uploading, setUploading] = useState<'logo' | 'banner' | null>(null);
   const [message, setMessage] = useState<string | null>(null);
+  const logoInputRef = useRef<HTMLInputElement | null>(null);
+  const bannerInputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
     async function load() {
@@ -56,6 +61,35 @@ function MinhaVitrineContent() {
     setVitrine((prev) => prev ? { ...prev, [key]: value } : prev);
   }
 
+  async function selecionarImagem(e: ChangeEvent<HTMLInputElement>, tipo: 'logo' | 'banner') {
+    const file = e.target.files?.[0];
+    if (!file || !vitrine) return;
+
+    setUploading(tipo);
+    setMessage(null);
+
+    try {
+      const url = await uploadVitrineImagem(file, vitrine.usuario_id, tipo);
+      const campo = tipo === 'logo' ? 'foto_url' : 'banner_url';
+      const { data, error } = await supabase
+        .from('vitrines')
+        .update({ [campo]: url, updated_at: new Date().toISOString() })
+        .eq('id', vitrine.id)
+        .select('*')
+        .single();
+
+      if (error) throw error;
+      setVitrine(data as Vitrine);
+      setMessage(tipo === 'logo' ? 'Logo atualizada.' : 'Banner atualizado.');
+    } catch (err) {
+      const texto = err instanceof Error ? err.message : 'Erro ao enviar imagem.';
+      setMessage(texto);
+    } finally {
+      setUploading(null);
+      e.target.value = '';
+    }
+  }
+
   async function salvar(e: FormEvent) {
     e.preventDefault();
     if (!vitrine) return;
@@ -97,6 +131,33 @@ function MinhaVitrineContent() {
       <form className="form card" onSubmit={salvar}>
         {message && <div className="notice">{message}</div>}
 
+        <div className="card" style={{ background: '#f8faf4' }}>
+          <h3 style={{ marginTop: 0 }}>Imagens da vitrine</h3>
+          <p className="muted">Toque nos botões abaixo para selecionar as imagens do celular.</p>
+
+          <div className="form-row">
+            <div className="field">
+              <span className="label">Logo da vitrine</span>
+              <input ref={logoInputRef} type="file" accept="image/png,image/jpeg,image/webp" style={{ display: 'none' }} onChange={(e) => selecionarImagem(e, 'logo')} />
+              <button className="btn btn-secondary btn-full" type="button" onClick={() => logoInputRef.current?.click()} disabled={uploading !== null}>
+                <ImagePlus size={18} /> {uploading === 'logo' ? 'Enviando logo...' : 'Selecionar logo'}
+              </button>
+              <div style={{ width: 92, height: 92, borderRadius: 24, background: '#eaf3e3', display: 'grid', placeItems: 'center', overflow: 'hidden', color: '#14532d', border: '1px solid #dfe8d9' }}>
+                {vitrine.foto_url ? <img src={vitrine.foto_url} alt="Logo" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <Store size={32} />}
+              </div>
+            </div>
+
+            <div className="field">
+              <span className="label">Banner da vitrine</span>
+              <input ref={bannerInputRef} type="file" accept="image/png,image/jpeg,image/webp" style={{ display: 'none' }} onChange={(e) => selecionarImagem(e, 'banner')} />
+              <button className="btn btn-secondary btn-full" type="button" onClick={() => bannerInputRef.current?.click()} disabled={uploading !== null}>
+                <ImagePlus size={18} /> {uploading === 'banner' ? 'Enviando banner...' : 'Selecionar banner'}
+              </button>
+              <div style={{ height: 92, borderRadius: 22, background: vitrine.banner_url ? `url(${vitrine.banner_url}) center/cover` : 'linear-gradient(135deg, #052e16, #166534)', border: '1px solid #dfe8d9' }} />
+            </div>
+          </div>
+        </div>
+
         <label className="field">
           <span className="label">Nome da vitrine *</span>
           <input className="input" value={vitrine.nome_vitrine} onChange={(e) => update('nome_vitrine', e.target.value)} placeholder="Ex: Chácara Flor da Dona Mariquinha" />
@@ -129,17 +190,21 @@ function MinhaVitrineContent() {
           <input className="input" value={vitrine.whatsapp || ''} onChange={(e) => update('whatsapp', e.target.value)} placeholder={perfil?.whatsapp || '5563999999999'} />
         </label>
 
-        <label className="field">
-          <span className="label">Foto/logo por URL</span>
-          <input className="input" value={vitrine.foto_url || ''} onChange={(e) => update('foto_url', e.target.value)} placeholder="Opcional: cole o link de uma imagem" />
-        </label>
+        <details className="card" style={{ background: '#f8faf4' }}>
+          <summary style={{ fontWeight: 900, cursor: 'pointer' }}>Avançado: usar imagem por URL</summary>
+          <div className="form" style={{ marginTop: 12 }}>
+            <label className="field">
+              <span className="label">URL da logo</span>
+              <input className="input" value={vitrine.foto_url || ''} onChange={(e) => update('foto_url', e.target.value)} placeholder="Opcional: cole o link de uma imagem" />
+            </label>
+            <label className="field">
+              <span className="label">URL do banner</span>
+              <input className="input" value={vitrine.banner_url || ''} onChange={(e) => update('banner_url', e.target.value)} placeholder="Opcional: cole o link de um banner" />
+            </label>
+          </div>
+        </details>
 
-        <label className="field">
-          <span className="label">Banner por URL</span>
-          <input className="input" value={vitrine.banner_url || ''} onChange={(e) => update('banner_url', e.target.value)} placeholder="Opcional: cole o link de um banner" />
-        </label>
-
-        <button className="btn btn-primary btn-full" disabled={saving}>{saving ? 'Salvando...' : 'Salvar vitrine'}</button>
+        <button className="btn btn-primary btn-full" disabled={saving || uploading !== null}>{saving ? 'Salvando...' : 'Salvar vitrine'}</button>
       </form>
 
       <aside className="card">
@@ -151,10 +216,13 @@ function MinhaVitrineContent() {
           <span className="badge">Status: {vitrine.vitrine_ativa ? 'Ativa' : 'Desativada'}</span>
         </div>
 
-        <div className="card" style={{ background: '#f8faf4' }}>
-          <strong>{vitrine.nome_vitrine}</strong>
-          <p className="muted">{vitrine.cidade || 'Cidade'} - {vitrine.estado || 'UF'}</p>
-          <p>{vitrine.descricao}</p>
+        <div className="card" style={{ background: '#f8faf4', padding: 0, overflow: 'hidden' }}>
+          <div style={{ minHeight: 100, background: vitrine.banner_url ? `url(${vitrine.banner_url}) center/cover` : 'linear-gradient(135deg, #052e16, #166534)' }} />
+          <div style={{ padding: 14 }}>
+            <strong>{vitrine.nome_vitrine}</strong>
+            <p className="muted">{vitrine.cidade || 'Cidade'} - {vitrine.estado || 'UF'}</p>
+            <p>{vitrine.descricao}</p>
+          </div>
         </div>
 
         <div style={{ display: 'grid', gap: 10, marginTop: 14 }}>
