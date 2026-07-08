@@ -46,6 +46,9 @@ export type Vitrine = {
   descricao?: string | null;
   foto_url?: string | null;
   banner_url?: string | null;
+  logo_object_fit?: 'cover' | 'contain' | string;
+  logo_object_position?: string | null;
+  banner_object_position?: string | null;
   cidade?: string | null;
   estado?: string | null;
   whatsapp?: string | null;
