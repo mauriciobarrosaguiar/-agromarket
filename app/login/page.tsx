@@ -66,6 +66,8 @@ export default function LoginPage() {
             <button className="btn btn-primary btn-full" disabled={loading}>{loading ? 'Entrando...' : 'Entrar'}</button>
           </form>
 
+          <Link className="btn btn-secondary btn-full" href="/recuperar-senha">Esqueci minha senha</Link>
+
           <button className="btn btn-secondary btn-full" type="button" onClick={reenviarConfirmacao} disabled={resending}>
             {resending ? 'Reenviando...' : 'Reenviar confirmação de e-mail'}
           </button>
