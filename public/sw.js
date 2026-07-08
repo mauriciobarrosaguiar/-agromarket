@@ -1,5 +1,5 @@
-const CACHE_NAME = 'agromarket-v1';
-const STATIC_ASSETS = ['/', '/manifest.json', '/icon-192.png', '/icon-512.png'];
+const CACHE_NAME = 'agromarket-v3';
+const STATIC_ASSETS = ['/manifest.json', '/icon-192.png', '/icon-512.png'];
 
 self.addEventListener('install', (event) => {
   event.waitUntil(caches.open(CACHE_NAME).then((cache) => cache.addAll(STATIC_ASSETS)));
@@ -16,7 +16,13 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('fetch', (event) => {
   const request = event.request;
   if (request.method !== 'GET') return;
+
+  if (request.mode === 'navigate' || request.destination === 'document') {
+    event.respondWith(fetch(request));
+    return;
+  }
+
   event.respondWith(
-    fetch(request).catch(() => caches.match(request).then((cached) => cached || caches.match('/')))
+    fetch(request).catch(() => caches.match(request))
   );
 });
