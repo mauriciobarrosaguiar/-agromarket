@@ -10,18 +10,21 @@ type PageProps = {
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { slug } = await params;
   const supabase = createSeoSupabaseClient();
+  const hoje = new Date().toISOString().slice(0, 10);
 
   const { data } = await supabase
     .from('vitrines')
-    .select('nome_vitrine, descricao, cidade, estado, slug, foto_url, banner_url, vitrine_ativa')
+    .select('nome_vitrine, descricao, cidade, estado, slug, foto_url, banner_url, vitrine_ativa, assinatura_status, assinatura_vencimento')
     .eq('slug', slug)
     .eq('vitrine_ativa', true)
+    .eq('assinatura_status', 'ativa')
+    .gte('assinatura_vencimento', hoje)
     .maybeSingle();
 
   if (!data) {
     return {
       title: `Vitrine não encontrada - ${SITE_NAME}`,
-      description: 'Vitrine não encontrada ou indisponível no AgroMarket.',
+      description: 'Vitrine não encontrada, vencida ou indisponível no AgroMarket.',
       metadataBase: new URL(getSiteUrl())
     };
   }
