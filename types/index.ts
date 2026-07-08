@@ -53,6 +53,10 @@ export type Anuncio = {
   cidade: string;
   estado: string;
   bairro?: string | null;
+  endereco?: string | null;
+  referencia?: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
   whatsapp: string;
   nome_contato: string;
   status: StatusAnuncio;
