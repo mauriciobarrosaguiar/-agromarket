@@ -1,11 +1,11 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { CreditCard, DollarSign, Save, Settings2, ShieldCheck } from 'lucide-react';
+import { CheckCircle2, Copy, CreditCard, DollarSign, Save, Settings2, ShieldCheck, Zap } from 'lucide-react';
 import AuthGuard from '@/components/AuthGuard';
 import { supabase } from '@/lib/supabase';
-import type { AmbientePagamento, MonetizacaoPlano, PagamentoConfiguracao, TipoPlanoMonetizacao } from '@/types';
+import type { AmbientePagamento, MonetizacaoPlano, PagamentoConfiguracao, ProvedorPagamento, TipoPlanoMonetizacao } from '@/types';
 
 function moneyInput(value: number | string | null | undefined) {
   if (value === null || value === undefined || value === '') return '';
@@ -19,12 +19,26 @@ function parseMoney(value: string) {
   return Number.isFinite(n) ? n : 0;
 }
 
+function webhookPadrao(provedor: ProvedorPagamento) {
+  const base = typeof window !== 'undefined' ? window.location.origin : 'https://agromarket-two.vercel.app';
+  return `${base}/api/webhooks/${provedor}`;
+}
+
+function variaveisDoBanco(provedor: ProvedorPagamento) {
+  return provedor === 'asaas'
+    ? 'ASAAS_ACCESS_TOKEN, ASAAS_ENVIRONMENT, ASAAS_WEBHOOK_TOKEN'
+    : 'EFI_CLIENT_ID, EFI_CLIENT_SECRET, EFI_CERTIFICATE_BASE64, EFI_PIX_KEY';
+}
+
 function AdminMonetizacaoContent() {
   const [planos, setPlanos] = useState<MonetizacaoPlano[]>([]);
   const [configs, setConfigs] = useState<PagamentoConfiguracao[]>([]);
   const [message, setMessage] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState<string | null>(null);
+
+  const planoVitrine = useMemo(() => planos.find((plano) => plano.codigo === 'vitrine_mensal'), [planos]);
+  const gatewayAtivo = useMemo(() => configs.find((config) => config.ativo), [configs]);
 
   async function load() {
     setLoading(true);
@@ -110,13 +124,50 @@ function AdminMonetizacaoContent() {
     await load();
   }
 
+  async function ativarGateway(provedor: ProvedorPagamento) {
+    setSaving(provedor);
+    setMessage(null);
+
+    const alvo = configs.find((config) => config.provedor === provedor);
+    if (!alvo) {
+      setMessage('Gateway não encontrado no banco.');
+      setSaving(null);
+      return;
+    }
+
+    const atualizados = configs.map((config) => ({ ...config, ativo: config.provedor === provedor }));
+    setConfigs(atualizados);
+
+    const resultados = await Promise.all(atualizados.map((config) => supabase.from('pagamento_configuracoes').update({
+      ativo: config.ativo,
+      webhook_url: config.webhook_url || webhookPadrao(config.provedor),
+      updated_at: new Date().toISOString()
+    }).eq('id', config.id)));
+
+    const erro = resultados.find((item) => item.error)?.error;
+    if (erro) setMessage(erro.message);
+    else setMessage(`${alvo.nome_exibicao} definido como gateway principal.`);
+
+    setSaving(null);
+    await load();
+  }
+
+  async function copiar(texto: string) {
+    try {
+      await navigator.clipboard.writeText(texto);
+      setMessage('Copiado.');
+    } catch {
+      setMessage('Não consegui copiar automaticamente. Selecione e copie manualmente.');
+    }
+  }
+
   return (
     <div className="section">
       <div className="section-head">
         <div>
           <span className="badge"><DollarSign size={14} /> Admin comercial</span>
           <h1>Planos, preços e pagamentos</h1>
-          <p>Edite valores de destaque, vitrine e deixe Asaas/Efí preparados para cobrança.</p>
+          <p>Configure preço da vitrine, PIX, Asaas ou Efí de forma mais simples.</p>
         </div>
         <Link href="/admin" className="btn btn-secondary">Voltar admin</Link>
       </div>
@@ -125,11 +176,41 @@ function AdminMonetizacaoContent() {
 
       {loading ? <div className="card">Carregando monetização...</div> : (
         <>
+          <section className="card" style={{ marginBottom: 18, background: 'linear-gradient(135deg, #052e16, #166534)', color: '#fff' }}>
+            <span className="badge" style={{ background: 'rgba(255,255,255,.18)', color: '#fff' }}><Zap size={14} /> Configuração rápida</span>
+            <h2 style={{ color: '#fff', marginBottom: 8 }}>Receber mensalidade da lojinha</h2>
+            <p style={{ color: 'rgba(255,255,255,.84)' }}>Use estes 3 passos: defina o preço, escolha o banco, preencha PIX/webhook e salve.</p>
+
+            <div className="grid grid-3" style={{ marginTop: 14 }}>
+              <div className="card" style={{ background: 'rgba(255,255,255,.95)' }}>
+                <strong>1. Preço da vitrine</strong>
+                <div className="price" style={{ fontSize: 28 }}>{moneyInput(planoVitrine?.preco || 0)}</div>
+                <p className="muted">Edite no bloco “Planos e preços”.</p>
+              </div>
+              <div className="card" style={{ background: 'rgba(255,255,255,.95)' }}>
+                <strong>2. Gateway principal</strong>
+                <p className="muted">Atual: {gatewayAtivo?.nome_exibicao || 'Nenhum ativo'}</p>
+                <div style={{ display: 'grid', gap: 8 }}>
+                  {configs.map((config) => (
+                    <button key={config.id} className={config.ativo ? 'btn btn-primary btn-full' : 'btn btn-secondary btn-full'} type="button" onClick={() => ativarGateway(config.provedor)} disabled={saving === config.provedor}>
+                      {config.ativo ? <CheckCircle2 size={18} /> : <CreditCard size={18} />} Usar {config.nome_exibicao}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div className="card" style={{ background: 'rgba(255,255,255,.95)' }}>
+                <strong>3. Chaves seguras</strong>
+                <p className="muted">Tokens e certificados ficam nas variáveis da Vercel, não na tela do app.</p>
+                <Link className="btn btn-secondary btn-full" href="/admin/seguranca">Ver segurança</Link>
+              </div>
+            </div>
+          </section>
+
           <section className="card" style={{ marginBottom: 18 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
               <div>
                 <h2 style={{ marginTop: 0 }}>Planos e preços</h2>
-                <p className="muted" style={{ marginBottom: 0 }}>Esses valores aparecem na página de planos e servem para cobrança manual/automática.</p>
+                <p className="muted" style={{ marginBottom: 0 }}>Altere aqui o valor da vitrine mensal, destaque e outros planos.</p>
               </div>
               <button className="btn btn-primary" type="button" onClick={criarPlano}>Criar plano</button>
             </div>
@@ -155,14 +236,14 @@ function AdminMonetizacaoContent() {
                   </label>
                   <label className="field">
                     <span className="label">Dias</span>
-                    <input className="input" inputMode="numeric" value={plano.dias || ''} onChange={(e) => atualizarPlano(plano.id, { dias: Number(e.target.value) || null })} placeholder="Ex: 7" />
+                    <input className="input" inputMode="numeric" value={plano.dias || ''} onChange={(e) => atualizarPlano(plano.id, { dias: Number(e.target.value) || null })} placeholder="Ex: 30" />
                   </label>
                 </div>
 
                 <div className="form-row">
                   <label className="field">
                     <span className="label">Preço</span>
-                    <input className="input" inputMode="decimal" value={moneyInput(plano.preco)} onChange={(e) => atualizarPlano(plano.id, { preco: parseMoney(e.target.value) })} placeholder="Ex: 9,90" />
+                    <input className="input" inputMode="decimal" value={moneyInput(plano.preco)} onChange={(e) => atualizarPlano(plano.id, { preco: parseMoney(e.target.value) })} placeholder="Ex: 29,90" />
                   </label>
                   <label className="field">
                     <span className="label">Ordem</span>
@@ -184,63 +265,72 @@ function AdminMonetizacaoContent() {
           <section className="section">
             <div className="section-head">
               <div>
-                <h2>Recebimento e gateways</h2>
-                <p>Deixe Asaas/Efí prontos. As credenciais sensíveis devem ficar no ambiente seguro da Vercel.</p>
+                <h2>Configuração dos bancos</h2>
+                <p>Escolha o gateway, salve PIX e webhook. Tokens ficam somente na Vercel.</p>
               </div>
             </div>
 
             <div className="grid grid-2">
-              {configs.map((config) => (
-                <article className="card" key={config.id}>
-                  <span className="badge"><CreditCard size={14} /> {config.nome_exibicao}</span>
-                  <h3>{config.nome_exibicao}</h3>
+              {configs.map((config) => {
+                const variaveis = variaveisDoBanco(config.provedor);
+                const webhook = config.webhook_url || webhookPadrao(config.provedor);
+                return (
+                  <article className="card" key={config.id} style={{ border: config.ativo ? '2px solid rgba(22, 101, 52, .38)' : undefined }}>
+                    <span className="badge"><CreditCard size={14} /> {config.ativo ? 'Gateway ativo' : 'Gateway inativo'}</span>
+                    <h3>{config.nome_exibicao}</h3>
 
-                  <div className="notice">
-                    <strong>Segurança:</strong> não digite token secreto em tela pública do app. Configure as chaves sensíveis nas variáveis da Vercel. Aqui controlamos status, PIX e webhook.
-                  </div>
+                    <div className="notice">
+                      <strong>Como configurar:</strong> marque como ativo, escolha o ambiente, informe a chave PIX, cole o webhook abaixo na conta do banco e configure os tokens na Vercel.
+                    </div>
 
-                  <div className="form-row">
+                    <button className={config.ativo ? 'btn btn-primary btn-full' : 'btn btn-secondary btn-full'} type="button" onClick={() => ativarGateway(config.provedor)} disabled={saving === config.provedor}>
+                      {config.ativo ? <CheckCircle2 size={18} /> : <CreditCard size={18} />} {config.ativo ? 'Gateway principal' : `Usar ${config.nome_exibicao}`}
+                    </button>
+
+                    <div className="form-row">
+                      <label className="field">
+                        <span className="label">Ambiente</span>
+                        <select className="select" value={config.ambiente} onChange={(e) => atualizarConfig(config.id, { ambiente: e.target.value as AmbientePagamento })}>
+                          <option value="sandbox">Sandbox/teste</option>
+                          <option value="producao">Produção</option>
+                        </select>
+                      </label>
+                      <label className="field" style={{ justifyContent: 'end' }}>
+                        <span className="checkbox-row"><input type="checkbox" checked={config.credenciais_configuradas} onChange={(e) => atualizarConfig(config.id, { credenciais_configuradas: e.target.checked })} /> Credenciais na Vercel</span>
+                      </label>
+                    </div>
+
                     <label className="field">
-                      <span className="label">Ambiente</span>
-                      <select className="select" value={config.ambiente} onChange={(e) => atualizarConfig(config.id, { ambiente: e.target.value as AmbientePagamento })}>
-                        <option value="sandbox">Sandbox/teste</option>
-                        <option value="producao">Produção</option>
-                      </select>
+                      <span className="label">Chave PIX para recebimento</span>
+                      <input className="input" value={config.pix_chave || ''} onChange={(e) => atualizarConfig(config.id, { pix_chave: e.target.value })} placeholder="CPF/CNPJ/e-mail/telefone/chave aleatória" />
                     </label>
-                    <label className="field" style={{ justifyContent: 'end' }}>
-                      <span className="checkbox-row"><input type="checkbox" checked={config.ativo} onChange={(e) => atualizarConfig(config.id, { ativo: e.target.checked })} /> Gateway ativo</span>
+
+                    <label className="field">
+                      <span className="label">Webhook URL</span>
+                      <div style={{ display: 'grid', gap: 8 }}>
+                        <input className="input" value={webhook} onChange={(e) => atualizarConfig(config.id, { webhook_url: e.target.value })} placeholder={webhookPadrao(config.provedor)} />
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                          <button className="btn btn-secondary" type="button" onClick={() => atualizarConfig(config.id, { webhook_url: webhookPadrao(config.provedor) })}>Usar padrão</button>
+                          <button className="btn btn-secondary" type="button" onClick={() => copiar(webhook)}><Copy size={16} /> Copiar</button>
+                        </div>
+                      </div>
                     </label>
-                  </div>
 
-                  <label className="field">
-                    <span className="label">Chave PIX para recebimento</span>
-                    <input className="input" value={config.pix_chave || ''} onChange={(e) => atualizarConfig(config.id, { pix_chave: e.target.value })} placeholder="CPF/CNPJ/e-mail/telefone/chave aleatória" />
-                  </label>
+                    <label className="field">
+                      <span className="label">Observação interna</span>
+                      <textarea className="textarea" value={config.observacao || ''} onChange={(e) => atualizarConfig(config.id, { observacao: e.target.value })} />
+                    </label>
 
-                  <label className="field">
-                    <span className="label">Webhook URL</span>
-                    <input className="input" value={config.webhook_url || ''} onChange={(e) => atualizarConfig(config.id, { webhook_url: e.target.value })} placeholder="https://seu-dominio.com/api/webhooks/..." />
-                  </label>
+                    <div className="card" style={{ background: '#f8faf4' }}>
+                      <strong><Settings2 size={16} /> Variáveis para colocar na Vercel</strong>
+                      <p className="muted" style={{ marginBottom: 8 }}>{variaveis}</p>
+                      <button className="btn btn-secondary btn-full" type="button" onClick={() => copiar(variaveis)}><Copy size={16} /> Copiar variáveis</button>
+                    </div>
 
-                  <label className="checkbox-row"><input type="checkbox" checked={config.credenciais_configuradas} onChange={(e) => atualizarConfig(config.id, { credenciais_configuradas: e.target.checked })} /> Credenciais já configuradas na Vercel</label>
-
-                  <label className="field">
-                    <span className="label">Observação interna</span>
-                    <textarea className="textarea" value={config.observacao || ''} onChange={(e) => atualizarConfig(config.id, { observacao: e.target.value })} />
-                  </label>
-
-                  <div className="card" style={{ background: '#f8faf4' }}>
-                    <strong><Settings2 size={16} /> Variáveis sugeridas</strong>
-                    <p className="muted" style={{ marginBottom: 0 }}>
-                      {config.provedor === 'asaas'
-                        ? 'ASAAS_ACCESS_TOKEN, ASAAS_ENVIRONMENT, ASAAS_WEBHOOK_TOKEN'
-                        : 'EFI_CLIENT_ID, EFI_CLIENT_SECRET, EFI_CERTIFICATE_BASE64, EFI_PIX_KEY'}
-                    </p>
-                  </div>
-
-                  <button className="btn btn-primary btn-full" type="button" disabled={saving === config.id} onClick={() => salvarConfig(config)}><ShieldCheck size={18} /> Salvar configuração</button>
-                </article>
-              ))}
+                    <button className="btn btn-primary btn-full" type="button" disabled={saving === config.id} onClick={() => salvarConfig(config)}><ShieldCheck size={18} /> Salvar configuração</button>
+                  </article>
+                );
+              })}
             </div>
           </section>
         </>
