@@ -36,7 +36,7 @@ function AdminContent() {
     <main className="page">
       <div className="container">
         <div className="section-head">
-          <div><h1>Admin AgroMarket</h1><p>Controle anúncios, usuários, categorias, vitrines, denúncias e destaques.</p></div>
+          <div><h1>Admin AgroMarket</h1><p>Controle anúncios, usuários, categorias, vitrines, denúncias, destaques, backup e segurança.</p></div>
         </div>
         <div className="stats-grid">
           <StatCard label="Anúncios" value={anuncios.length} href="/admin/anuncios" />
@@ -55,6 +55,7 @@ function AdminContent() {
           <Link className="card" href="/admin/vitrines"><strong>Vitrines</strong><p className="muted">Liberar, destacar ou desativar vitrines.</p></Link>
           <Link className="card" href="/admin/categorias"><strong>Categorias</strong><p className="muted">Criar e editar categorias.</p></Link>
           <Link className="card" href="/admin/usuarios"><strong>Usuários</strong><p className="muted">Ver anunciantes.</p></Link>
+          <Link className="card" href="/admin/seguranca"><strong>Backup e segurança</strong><p className="muted">Checklist de produção e registro de backup.</p></Link>
         </div>
       </div>
     </main>
