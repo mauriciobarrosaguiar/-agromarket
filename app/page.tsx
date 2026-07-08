@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { LocateFixed, PlusCircle, Search, Sparkles } from 'lucide-react';
+import { BadgeCheck, LocateFixed, PlusCircle, Search, ShieldCheck, Sparkles, Store } from 'lucide-react';
 import { supabase, hasSupabaseEnv } from '@/lib/supabase';
 import type { Anuncio, Categoria } from '@/types';
 import { formatMoney } from '@/lib/whatsapp';
@@ -32,10 +32,13 @@ function distanciaKm(origem: Coordenadas, anuncio: Anuncio) {
 }
 
 function ordenarPorProximidade(lista: AnuncioComDistancia[], coords: Coordenadas | null) {
-  if (!coords) return lista;
-  return lista
-    .map((ad) => ({ ...ad, distancia_calculada: distanciaKm(coords, ad) }))
-    .sort((a, b) => (a.distancia_calculada ?? 999999) - (b.distancia_calculada ?? 999999));
+  const ordenada = coords
+    ? lista
+        .map((ad) => ({ ...ad, distancia_calculada: distanciaKm(coords, ad) }))
+        .sort((a, b) => (a.distancia_calculada ?? 999999) - (b.distancia_calculada ?? 999999))
+    : lista;
+
+  return ordenada.sort((a, b) => Number(b.destaque) - Number(a.destaque));
 }
 
 export default function HomePage() {
@@ -74,6 +77,8 @@ export default function HomePage() {
   }, [coords]);
 
   const destaques = anuncios.slice(0, 3);
+  const totalDestaques = anuncios.filter((ad) => ad.destaque).length;
+  const cidades = Array.from(new Set(anuncios.map((ad) => `${ad.cidade}-${ad.estado}`))).length;
 
   return (
     <main className="page">
@@ -83,25 +88,30 @@ export default function HomePage() {
           <div className="hero-card">
             <div className="hero-grid">
               <div>
-                <span className="badge"><Sparkles size={15} /> Marketplace Agro</span>
-                <h1>Compre, venda e divulgue tudo do Agro.</h1>
-                <p>Produtos rurais, animais, serviços, máquinas e oportunidades perto de você. Negociação direta pelo WhatsApp.</p>
+                <span className="badge"><Sparkles size={15} /> Anuncie grátis no lançamento</span>
+                <h1>Compre e venda no agro perto de você.</h1>
+                <p>O AgroMarket conecta vendedores e compradores de produtos rurais, animais, máquinas, serviços e oportunidades. Negociação direta pelo WhatsApp, com anúncio aprovado e perfil validado.</p>
                 <SearchBar />
                 <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 14 }}>
-                  <Link className="btn btn-primary" href="/anunciar"><PlusCircle size={18} /> Criar anúncio</Link>
-                  <Link className="btn btn-secondary" href="/anuncios">Ver anúncios</Link>
+                  <Link className="btn btn-primary" href="/anunciar"><PlusCircle size={18} /> Quero anunciar</Link>
+                  <Link className="btn btn-secondary" href="/anuncios"><Search size={18} /> Ver anúncios perto de mim</Link>
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 10, marginTop: 18 }}>
+                  <div className="mini-card"><strong>{anuncios.length}</strong><br /><span className="muted">anúncios ativos</span></div>
+                  <div className="mini-card"><strong>{cidades}</strong><br /><span className="muted">cidades</span></div>
+                  <div className="mini-card"><strong>{totalDestaques}</strong><br /><span className="muted">destaques</span></div>
                 </div>
               </div>
               <div className="hero-visual">
                 <div className="hero-visual-title">
-                  <LocateFixed size={16} /> {coords ? 'Anúncios próximos de você' : 'Anúncios reais recentes'}
+                  <LocateFixed size={16} /> {coords ? 'Anúncios próximos de você' : 'Anúncios em destaque'}
                 </div>
                 {loading ? (
                   <div className="mini-card"><strong>Carregando anúncios...</strong></div>
                 ) : destaques.length ? (
                   destaques.map((ad) => (
                     <Link key={ad.id} href={`/anuncio/${ad.slug}`} className="mini-card mini-card-link">
-                      <strong>{ad.categorias?.icone || '🌱'} {ad.titulo}</strong>
+                      <strong>{ad.destaque ? '⭐ ' : ''}{ad.categorias?.icone || '🌱'} {ad.titulo}</strong>
                       <br />
                       <span className="muted">
                         {ad.preco_a_combinar ? 'A combinar' : formatMoney(ad.preco, ad.preco_a_combinar)} · {ad.cidade} - {ad.estado}
@@ -109,7 +119,7 @@ export default function HomePage() {
                     </Link>
                   ))
                 ) : (
-                  <div className="mini-card"><strong>Nenhum anúncio aprovado ainda</strong><br /><span className="muted">Seja o primeiro a anunciar.</span></div>
+                  <div className="mini-card"><strong>Seja o primeiro a anunciar</strong><br /><span className="muted">Cadastre produtos, animais e serviços.</span></div>
                 )}
                 <Link className="btn btn-secondary btn-full" href="/anuncios"><Search size={18} /> Buscar mais anúncios</Link>
               </div>
@@ -120,9 +130,31 @@ export default function HomePage() {
 
       <section className="section">
         <div className="container">
+          <div className="grid grid-3">
+            <div className="card" style={{ background: '#f8faf4' }}>
+              <ShieldCheck size={30} />
+              <h2>Mais confiança</h2>
+              <p className="muted">Perfil com selfie, localização real por GPS, anúncios aprovados e botão de denúncia.</p>
+            </div>
+            <div className="card" style={{ background: '#f8faf4' }}>
+              <Store size={30} />
+              <h2>Vitrine do vendedor</h2>
+              <p className="muted">Cada vendedor pode ter uma página pública com seus produtos e serviços.</p>
+            </div>
+            <div className="card" style={{ background: '#f8faf4' }}>
+              <BadgeCheck size={30} />
+              <h2>Destaque para vender</h2>
+              <p className="muted">Planos de destaque fazem o anúncio aparecer acima na busca e na página inicial.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section className="section">
+        <div className="container">
           <div className="section-head section-head-compact">
             <div>
-              <h2>Categorias</h2>
+              <h2>Categorias do agro</h2>
               <p>Toque e filtre rápido.</p>
             </div>
             <Link href="/anuncios" className="btn btn-secondary">Ver tudo</Link>
@@ -135,8 +167,8 @@ export default function HomePage() {
         <div className="container">
           <div className="section-head">
             <div>
-              <h2>Anúncios recentes</h2>
-              <p>Produtos, animais, serviços e vagas publicados.</p>
+              <h2>Anúncios em destaque e recentes</h2>
+              <p>Produtos, animais, serviços, máquinas e vagas publicados no AgroMarket.</p>
             </div>
             <Link href="/anuncios" className="btn btn-secondary">Buscar</Link>
           </div>
@@ -145,6 +177,20 @@ export default function HomePage() {
               {anuncios.slice(0, 8).map((ad) => <AnuncioCard key={ad.id} anuncio={ad} />)}
             </div>
           ) : <EmptyState title="Nenhum anúncio aprovado ainda" description="Crie o primeiro anúncio pelo botão Anunciar." />}
+        </div>
+      </section>
+
+      <section className="section">
+        <div className="container">
+          <div className="card" style={{ background: 'linear-gradient(135deg, #052e16, #166534)', color: '#fff' }}>
+            <h2 style={{ color: '#fff' }}>Tem algo para vender no agro?</h2>
+            <p style={{ color: 'rgba(255,255,255,.84)' }}>Anuncie grátis no lançamento, compartilhe nos grupos e receba interessados direto no WhatsApp.</p>
+            <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+              <Link className="btn btn-primary" href="/anunciar"><PlusCircle size={18} /> Criar anúncio agora</Link>
+              <Link className="btn btn-secondary" href="/planos">Ver planos de destaque</Link>
+              <Link className="btn btn-secondary" href="/regras">Ver regras</Link>
+            </div>
+          </div>
         </div>
       </section>
     </main>
