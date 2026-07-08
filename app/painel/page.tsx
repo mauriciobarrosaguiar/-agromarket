@@ -5,11 +5,12 @@ import Link from 'next/link';
 import AuthGuard from '@/components/AuthGuard';
 import StatCard from '@/components/StatCard';
 import { supabase } from '@/lib/supabase';
-import type { Anuncio, Usuario } from '@/types';
+import type { Anuncio, Usuario, Vitrine } from '@/types';
 
 function PainelContent() {
   const [anuncios, setAnuncios] = useState<Anuncio[]>([]);
   const [perfil, setPerfil] = useState<Usuario | null>(null);
+  const [vitrine, setVitrine] = useState<Vitrine | null>(null);
   const [pendentesAdmin, setPendentesAdmin] = useState(0);
 
   useEffect(() => {
@@ -17,13 +18,15 @@ function PainelContent() {
       const { data: userData } = await supabase.auth.getUser();
       if (!userData.user) return;
 
-      const [{ data: meusAnuncios }, { data: meuPerfil }] = await Promise.all([
+      const [{ data: meusAnuncios }, { data: meuPerfil }, { data: minhaVitrine }] = await Promise.all([
         supabase.from('anuncios').select('*').eq('usuario_id', userData.user.id),
-        supabase.from('usuarios').select('*').eq('id', userData.user.id).single()
+        supabase.from('usuarios').select('*').eq('id', userData.user.id).single(),
+        supabase.from('vitrines').select('*').eq('usuario_id', userData.user.id).maybeSingle()
       ]);
 
       setAnuncios((meusAnuncios || []) as Anuncio[]);
       setPerfil(meuPerfil as Usuario);
+      setVitrine((minhaVitrine || null) as Vitrine | null);
 
       if (meuPerfil?.tipo_usuario === 'admin') {
         const { count } = await supabase
@@ -46,7 +49,7 @@ function PainelContent() {
         <div className="section-head">
           <div>
             <h1>{isAdmin ? 'Painel admin e anunciante' : 'Painel do anunciante'}</h1>
-            <p>Acompanhe seus anúncios e resultados.</p>
+            <p>Acompanhe seus anúncios, vitrine e resultados.</p>
           </div>
           <Link href="/anunciar" className="btn btn-primary">Novo anúncio</Link>
         </div>
@@ -54,13 +57,23 @@ function PainelContent() {
         {isAdmin && (
           <div className="card section" style={{ border: '2px solid rgba(21, 128, 61, 0.22)' }}>
             <h2>Área do administrador</h2>
-            <p className="muted">Você está logado como admin. Aprove ou recuse anúncios pendentes aqui.</p>
+            <p className="muted">Você está logado como admin. Aprove anúncios e controle vitrines.</p>
             <div className="actions" style={{ justifyContent: 'flex-start', flexWrap: 'wrap' }}>
               <Link className="btn btn-primary" href="/admin/pendentes">Aprovar pendentes ({pendentesAdmin})</Link>
+              <Link className="btn btn-secondary" href="/admin/vitrines">Gerenciar vitrines</Link>
               <Link className="btn btn-secondary" href="/admin">Painel admin completo</Link>
             </div>
           </div>
         )}
+
+        <div className="card section" style={{ border: '2px solid rgba(22, 101, 52, 0.12)' }}>
+          <h2>Minha vitrine</h2>
+          <p className="muted">Mostre todos os seus produtos em uma página pública. No lançamento, está liberada grátis.</p>
+          <div className="actions" style={{ justifyContent: 'flex-start', flexWrap: 'wrap' }}>
+            <Link className="btn btn-primary" href="/painel/vitrine">Configurar vitrine</Link>
+            {vitrine?.slug && <Link className="btn btn-secondary" href={`/vendedor/${vitrine.slug}`}>Ver vitrine pública</Link>}
+          </div>
+        </div>
 
         <div className="stats-grid">
           <StatCard label="Total de anúncios" value={anuncios.length} />
