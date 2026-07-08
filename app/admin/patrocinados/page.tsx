@@ -2,7 +2,7 @@
 
 import { ChangeEvent, FormEvent, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { ImagePlus, Megaphone, Save, Trash2 } from 'lucide-react';
+import { CheckCircle2, ImagePlus, Megaphone, Save, Trash2, XCircle } from 'lucide-react';
 import AuthGuard from '@/components/AuthGuard';
 import EmptyState from '@/components/EmptyState';
 import { supabase } from '@/lib/supabase';
@@ -21,6 +21,7 @@ type FormState = {
   estado: string;
   ordem: number;
   ativo: boolean;
+  status: string;
   inicio_em: string;
   fim_em: string;
 };
@@ -36,6 +37,7 @@ const vazio: FormState = {
   estado: 'TO',
   ordem: 0,
   ativo: true,
+  status: 'aprovado',
   inicio_em: '',
   fim_em: ''
 };
@@ -53,6 +55,7 @@ function toForm(item: PatrocinadoHome): FormState {
     estado: item.estado || 'TO',
     ordem: item.ordem || 0,
     ativo: item.ativo,
+    status: item.status || 'aprovado',
     inicio_em: item.inicio_em || '',
     fim_em: item.fim_em || ''
   };
@@ -60,6 +63,13 @@ function toForm(item: PatrocinadoHome): FormState {
 
 function moneyLike(value: number) {
   return value.toLocaleString('pt-BR');
+}
+
+function statusLabel(item: PatrocinadoHome) {
+  if (item.status === 'pendente') return 'Pendente de aprovação';
+  if (item.status === 'recusado') return 'Recusado';
+  if (!item.ativo) return 'Pausado';
+  return 'Aprovado/ativo';
 }
 
 function AdminPatrocinadosContent() {
@@ -71,9 +81,15 @@ function AdminPatrocinadosContent() {
 
   const totalViews = useMemo(() => itens.reduce((acc, item) => acc + (item.visualizacoes || 0), 0), [itens]);
   const totalCliques = useMemo(() => itens.reduce((acc, item) => acc + (item.cliques || 0), 0), [itens]);
+  const pendentes = useMemo(() => itens.filter((item) => item.status === 'pendente').length, [itens]);
 
   async function load() {
-    const { data } = await supabase.from('patrocinados_home').select('*').order('ordem').order('created_at', { ascending: false });
+    const { data } = await supabase
+      .from('patrocinados_home')
+      .select('*, usuarios(nome, email, whatsapp), vitrines(nome_vitrine, slug)')
+      .order('status')
+      .order('ordem')
+      .order('created_at', { ascending: false });
     setItens((data || []) as PatrocinadoHome[]);
   }
 
@@ -119,6 +135,7 @@ function AdminPatrocinadosContent() {
       estado: form.estado.trim() || null,
       ordem: Number(form.ordem) || 0,
       ativo: form.ativo,
+      status: form.status || 'aprovado',
       inicio_em: form.inicio_em || null,
       fim_em: form.fim_em || null,
       updated_at: new Date().toISOString()
@@ -132,16 +149,52 @@ function AdminPatrocinadosContent() {
 
     const result = form.id
       ? await supabase.from('patrocinados_home').update(payload).eq('id', form.id)
-      : await supabase.from('patrocinados_home').insert(payload);
+      : await supabase.from('patrocinados_home').insert({ ...payload, status: 'aprovado', ativo: true });
 
     if (result.error) setMessage(result.error.message);
     else {
-      setMessage(form.id ? 'Patrocinado atualizado.' : 'Patrocinado criado.');
+      setMessage(form.id ? 'Patrocinado atualizado.' : 'Patrocinado criado e aprovado.');
       setForm(vazio);
       await load();
     }
 
     setSaving(false);
+  }
+
+  async function aprovar(item: PatrocinadoHome) {
+    const { data: userData } = await supabase.auth.getUser();
+    const { error } = await supabase.from('patrocinados_home').update({
+      status: 'aprovado',
+      ativo: true,
+      motivo_recusa: null,
+      admin_id: userData.user?.id || null,
+      aprovado_em: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    }).eq('id', item.id);
+
+    if (error) setMessage(error.message);
+    else {
+      setMessage('Banner aprovado e publicado na home.');
+      await load();
+    }
+  }
+
+  async function recusar(item: PatrocinadoHome) {
+    const motivo = prompt('Motivo da recusa, opcional:') || null;
+    const { data: userData } = await supabase.auth.getUser();
+    const { error } = await supabase.from('patrocinados_home').update({
+      status: 'recusado',
+      ativo: false,
+      motivo_recusa: motivo,
+      admin_id: userData.user?.id || null,
+      updated_at: new Date().toISOString()
+    }).eq('id', item.id);
+
+    if (error) setMessage(error.message);
+    else {
+      setMessage('Banner recusado.');
+      await load();
+    }
   }
 
   async function excluir(id: string) {
@@ -168,7 +221,7 @@ function AdminPatrocinadosContent() {
           <div>
             <span className="badge"><Megaphone size={14} /> Espaço patrocinado</span>
             <h1>Patrocinados da Home</h1>
-            <p>Cadastre vários banners. Eles passam automaticamente e o usuário pode arrastar no celular.</p>
+            <p>Cadastre banners e aprove solicitações feitas pelos assinantes de vitrine.</p>
           </div>
           <Link className="btn btn-secondary" href="/admin">Voltar admin</Link>
         </div>
@@ -177,7 +230,8 @@ function AdminPatrocinadosContent() {
 
         <div className="stats-grid" style={{ marginBottom: 18 }}>
           <div className="mini-card"><strong>{itens.length}</strong><br /><span className="muted">banners</span></div>
-          <div className="mini-card"><strong>{itens.filter((item) => item.ativo).length}</strong><br /><span className="muted">ativos</span></div>
+          <div className="mini-card"><strong>{itens.filter((item) => item.ativo && item.status === 'aprovado').length}</strong><br /><span className="muted">ativos</span></div>
+          <div className="mini-card"><strong>{pendentes}</strong><br /><span className="muted">pendentes</span></div>
           <div className="mini-card"><strong>{moneyLike(totalViews)}</strong><br /><span className="muted">visualizações</span></div>
           <div className="mini-card"><strong>{moneyLike(totalCliques)}</strong><br /><span className="muted">cliques</span></div>
         </div>
@@ -193,7 +247,7 @@ function AdminPatrocinadosContent() {
 
             <label className="field">
               <span className="label">Subtítulo</span>
-              <textarea className="textarea" value={form.subtitulo} onChange={(e) => set('subtitulo', e.target.value)} placeholder="Texto curto para aparecer no banner." />
+              <textarea className="textarea" value={form.subtitulo} onChange={(e) => set('subtitulo', e.target.value)} placeholder="Texto curto para controle interno e página Ver todos." />
             </label>
 
             <div className="form-row">
@@ -208,8 +262,8 @@ function AdminPatrocinadosContent() {
             </div>
 
             <label className="field">
-              <span className="label">Link de destino</span>
-              <input className="input" value={form.link_url} onChange={(e) => set('link_url', e.target.value)} placeholder="/anuncio/slug ou https://site.com" />
+              <span className="label">Link alternativo</span>
+              <input className="input" value={form.link_url} onChange={(e) => set('link_url', e.target.value)} placeholder="Opcional. Se tiver WhatsApp, o clique abre o WhatsApp." />
             </label>
 
             <div className="form-row">
@@ -239,14 +293,21 @@ function AdminPatrocinadosContent() {
                 <span className="label">Ordem</span>
                 <input className="input" inputMode="numeric" value={form.ordem} onChange={(e) => set('ordem', Number(e.target.value) || 0)} />
               </label>
-              <label className="field" style={{ alignContent: 'end' }}>
-                <span className="checkbox-row"><input type="checkbox" checked={form.ativo} onChange={(e) => set('ativo', e.target.checked)} /> Ativo</span>
+              <label className="field">
+                <span className="label">Status</span>
+                <select className="select" value={form.status} onChange={(e) => set('status', e.target.value)}>
+                  <option value="aprovado">Aprovado</option>
+                  <option value="pendente">Pendente</option>
+                  <option value="recusado">Recusado</option>
+                </select>
               </label>
             </div>
 
+            <label className="checkbox-row"><input type="checkbox" checked={form.ativo} onChange={(e) => set('ativo', e.target.checked)} /> Banner ativo na home</label>
+
             <div className="card" style={{ background: '#f8faf4' }}>
               <span className="label">Imagem do banner *</span>
-              <p className="muted">Recomendado: 1400 x 420 px para desktop ou 1080 x 520 px para celular.</p>
+              <p className="muted">Recomendado: 1080 x 520 px ou 16:9. A home mostra a imagem limpa, sem textos por cima.</p>
               <input type="file" accept="image/png,image/jpeg,image/webp" onChange={selecionarImagem} />
               <label className="field" style={{ marginTop: 12 }}>
                 <span className="label">Ou cole URL da imagem</span>
@@ -266,18 +327,23 @@ function AdminPatrocinadosContent() {
             {!itens.length ? <EmptyState title="Nenhum patrocinado cadastrado" description="Cadastre o primeiro banner para aparecer na home." /> : (
               <div style={{ display: 'grid', gap: 12 }}>
                 {itens.map((item) => (
-                  <article className="card" key={item.id} style={{ padding: 0, overflow: 'hidden' }}>
+                  <article className="card" key={item.id} style={{ padding: 0, overflow: 'hidden', border: item.status === 'pendente' ? '2px solid rgba(202, 138, 4, .45)' : undefined }}>
                     <img src={item.imagem_url} alt={item.titulo} style={{ width: '100%', height: 130, objectFit: 'cover' }} />
                     <div style={{ padding: 12 }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap' }}>
                         <strong>{item.titulo}</strong>
-                        <span className="badge">{item.ativo ? 'Ativo' : 'Pausado'}</span>
+                        <span className="badge">{statusLabel(item)}</span>
                       </div>
-                      <p className="muted">{item.nome_anunciante || 'Sem anunciante'} • Ordem {item.ordem}</p>
+                      <p className="muted">{item.nome_anunciante || item.vitrines?.nome_vitrine || 'Sem anunciante'} • Ordem {item.ordem}</p>
+                      {item.usuarios && <p className="muted">Solicitante: {item.usuarios.nome} • {item.usuarios.email}</p>}
+                      {item.vitrines && <p className="muted">Vitrine: {item.vitrines.nome_vitrine}</p>}
                       <p className="muted">{item.visualizacoes || 0} views • {item.cliques || 0} cliques</p>
+                      {item.motivo_recusa && <div className="notice">Recusa: {item.motivo_recusa}</div>}
                       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                        {item.status === 'pendente' && <button className="btn btn-primary" type="button" onClick={() => aprovar(item)}><CheckCircle2 size={16} /> Aprovar</button>}
+                        {item.status === 'pendente' && <button className="btn btn-danger" type="button" onClick={() => recusar(item)}><XCircle size={16} /> Recusar</button>}
                         <button className="btn btn-secondary" type="button" onClick={() => setForm(toForm(item))}>Editar</button>
-                        <button className="btn btn-secondary" type="button" onClick={() => alternar(item)}>{item.ativo ? 'Pausar' : 'Ativar'}</button>
+                        {item.status === 'aprovado' && <button className="btn btn-secondary" type="button" onClick={() => alternar(item)}>{item.ativo ? 'Pausar' : 'Ativar'}</button>}
                         <button className="btn btn-danger" type="button" onClick={() => excluir(item.id)}><Trash2 size={16} /> Excluir</button>
                       </div>
                     </div>
