@@ -39,13 +39,13 @@ function AdminContent() {
           <div><h1>Admin AgroMarket</h1><p>Controle anúncios, usuários, categorias, vitrines, denúncias e destaques.</p></div>
         </div>
         <div className="stats-grid">
-          <StatCard label="Anúncios" value={anuncios.length} />
-          <StatCard label="Pendentes" value={anuncios.filter((a) => a.status === 'pendente').length} />
-          <StatCard label="Aprovados" value={anuncios.filter((a) => a.status === 'aprovado').length} />
-          <StatCard label="Destaques pendentes" value={destaques.filter((d) => d.status === 'pendente').length} />
-          <StatCard label="Denúncias abertas" value={denuncias.filter((d) => d.status === 'aberta').length} />
-          <StatCard label="Usuários" value={usuarios.length} />
-          <StatCard label="Vitrines" value={vitrines.length} />
+          <StatCard label="Anúncios" value={anuncios.length} href="/admin/anuncios" />
+          <StatCard label="Pendentes" value={anuncios.filter((a) => a.status === 'pendente').length} href="/admin/pendentes" />
+          <StatCard label="Aprovados" value={anuncios.filter((a) => a.status === 'aprovado').length} href="/admin/anuncios" />
+          <StatCard label="Destaques pendentes" value={destaques.filter((d) => d.status === 'pendente').length} href="/admin/destaques" />
+          <StatCard label="Denúncias abertas" value={denuncias.filter((d) => d.status === 'aberta').length} href="/admin/denuncias" />
+          <StatCard label="Usuários" value={usuarios.length} href="/admin/usuarios" />
+          <StatCard label="Vitrines" value={vitrines.length} href="/admin/vitrines" />
         </div>
         <div className="grid grid-4 section">
           <Link className="card" href="/admin/pendentes"><strong>Pendentes</strong><p className="muted">Aprovar ou recusar anúncios.</p></Link>
