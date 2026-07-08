@@ -5,11 +5,12 @@ import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { ChevronLeft, ChevronRight, Flag, MapPin, Store, X } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
-import type { Anuncio, Vitrine } from '@/types';
+import type { Anuncio, AvaliacaoVendedor, Vitrine } from '@/types';
 import { formatMoney } from '@/lib/whatsapp';
 import WhatsAppButton from '@/components/WhatsAppButton';
 import ShareButton from '@/components/ShareButton';
 import EmptyState from '@/components/EmptyState';
+import RatingStars from '@/components/RatingStars';
 
 const MOTIVOS_DENUNCIA = [
   'Golpe ou fraude',
@@ -22,10 +23,17 @@ const MOTIVOS_DENUNCIA = [
   'Outro motivo'
 ];
 
+function calcularResumoAvaliacoes(avaliacoes: AvaliacaoVendedor[]) {
+  const total = avaliacoes.length;
+  const media = total ? avaliacoes.reduce((acc, item) => acc + Number(item.nota || 0), 0) / total : 0;
+  return { total, media };
+}
+
 export default function AnuncioDetalheClient() {
   const params = useParams<{ slug: string }>();
   const [anuncio, setAnuncio] = useState<Anuncio | null>(null);
   const [vitrine, setVitrine] = useState<Vitrine | null>(null);
+  const [ratingResumo, setRatingResumo] = useState({ media: 0, total: 0 });
   const [loading, setLoading] = useState(true);
   const [selectedFoto, setSelectedFoto] = useState<string | null>(null);
   const [fotoAbertaIndex, setFotoAbertaIndex] = useState<number | null>(null);
@@ -59,7 +67,21 @@ export default function AnuncioDetalheClient() {
           .eq('vitrine_ativa', true)
           .maybeSingle();
 
-        setVitrine((vitrineData || null) as Vitrine | null);
+        if (vitrineData) {
+          const vitrineAtual = vitrineData as Vitrine;
+          setVitrine(vitrineAtual);
+
+          const { data: avaliacoesData } = await supabase
+            .from('vendedor_avaliacoes')
+            .select('*')
+            .eq('vitrine_id', vitrineAtual.id)
+            .eq('status', 'aprovada');
+
+          setRatingResumo(calcularResumoAvaliacoes((avaliacoesData || []) as AvaliacaoVendedor[]));
+        } else {
+          setVitrine(null);
+          setRatingResumo({ media: 0, total: 0 });
+        }
       }
       setLoading(false);
     }
@@ -182,6 +204,9 @@ export default function AnuncioDetalheClient() {
                   <div>
                     <p style={{ margin: 0, fontWeight: 900 }}>{vitrine.nome_vitrine}</p>
                     <p className="muted" style={{ margin: '3px 0 0' }}>{vitrine.cidade || anuncio.cidade} - {vitrine.estado || anuncio.estado}</p>
+                    <div style={{ marginTop: 5 }}>
+                      <RatingStars nota={ratingResumo.media} total={ratingResumo.total} size={15} />
+                    </div>
                   </div>
                 </div>
                 <Link className="btn btn-secondary btn-full" style={{ marginTop: 12 }} href={`/vendedor/${vitrine.slug}`}>Ver vitrine do vendedor</Link>
