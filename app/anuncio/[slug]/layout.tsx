@@ -1,12 +1,15 @@
 import type { Metadata } from 'next';
 import { cleanText, createSeoSupabaseClient, DEFAULT_IMAGE, formatMoneySeo, getAbsoluteUrl, getSiteUrl, SITE_NAME } from '@/lib/seo';
 
-type LayoutProps = {
-  children: React.ReactNode;
+type ParamsProps = {
   params: Promise<{ slug: string }>;
 };
 
-export async function generateMetadata({ params }: LayoutProps): Promise<Metadata> {
+type LayoutProps = ParamsProps & {
+  children: React.ReactNode;
+};
+
+export async function generateMetadata({ params }: ParamsProps): Promise<Metadata> {
   const { slug } = await params;
   const supabase = createSeoSupabaseClient();
 
