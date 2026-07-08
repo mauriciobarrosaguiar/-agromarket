@@ -9,6 +9,14 @@ import { slugify } from '@/lib/slug';
 import { uploadVitrineImagem } from '@/lib/upload';
 import type { Usuario, Vitrine } from '@/types';
 
+const POSICOES = [
+  { value: 'center', label: 'Centro' },
+  { value: 'top', label: 'Topo' },
+  { value: 'bottom', label: 'Baixo' },
+  { value: 'left', label: 'Esquerda' },
+  { value: 'right', label: 'Direita' }
+];
+
 function MinhaVitrineContent() {
   const [perfil, setPerfil] = useState<Usuario | null>(null);
   const [vitrine, setVitrine] = useState<Vitrine | null>(null);
@@ -44,7 +52,10 @@ function MinhaVitrineContent() {
           whatsapp: usuario?.whatsapp || '',
           vitrine_ativa: true,
           plano: 'gratis_lancamento',
-          gratis_ate: new Date(Date.now() + 180 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10)
+          gratis_ate: new Date(Date.now() + 180 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10),
+          logo_object_fit: 'cover',
+          logo_object_position: 'center',
+          banner_object_position: 'center'
         };
 
         const { data: criada } = await supabase.from('vitrines').insert(nova).select('*').single();
@@ -104,6 +115,9 @@ function MinhaVitrineContent() {
       descricao: vitrine.descricao,
       foto_url: vitrine.foto_url || null,
       banner_url: vitrine.banner_url || null,
+      logo_object_fit: vitrine.logo_object_fit || 'cover',
+      logo_object_position: vitrine.logo_object_position || 'center',
+      banner_object_position: vitrine.banner_object_position || 'center',
       cidade: vitrine.cidade,
       estado: vitrine.estado,
       whatsapp: vitrine.whatsapp,
@@ -125,6 +139,9 @@ function MinhaVitrineContent() {
   if (!vitrine) return <div className="card">Não foi possível carregar sua vitrine.</div>;
 
   const linkPublico = `/vendedor/${vitrine.slug}`;
+  const logoFit = vitrine.logo_object_fit || 'cover';
+  const logoPosition = vitrine.logo_object_position || 'center';
+  const bannerPosition = vitrine.banner_object_position || 'center';
 
   return (
     <div className="grid grid-2">
@@ -133,7 +150,7 @@ function MinhaVitrineContent() {
 
         <div className="card" style={{ background: '#f8faf4' }}>
           <h3 style={{ marginTop: 0 }}>Imagens da vitrine</h3>
-          <p className="muted">Toque nos botões abaixo para selecionar as imagens do celular.</p>
+          <p className="muted">Logo recomendada: quadrada, 600 x 600 px. Banner recomendado: horizontal, 1200 x 500 px.</p>
 
           <div className="form-row">
             <div className="field">
@@ -142,8 +159,8 @@ function MinhaVitrineContent() {
               <button className="btn btn-secondary btn-full" type="button" onClick={() => logoInputRef.current?.click()} disabled={uploading !== null}>
                 <ImagePlus size={18} /> {uploading === 'logo' ? 'Enviando logo...' : 'Selecionar logo'}
               </button>
-              <div style={{ width: 92, height: 92, borderRadius: 24, background: '#eaf3e3', display: 'grid', placeItems: 'center', overflow: 'hidden', color: '#14532d', border: '1px solid #dfe8d9' }}>
-                {vitrine.foto_url ? <img src={vitrine.foto_url} alt="Logo" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <Store size={32} />}
+              <div style={{ width: 118, height: 118, borderRadius: 28, background: '#eaf3e3', display: 'grid', placeItems: 'center', overflow: 'hidden', color: '#14532d', border: '1px solid #dfe8d9' }}>
+                {vitrine.foto_url ? <img src={vitrine.foto_url} alt="Logo" style={{ width: '100%', height: '100%', objectFit: logoFit as any, objectPosition: logoPosition }} /> : <Store size={32} />}
               </div>
             </div>
 
@@ -153,9 +170,32 @@ function MinhaVitrineContent() {
               <button className="btn btn-secondary btn-full" type="button" onClick={() => bannerInputRef.current?.click()} disabled={uploading !== null}>
                 <ImagePlus size={18} /> {uploading === 'banner' ? 'Enviando banner...' : 'Selecionar banner'}
               </button>
-              <div style={{ height: 92, borderRadius: 22, background: vitrine.banner_url ? `url(${vitrine.banner_url}) center/cover` : 'linear-gradient(135deg, #052e16, #166534)', border: '1px solid #dfe8d9' }} />
+              <div style={{ height: 118, borderRadius: 22, background: vitrine.banner_url ? `url(${vitrine.banner_url}) ${bannerPosition}/cover` : 'linear-gradient(135deg, #052e16, #166534)', border: '1px solid #dfe8d9' }} />
             </div>
           </div>
+
+          <div className="form-row" style={{ marginTop: 14 }}>
+            <label className="field">
+              <span className="label">Ajuste da logo</span>
+              <select className="select" value={logoFit} onChange={(e) => update('logo_object_fit', e.target.value as Vitrine['logo_object_fit'])}>
+                <option value="cover">Preencher espaço</option>
+                <option value="contain">Mostrar inteira</option>
+              </select>
+            </label>
+            <label className="field">
+              <span className="label">Parte da logo</span>
+              <select className="select" value={logoPosition} onChange={(e) => update('logo_object_position', e.target.value)}>
+                {POSICOES.map((p) => <option key={p.value} value={p.value}>{p.label}</option>)}
+              </select>
+            </label>
+          </div>
+
+          <label className="field" style={{ marginTop: 14 }}>
+            <span className="label">Parte do banner</span>
+            <select className="select" value={bannerPosition} onChange={(e) => update('banner_object_position', e.target.value)}>
+              {POSICOES.map((p) => <option key={p.value} value={p.value}>{p.label}</option>)}
+            </select>
+          </label>
         </div>
 
         <label className="field">
@@ -217,7 +257,11 @@ function MinhaVitrineContent() {
         </div>
 
         <div className="card" style={{ background: '#f8faf4', padding: 0, overflow: 'hidden' }}>
-          <div style={{ minHeight: 100, background: vitrine.banner_url ? `url(${vitrine.banner_url}) center/cover` : 'linear-gradient(135deg, #052e16, #166534)' }} />
+          <div style={{ minHeight: 120, background: vitrine.banner_url ? `url(${vitrine.banner_url}) ${bannerPosition}/cover` : 'linear-gradient(135deg, #052e16, #166534)', padding: 14, display: 'flex', alignItems: 'end' }}>
+            <div style={{ width: 58, height: 58, borderRadius: 18, background: '#fff', overflow: 'hidden', display: 'grid', placeItems: 'center', color: '#14532d' }}>
+              {vitrine.foto_url ? <img src={vitrine.foto_url} alt="Logo" style={{ width: '100%', height: '100%', objectFit: logoFit as any, objectPosition: logoPosition }} /> : <Store size={26} />}
+            </div>
+          </div>
           <div style={{ padding: 14 }}>
             <strong>{vitrine.nome_vitrine}</strong>
             <p className="muted">{vitrine.cidade || 'Cidade'} - {vitrine.estado || 'UF'}</p>
