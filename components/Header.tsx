@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
-import { Plus, UserRound } from 'lucide-react';
+import { LogOut, Plus, UserRound } from 'lucide-react';
 
 export default function Header() {
   const [email, setEmail] = useState<string | null>(null);
@@ -18,7 +18,7 @@ export default function Header() {
 
   async function sair() {
     await supabase.auth.signOut();
-    window.location.href = '/';
+    window.location.href = '/login';
   }
 
   return (
@@ -41,10 +41,10 @@ export default function Header() {
           {email ? (
             <>
               <Link className="btn btn-secondary desktop-only" href="/painel"><UserRound size={18} /> Painel</Link>
-              <button className="btn btn-secondary desktop-only" onClick={sair}>Sair</button>
+              <button className="btn btn-secondary" onClick={sair}><LogOut size={18} /> Sair</button>
             </>
           ) : (
-            <Link className="btn btn-secondary desktop-only" href="/login"><UserRound size={18} /> Entrar</Link>
+            <Link className="btn btn-secondary" href="/login"><UserRound size={18} /> Entrar</Link>
           )}
         </div>
       </div>
