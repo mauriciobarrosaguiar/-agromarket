@@ -88,18 +88,18 @@ export default function VitrinesPage() {
       <div className="container">
         <section className="card" style={{ background: 'linear-gradient(135deg, #052e16, #166534)', color: '#fff', marginBottom: 18, position: 'relative', overflow: 'hidden' }}>
           <div style={{ position: 'relative', zIndex: 1 }}>
-            <span className="badge" style={{ background: 'rgba(255,255,255,.18)', color: '#fff' }}><ShoppingBag size={14} /> Lojinhas AgroMarket</span>
-            <h1 style={{ color: '#fff', marginBottom: 8 }}>Vitrines de vendedores</h1>
-            <p style={{ color: 'rgba(255,255,255,.84)' }}>Encontre vendedores, chácaras, prestadores de serviço e lojas do agro em uma página pública.</p>
-
-            <div style={{ display: 'grid', gap: 10, marginTop: 16 }}>
-              <Link className="btn btn-primary" href="/painel/vitrine" style={{ width: 'fit-content', background: '#fff', color: '#14532d' }}>
-                <PlusCircle size={18} /> Criar minha lojinha
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap', marginBottom: 18 }}>
+              <Link className="btn btn-primary" href="/painel/vitrine" style={{ background: '#fff', color: '#14532d', boxShadow: '0 12px 28px rgba(0,0,0,.16)' }}>
+                <PlusCircle size={18} /> Criar lojinha
               </Link>
-              <p style={{ color: 'rgba(255,255,255,.78)', margin: 0, fontSize: 15 }}>
-                Para criar lojinha é obrigatório ter documento enviado e localização real validada no perfil.
-              </p>
+              <span className="badge" style={{ background: 'rgba(255,255,255,.18)', color: '#fff' }}><ShoppingBag size={14} /> Lojinhas AgroMarket</span>
             </div>
+
+            <h1 style={{ color: '#fff', marginBottom: 8 }}>Vitrines de vendedores</h1>
+            <p style={{ color: 'rgba(255,255,255,.88)' }}>Encontre vendedores, chácaras, prestadores de serviço e lojas do agro em uma página pública.</p>
+            <p style={{ color: 'rgba(255,255,255,.82)', margin: '12px 0 0', fontSize: 15 }}>
+              Para criar lojinha é obrigatório ter documento enviado e localização real validada no perfil.
+            </p>
 
             <div style={{ position: 'relative', marginTop: 16 }}>
               <Search size={20} style={{ position: 'absolute', left: 16, top: '50%', transform: 'translateY(-50%)', color: '#5f6f5b' }} />
@@ -135,7 +135,7 @@ export default function VitrinesPage() {
                       </div>
                       <div style={{ minWidth: 0 }}>
                         <strong style={{ display: 'block', color: '#fff', fontSize: 22, lineHeight: 1.08 }}>{loja.nome_vitrine}</strong>
-                        <span style={{ color: 'rgba(255,255,255,.86)', display: 'inline-flex', alignItems: 'center', gap: 5, marginTop: 5 }}><MapPin size={15} /> {loja.cidade || 'Cidade'} - {loja.estado || 'UF'}</span>
+                        <span style={{ color: 'rgba(255,255,255,.9)', display: 'inline-flex', alignItems: 'center', gap: 5, marginTop: 5 }}><MapPin size={15} /> {loja.cidade || 'Cidade'} - {loja.estado || 'UF'}</span>
                       </div>
                     </div>
                   </div>
