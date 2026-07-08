@@ -3,18 +3,12 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
-import { ExternalLink, MapPin, Share2, Store } from 'lucide-react';
+import { MapPin, Share2, Store } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import type { Anuncio, Vitrine } from '@/types';
 import { formatMoney } from '@/lib/whatsapp';
 import WhatsAppButton from '@/components/WhatsAppButton';
 import EmptyState from '@/components/EmptyState';
-
-function mapsUrl(anuncio: Anuncio) {
-  if (anuncio.latitude && anuncio.longitude) return `https://www.google.com/maps?q=${anuncio.latitude},${anuncio.longitude}`;
-  const partes = [anuncio.endereco, anuncio.bairro, anuncio.cidade, anuncio.estado].filter(Boolean).join(', ');
-  return partes ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(partes)}` : null;
-}
 
 export default function AnuncioDetalhePage() {
   const params = useParams<{ slug: string }>();
@@ -72,7 +66,6 @@ export default function AnuncioDetalhePage() {
   if (!anuncio) return <main className="page"><div className="container"><EmptyState title="Anúncio não encontrado" /></div></main>;
 
   const fotos = anuncio.fotos_anuncios || [];
-  const linkMapa = mapsUrl(anuncio);
 
   return (
     <main className="page">
@@ -102,7 +95,7 @@ export default function AnuncioDetalhePage() {
                 <strong>Vendido por</strong>
                 <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginTop: 10 }}>
                   <div style={{ width: 48, height: 48, borderRadius: 16, background: '#dcfce7', display: 'grid', placeItems: 'center', overflow: 'hidden', color: '#14532d' }}>
-                    {vitrine.foto_url ? <img src={vitrine.foto_url} alt={vitrine.nome_vitrine} style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <Store size={24} />}
+                    {vitrine.foto_url ? <img src={vitrine.foto_url} alt={vitrine.nome_vitrine} style={{ width: '100%', height: '100%', objectFit: vitrine.logo_object_fit || 'cover', objectPosition: vitrine.logo_object_position || 'center' }} /> : <Store size={24} />}
                   </div>
                   <div>
                     <p style={{ margin: 0, fontWeight: 900 }}>{vitrine.nome_vitrine}</p>
@@ -110,15 +103,6 @@ export default function AnuncioDetalhePage() {
                   </div>
                 </div>
                 <Link className="btn btn-secondary btn-full" style={{ marginTop: 12 }} href={`/vendedor/${vitrine.slug}`}>Ver vitrine do vendedor</Link>
-              </div>
-            )}
-
-            {(anuncio.endereco || anuncio.referencia || linkMapa) && (
-              <div className="card" style={{ background: '#f8faf4', marginBottom: 12 }}>
-                <strong>Localização</strong>
-                {anuncio.endereco && <p className="muted" style={{ marginBottom: 4 }}>{anuncio.endereco}</p>}
-                {anuncio.referencia && <p className="muted" style={{ marginTop: 0 }}>Referência: {anuncio.referencia}</p>}
-                {linkMapa && <a className="btn btn-secondary btn-full" href={linkMapa} target="_blank" rel="noreferrer"><ExternalLink size={17} /> Abrir no Google Maps</a>}
               </div>
             )}
 
