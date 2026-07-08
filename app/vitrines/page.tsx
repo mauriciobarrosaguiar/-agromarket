@@ -26,6 +26,22 @@ function calcularResumo(avaliacoes: AvaliacaoVendedor[], vitrineId: string) {
   return { total, media };
 }
 
+function vitrineLiberada(loja: Vitrine) {
+  if (!loja.vitrine_ativa) return false;
+  const hoje = new Date().toISOString().slice(0, 10);
+
+  if (loja.assinatura_status === 'ativa') {
+    return !loja.assinatura_vencimento || loja.assinatura_vencimento >= hoje;
+  }
+
+  if (loja.assinatura_status === 'gratis_lancamento') {
+    const vencimento = loja.gratis_ate || loja.assinatura_vencimento;
+    return !vencimento || vencimento >= hoje;
+  }
+
+  return false;
+}
+
 export default function VitrinesPage() {
   const [lojas, setLojas] = useState<Loja[]>([]);
   const [busca, setBusca] = useState('');
@@ -33,17 +49,14 @@ export default function VitrinesPage() {
 
   useEffect(() => {
     async function load() {
-      const hoje = new Date().toISOString().slice(0, 10);
       const { data: vitrinesData } = await supabase
         .from('vitrines')
         .select('*')
         .eq('vitrine_ativa', true)
-        .eq('assinatura_status', 'ativa')
-        .gte('assinatura_vencimento', hoje)
         .order('destaque', { ascending: false })
         .order('created_at', { ascending: false });
 
-      const vitrines = (vitrinesData || []) as Vitrine[];
+      const vitrines = ((vitrinesData || []) as Vitrine[]).filter(vitrineLiberada);
       const vitrineIds = vitrines.map((loja) => loja.id);
       const usuariosIds = vitrines.map((loja) => loja.usuario_id);
 
