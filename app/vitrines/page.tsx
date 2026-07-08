@@ -33,10 +33,13 @@ export default function VitrinesPage() {
 
   useEffect(() => {
     async function load() {
+      const hoje = new Date().toISOString().slice(0, 10);
       const { data: vitrinesData } = await supabase
         .from('vitrines')
         .select('*')
         .eq('vitrine_ativa', true)
+        .eq('assinatura_status', 'ativa')
+        .gte('assinatura_vencimento', hoje)
         .order('destaque', { ascending: false })
         .order('created_at', { ascending: false });
 
