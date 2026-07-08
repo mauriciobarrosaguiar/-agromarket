@@ -1,11 +1,11 @@
 import Link from 'next/link';
-import { MapPin, MessageCircle } from 'lucide-react';
+import { MapPin } from 'lucide-react';
 import type { Anuncio } from '@/types';
-import { formatMoney, makeWhatsAppLink } from '@/lib/whatsapp';
+import { formatMoney } from '@/lib/whatsapp';
+import WhatsAppButton from '@/components/WhatsAppButton';
 
 export default function AnuncioCard({ anuncio }: { anuncio: Anuncio }) {
   const foto = anuncio.fotos_anuncios?.find((f) => f.principal)?.url_foto || anuncio.fotos_anuncios?.[0]?.url_foto;
-  const whats = makeWhatsAppLink(anuncio.whatsapp, anuncio.titulo);
 
   return (
     <article className="card ad-card">
@@ -28,7 +28,7 @@ export default function AnuncioCard({ anuncio }: { anuncio: Anuncio }) {
 
         <div className="ad-actions">
           <Link className="btn btn-secondary" href={`/anuncio/${anuncio.slug}`}>Detalhes</Link>
-          <a className="btn btn-whatsapp" href={whats} target="_blank" rel="noreferrer"><MessageCircle size={17} /> WhatsApp</a>
+          <WhatsAppButton phone={anuncio.whatsapp} title={anuncio.titulo} label="WhatsApp" />
         </div>
       </div>
     </article>
