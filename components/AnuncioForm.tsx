@@ -2,6 +2,7 @@
 
 import { FormEvent, useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { MapPin } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { makeUniqueSlug } from '@/lib/slug';
 import { uploadAnuncioFoto } from '@/lib/upload';
@@ -20,6 +21,10 @@ type FormState = {
   cidade: string;
   estado: string;
   bairro: string;
+  endereco: string;
+  referencia: string;
+  latitude: string;
+  longitude: string;
   whatsapp: string;
   nome_contato: string;
 };
@@ -36,6 +41,10 @@ const initialState: FormState = {
   cidade: '',
   estado: 'TO',
   bairro: '',
+  endereco: '',
+  referencia: '',
+  latitude: '',
+  longitude: '',
   whatsapp: '',
   nome_contato: ''
 };
@@ -48,6 +57,12 @@ function parseDecimal(valor: string): number | null {
   const limpo = limparDecimal(valor).replace(',', '.');
   if (!limpo) return null;
   const numero = Number(limpo);
+  return Number.isFinite(numero) ? numero : null;
+}
+
+function parseCoordenada(valor: string): number | null {
+  if (!valor) return null;
+  const numero = Number(String(valor).replace(',', '.'));
   return Number.isFinite(numero) ? numero : null;
 }
 
@@ -77,9 +92,9 @@ export default function AnuncioForm({ anuncio }: { anuncio?: Anuncio }) {
   const [categorias, setCategorias] = useState<Categoria[]>([]);
   const [files, setFiles] = useState<FileList | null>(null);
   const [loading, setLoading] = useState(false);
+  const [geoLoading, setGeoLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [savingStep, setSavingStep] = useState<string | null>(null);
-  const [perfil, setPerfil] = useState<Usuario | null>(null);
 
   const cidades = useMemo(() => {
     const lista = CIDADES_POR_ESTADO[state.estado] || [];
@@ -105,7 +120,6 @@ export default function AnuncioForm({ anuncio }: { anuncio?: Anuncio }) {
       if (!data) return;
 
       const userProfile = data as Usuario;
-      setPerfil(userProfile);
       setState((prev) => ({
         ...prev,
         nome_contato: userProfile.nome || prev.nome_contato,
@@ -132,6 +146,10 @@ export default function AnuncioForm({ anuncio }: { anuncio?: Anuncio }) {
       cidade: anuncio.cidade,
       estado: anuncio.estado,
       bairro: anuncio.bairro || '',
+      endereco: anuncio.endereco || '',
+      referencia: anuncio.referencia || '',
+      latitude: anuncio.latitude ? String(anuncio.latitude) : '',
+      longitude: anuncio.longitude ? String(anuncio.longitude) : '',
       whatsapp: anuncio.whatsapp,
       nome_contato: anuncio.nome_contato
     });
@@ -143,6 +161,32 @@ export default function AnuncioForm({ anuncio }: { anuncio?: Anuncio }) {
 
   function updateEstado(uf: string) {
     setState((prev) => ({ ...prev, estado: uf, cidade: '' }));
+  }
+
+  async function usarLocalizacaoAtual() {
+    setError(null);
+
+    if (!navigator.geolocation) {
+      setError('Seu navegador não permitiu pegar localização automática. Preencha o endereço ou referência manualmente.');
+      return;
+    }
+
+    setGeoLoading(true);
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setState((prev) => ({
+          ...prev,
+          latitude: String(pos.coords.latitude),
+          longitude: String(pos.coords.longitude)
+        }));
+        setGeoLoading(false);
+      },
+      () => {
+        setError('Não consegui pegar sua localização. Verifique a permissão do GPS ou preencha manualmente.');
+        setGeoLoading(false);
+      },
+      { enableHighAccuracy: true, timeout: 15000, maximumAge: 60000 }
+    );
   }
 
   async function getUsuarioLogado() {
@@ -179,6 +223,8 @@ export default function AnuncioForm({ anuncio }: { anuncio?: Anuncio }) {
 
       const precoNumero = state.preco_a_combinar || !state.preco ? null : parseDecimal(state.preco);
       const quantidadeNumero = state.quantidade ? parseDecimal(state.quantidade) : null;
+      const latitudeNumero = parseCoordenada(state.latitude);
+      const longitudeNumero = parseCoordenada(state.longitude);
 
       if (!state.preco_a_combinar && state.preco && precoNumero === null) {
         throw new Error('Informe um preço válido. Exemplo: R$ 28,00.');
@@ -202,6 +248,10 @@ export default function AnuncioForm({ anuncio }: { anuncio?: Anuncio }) {
         cidade: state.cidade.trim(),
         estado: state.estado,
         bairro: state.bairro.trim() || null,
+        endereco: state.endereco.trim() || null,
+        referencia: state.referencia.trim() || null,
+        latitude: latitudeNumero,
+        longitude: longitudeNumero,
         whatsapp: state.whatsapp.trim(),
         nome_contato: state.nome_contato.trim(),
         status: 'pendente',
@@ -362,6 +412,27 @@ export default function AnuncioForm({ anuncio }: { anuncio?: Anuncio }) {
         <span className="label">Bairro</span>
         <input className="input" value={state.bairro} onChange={(e) => update('bairro', e.target.value)} placeholder="Opcional" />
       </label>
+
+      <div className="card" style={{ background: '#f8faf4' }}>
+        <h3 style={{ marginTop: 0 }}>Localização exata</h3>
+        <p className="muted">Opcional, mas recomendado. Ajuda o comprador a saber onde fica o produto.</p>
+        <div className="form">
+          <label className="field">
+            <span className="label">Endereço ou local</span>
+            <input className="input" value={state.endereco} onChange={(e) => update('endereco', e.target.value)} placeholder="Ex: Chácara, fazenda, rua, setor ou ponto de entrega" />
+          </label>
+          <label className="field">
+            <span className="label">Referência</span>
+            <input className="input" value={state.referencia} onChange={(e) => update('referencia', e.target.value)} placeholder="Ex: Próximo ao posto, entrada pela TO-050..." />
+          </label>
+          <button className="btn btn-secondary btn-full" type="button" onClick={usarLocalizacaoAtual} disabled={geoLoading}>
+            <MapPin size={18} /> {geoLoading ? 'Pegando localização...' : 'Usar localização atual do celular'}
+          </button>
+          {state.latitude && state.longitude && (
+            <div className="notice">Localização capturada. Ela será salva no anúncio e abrirá no Google Maps.</div>
+          )}
+        </div>
+      </div>
 
       <div className="form-row">
         <label className="field">
