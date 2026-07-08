@@ -2,12 +2,28 @@
 
 import Link from 'next/link';
 import { MessageCircle, ShieldCheck, X } from 'lucide-react';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { makeWhatsAppLink } from '@/lib/whatsapp';
 
-export default function WhatsAppButton({ phone, title, full = false, label = 'Chamar no WhatsApp' }: { phone: string; title: string; full?: boolean; label?: string }) {
+type WhatsAppButtonProps = {
+  phone: string;
+  title: string;
+  full?: boolean;
+  label?: string;
+  urlPath?: string;
+};
+
+function montarUrl(path?: string) {
+  if (!path) return '';
+  if (path.startsWith('http')) return path;
+  if (typeof window !== 'undefined') return `${window.location.origin}${path}`;
+  return `https://agromarket-two.vercel.app${path}`;
+}
+
+export default function WhatsAppButton({ phone, title, full = false, label = 'Chamar no WhatsApp', urlPath }: WhatsAppButtonProps) {
   const [open, setOpen] = useState(false);
-  const whatsLink = makeWhatsAppLink(phone, title);
+  const anuncioUrl = useMemo(() => montarUrl(urlPath), [urlPath]);
+  const whatsLink = makeWhatsAppLink(phone, title, anuncioUrl);
 
   return (
     <>
