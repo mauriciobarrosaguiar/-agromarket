@@ -5,6 +5,8 @@ export type StatusAnuncio = 'pendente' | 'aprovado' | 'recusado' | 'pausado' | '
 export type StatusDenuncia = 'aberta' | 'em_analise' | 'resolvida' | 'ignorada';
 export type StatusDestaqueSolicitacao = 'pendente' | 'aprovado' | 'recusado' | 'cancelado' | 'expirado';
 export type StatusAvaliacaoVendedor = 'aprovada' | 'pendente' | 'oculta' | 'removida';
+export type StatusAssinaturaVitrine = 'pendente_pagamento' | 'ativa' | 'vencida' | 'cancelada' | 'gratis_lancamento';
+export type StatusPagamentoVitrine = 'pendente' | 'pago' | 'recusado' | 'cancelado' | 'estornado';
 export type TipoPlanoMonetizacao = 'destaque' | 'vitrine' | 'assinatura';
 export type ProvedorPagamento = 'asaas' | 'efi';
 export type AmbientePagamento = 'sandbox' | 'producao';
@@ -74,6 +76,11 @@ export type Vitrine = {
   whatsapp?: string | null;
   vitrine_ativa: boolean;
   plano: string;
+  plano_id?: string | null;
+  assinatura_status?: StatusAssinaturaVitrine | string;
+  assinatura_inicio?: string | null;
+  assinatura_vencimento?: string | null;
+  ultimo_pagamento_em?: string | null;
   gratis_ate?: string | null;
   destaque: boolean;
   verificado: boolean;
@@ -183,6 +190,25 @@ export type PagamentoConfiguracao = {
   webhook_url?: string | null;
   credenciais_configuradas: boolean;
   observacao?: string | null;
+  created_at?: string;
+  updated_at?: string;
+};
+
+export type VitrinePagamento = {
+  id: string;
+  vitrine_id: string;
+  usuario_id: string;
+  plano_id?: string | null;
+  valor: number;
+  meses: number;
+  status: StatusPagamentoVitrine;
+  provedor?: string | null;
+  referencia_externa?: string | null;
+  comprovante_url?: string | null;
+  observacao?: string | null;
+  admin_id?: string | null;
+  pago_em?: string | null;
+  vencimento_gerado?: string | null;
   created_at?: string;
   updated_at?: string;
 };
