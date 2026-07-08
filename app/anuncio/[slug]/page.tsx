@@ -95,7 +95,7 @@ export default function AnuncioDetalhePage() {
                 <strong>Vendido por</strong>
                 <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginTop: 10 }}>
                   <div style={{ width: 48, height: 48, borderRadius: 16, background: '#dcfce7', display: 'grid', placeItems: 'center', overflow: 'hidden', color: '#14532d' }}>
-                    {vitrine.foto_url ? <img src={vitrine.foto_url} alt={vitrine.nome_vitrine} style={{ width: '100%', height: '100%', objectFit: vitrine.logo_object_fit || 'cover', objectPosition: vitrine.logo_object_position || 'center' }} /> : <Store size={24} />}
+                    {vitrine.foto_url ? <img src={vitrine.foto_url} alt={vitrine.nome_vitrine} style={{ width: '100%', height: '100%', objectFit: (vitrine.logo_object_fit || 'cover') as any, objectPosition: vitrine.logo_object_position || 'center' }} /> : <Store size={24} />}
                   </div>
                   <div>
                     <p style={{ margin: 0, fontWeight: 900 }}>{vitrine.nome_vitrine}</p>
