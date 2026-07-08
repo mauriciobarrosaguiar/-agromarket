@@ -2,10 +2,9 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { BadgeCheck, LocateFixed, PlusCircle, Search, ShieldCheck, Sparkles, Store } from 'lucide-react';
+import { BadgeCheck, MapPin, Megaphone, PlusCircle, Search, ShieldCheck, Sparkles, Store, Tag } from 'lucide-react';
 import { supabase, hasSupabaseEnv } from '@/lib/supabase';
 import type { Anuncio, Categoria, PatrocinadoHome } from '@/types';
-import { formatMoney } from '@/lib/whatsapp';
 import SearchBar from '@/components/SearchBar';
 import CategoryPills from '@/components/CategoryPills';
 import AnuncioCard from '@/components/AnuncioCard';
@@ -89,59 +88,49 @@ export default function HomePage() {
     load();
   }, [coords]);
 
-  const destaques = anuncios.slice(0, 3);
   const totalDestaques = anuncios.filter((ad) => ad.destaque).length;
   const cidades = Array.from(new Set(anuncios.map((ad) => `${ad.cidade}-${ad.estado}`))).length;
+  const novosContatos = anuncios.reduce((acc, ad) => acc + Number(ad.cliques_whatsapp || 0), 0);
 
   return (
     <main className="page">
-      <section className="hero">
+      <PatrocinadoCarousel itens={patrocinados} />
+
+      <section className="hero" style={{ paddingTop: 12, paddingBottom: 8 }}>
         <div className="container">
           {!hasSupabaseEnv && <div className="notice" style={{ marginBottom: 14 }}>Configure o Supabase no arquivo .env.local para carregar dados reais.</div>}
-          <div className="hero-card">
-            <div className="hero-grid">
-              <div>
-                <span className="badge"><Sparkles size={15} /> Anuncie grátis no lançamento</span>
-                <h1>Compre e venda no agro perto de você.</h1>
-                <p>O AgroMarket conecta vendedores e compradores de produtos rurais, animais, máquinas, serviços e oportunidades. Negociação direta pelo WhatsApp, com anúncio aprovado e perfil validado.</p>
-                <SearchBar />
-                <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 14 }}>
-                  <Link className="btn btn-primary" href="/anunciar"><PlusCircle size={18} /> Quero anunciar</Link>
-                  <Link className="btn btn-secondary" href="/anuncios"><Search size={18} /> Ver anúncios perto de mim</Link>
-                </div>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 10, marginTop: 18 }}>
-                  <div className="mini-card"><strong>{anuncios.length}</strong><br /><span className="muted">anúncios ativos</span></div>
-                  <div className="mini-card"><strong>{cidades}</strong><br /><span className="muted">cidades</span></div>
-                  <div className="mini-card"><strong>{totalDestaques}</strong><br /><span className="muted">destaques</span></div>
-                </div>
-              </div>
-              <div className="hero-visual">
-                <div className="hero-visual-title">
-                  <LocateFixed size={16} /> {coords ? 'Anúncios próximos de você' : 'Anúncios em destaque'}
-                </div>
-                {loading ? (
-                  <div className="mini-card"><strong>Carregando anúncios...</strong></div>
-                ) : destaques.length ? (
-                  destaques.map((ad) => (
-                    <Link key={ad.id} href={`/anuncio/${ad.slug}`} className="mini-card mini-card-link">
-                      <strong>{ad.destaque ? '⭐ ' : ''}{ad.categorias?.icone || '🌱'} {ad.titulo}</strong>
-                      <br />
-                      <span className="muted">
-                        {ad.preco_a_combinar ? 'A combinar' : formatMoney(ad.preco, ad.preco_a_combinar)} · {ad.cidade} - {ad.estado}
-                      </span>
-                    </Link>
-                  ))
-                ) : (
-                  <div className="mini-card"><strong>Seja o primeiro a anunciar</strong><br /><span className="muted">Cadastre produtos, animais e serviços.</span></div>
-                )}
-                <Link className="btn btn-secondary btn-full" href="/anuncios"><Search size={18} /> Buscar mais anúncios</Link>
+          <div className="hero-card" style={{ padding: 20, borderRadius: 24 }}>
+            <div style={{ maxWidth: 900 }}>
+              <span className="badge"><Sparkles size={15} /> Anuncie grátis no lançamento</span>
+              <h1 style={{ fontSize: 'clamp(30px, 7vw, 50px)', lineHeight: 1, marginBottom: 10 }}>Compre e venda no agro perto de você.</h1>
+              <p style={{ marginBottom: 14 }}>Produtos rurais, animais, máquinas, serviços e oportunidades em um só lugar, com negociação direta pelo WhatsApp.</p>
+              <SearchBar />
+              <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 14 }}>
+                <Link className="btn btn-primary" href="/anuncios"><Search size={18} /> Buscar</Link>
+                <Link className="btn btn-primary" href="/anunciar"><PlusCircle size={18} /> Quero anunciar</Link>
+                <Link className="btn btn-secondary" href="/anuncios"><MapPin size={18} /> Perto de mim</Link>
               </div>
             </div>
           </div>
         </div>
       </section>
 
-      <PatrocinadoCarousel itens={patrocinados} />
+      <section className="section" style={{ marginTop: 14 }}>
+        <div className="container">
+          <div className="section-head section-head-compact">
+            <div>
+              <h2>Panorama rápido</h2>
+              <p>Movimento atual do AgroMarket.</p>
+            </div>
+          </div>
+          <div className="stats-grid">
+            <div className="mini-card"><Tag size={24} /><strong>{anuncios.length}</strong><br /><span className="muted">anúncios ativos</span></div>
+            <div className="mini-card"><MapPin size={24} /><strong>{cidades}</strong><br /><span className="muted">cidades disponíveis</span></div>
+            <div className="mini-card"><Megaphone size={24} /><strong>{totalDestaques}</strong><br /><span className="muted">destaques</span></div>
+            <div className="mini-card"><BadgeCheck size={24} /><strong>{novosContatos}</strong><br /><span className="muted">contatos gerados</span></div>
+          </div>
+        </div>
+      </section>
 
       <section className="section">
         <div className="container">
