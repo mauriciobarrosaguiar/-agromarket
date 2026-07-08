@@ -11,10 +11,20 @@ type ShareButtonProps = {
   full?: boolean;
 };
 
+function comParametroShare(url: string) {
+  if (url.includes('share=whatsapp')) return url;
+  const separador = url.includes('?') ? '&' : '?';
+  return `${url}${separador}share=whatsapp`;
+}
+
 function montarUrl(path: string) {
-  if (path.startsWith('http')) return path;
-  if (typeof window !== 'undefined') return `${window.location.origin}${path}`;
-  return `https://agromarket-two.vercel.app${path}`;
+  const base = path.startsWith('http')
+    ? path
+    : typeof window !== 'undefined'
+      ? `${window.location.origin}${path}`
+      : `https://agromarket-two.vercel.app${path}`;
+
+  return comParametroShare(base);
 }
 
 export default function ShareButton({ label, title, message, path, full = false }: ShareButtonProps) {
