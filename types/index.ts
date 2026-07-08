@@ -212,3 +212,39 @@ export type VitrinePagamento = {
   created_at?: string;
   updated_at?: string;
 };
+
+export type PatrocinadoHome = {
+  id: string;
+  titulo: string;
+  subtitulo?: string | null;
+  imagem_url: string;
+  link_url?: string | null;
+  nome_anunciante?: string | null;
+  whatsapp_anunciante?: string | null;
+  cidade?: string | null;
+  estado?: string | null;
+  ordem: number;
+  ativo: boolean;
+  inicio_em?: string | null;
+  fim_em?: string | null;
+  visualizacoes: number;
+  cliques: number;
+  created_at?: string;
+  updated_at?: string;
+};
+
+export type AnuncioWhatsappClique = {
+  id: string;
+  anuncio_id: string;
+  vendedor_id: string;
+  comprador_id?: string | null;
+  comprador_nome?: string | null;
+  comprador_email?: string | null;
+  comprador_whatsapp?: string | null;
+  comprador_cidade?: string | null;
+  comprador_estado?: string | null;
+  origem: string;
+  user_agent?: string | null;
+  created_at?: string;
+  anuncios?: Pick<Anuncio, 'titulo' | 'slug' | 'cidade' | 'estado'> | null;
+};
