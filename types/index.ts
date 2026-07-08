@@ -15,6 +15,13 @@ export type Usuario = {
   tipo_usuario: TipoUsuario;
   status: StatusUsuario;
   foto_url?: string | null;
+  selfie_url?: string | null;
+  documento_url?: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
+  localizacao_accuracy?: number | null;
+  localizacao_capturada_em?: string | null;
+  localizacao_validada?: boolean;
   created_at?: string;
   updated_at?: string;
 };
