@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { FormEvent, useEffect, useMemo, useRef, useState } from 'react';
-import { Camera, FileText, KeyRound, MapPin, X } from 'lucide-react';
+import { Camera, FileText, KeyRound, LayoutDashboard, MapPin, X } from 'lucide-react';
 import AuthGuard from '@/components/AuthGuard';
 import { supabase } from '@/lib/supabase';
 import { CIDADES_POR_ESTADO, ESTADOS } from '@/lib/constants';
@@ -266,7 +266,10 @@ function PerfilContent() {
         Para anunciar com mais segurança, o perfil precisa ter <strong>selfie tirada na hora</strong>, <strong>CPF/dados do documento</strong> e <strong>localização real validada por GPS</strong>. O documento enviado é opcional e não aparece publicamente.
       </div>
 
-      <Link href="/painel/senha" className="btn btn-secondary btn-full"><KeyRound size={18} /> Trocar senha</Link>
+      <div style={{ display: 'grid', gap: 10 }}>
+        <Link href="/painel" className="btn btn-primary btn-full"><LayoutDashboard size={18} /> Abrir painel</Link>
+        <Link href="/painel/senha" className="btn btn-secondary btn-full"><KeyRound size={18} /> Trocar senha</Link>
+      </div>
 
       <div className="card" style={{ background: '#f8faf4' }}>
         <h2 style={{ marginTop: 0 }}>Selfie do divulgador *</h2>
