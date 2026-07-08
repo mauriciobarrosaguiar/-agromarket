@@ -12,6 +12,12 @@ type AnuncioComFotos = Anuncio & {
   fotos_anuncios?: FotoAnuncio[];
 };
 
+function mapsUrl(ad: AnuncioComFotos) {
+  if (ad.latitude && ad.longitude) return `https://www.google.com/maps?q=${ad.latitude},${ad.longitude}`;
+  const partes = [ad.endereco, ad.bairro, ad.cidade, ad.estado].filter(Boolean).join(', ');
+  return partes ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(partes)}` : null;
+}
+
 function PendentesContent() {
   const [anuncios, setAnuncios] = useState<AnuncioComFotos[]>([]);
   const [loadingId, setLoadingId] = useState<string | null>(null);
@@ -79,6 +85,7 @@ function PendentesContent() {
           {anuncios.map((ad) => {
             const fotos = ad.fotos_anuncios || [];
             const fotoPrincipal = fotos.find((foto) => foto.principal) || fotos[0];
+            const linkMapa = mapsUrl(ad);
 
             return (
               <div className="card" key={ad.id} style={{ overflow: 'hidden' }}>
@@ -126,6 +133,14 @@ function PendentesContent() {
                 <div style={{ display: 'grid', gap: 8, marginTop: 14 }}>
                   <p className="muted" style={{ margin: 0 }}><strong>Tipo:</strong> {ad.tipo_anuncio}</p>
                   <p className="muted" style={{ margin: 0 }}><strong>Quantidade:</strong> {ad.quantidade ? `${ad.quantidade} ${ad.unidade || ''}` : 'Não informado'}</p>
+                  {(ad.endereco || ad.referencia || linkMapa) && (
+                    <div className="card" style={{ background: '#f8faf4', padding: 12 }}>
+                      <strong>Localização</strong>
+                      {ad.endereco && <p className="muted" style={{ margin: '6px 0 0' }}>{ad.endereco}</p>}
+                      {ad.referencia && <p className="muted" style={{ margin: '6px 0 0' }}>Referência: {ad.referencia}</p>}
+                      {linkMapa && <a className="btn btn-secondary btn-full" style={{ marginTop: 10 }} href={linkMapa} target="_blank" rel="noreferrer">Abrir localização</a>}
+                    </div>
+                  )}
                   <p className="muted" style={{ margin: 0 }}><strong>Contato:</strong> {ad.nome_contato}</p>
                   <p className="muted" style={{ margin: 0 }}><strong>WhatsApp:</strong> {ad.whatsapp}</p>
                 </div>
