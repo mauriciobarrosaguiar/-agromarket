@@ -1,18 +1,24 @@
-﻿'use client';
+'use client';
 
 import { useEffect, useState } from 'react';
+
+const INSTALL_DISMISSED_KEY = 'agromarket_install_banner_closed';
 
 type BeforeInstallPromptEvent = Event & {
   prompt: () => Promise<void>;
   userChoice: Promise<{ outcome: 'accepted' | 'dismissed' }>;
 };
 
+function isMobileViewport() {
+  if (typeof window === 'undefined') return false;
+  return window.matchMedia('(max-width: 860px)').matches;
+}
+
 export default function InstallAppButton() {
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [visible, setVisible] = useState(false);
 
   useEffect(() => {
-    // Evita erro no localhost. O Service Worker só será registrado em produção.
     if (
       typeof window !== 'undefined' &&
       'serviceWorker' in navigator &&
@@ -23,6 +29,10 @@ export default function InstallAppButton() {
 
     const handler = (event: Event) => {
       event.preventDefault();
+
+      const jaFechou = localStorage.getItem(INSTALL_DISMISSED_KEY) === 'true';
+      if (!isMobileViewport() || jaFechou) return;
+
       setDeferredPrompt(event as BeforeInstallPromptEvent);
       setVisible(true);
     };
@@ -31,16 +41,20 @@ export default function InstallAppButton() {
     return () => window.removeEventListener('beforeinstallprompt', handler);
   }, []);
 
+  function fechar() {
+    localStorage.setItem(INSTALL_DISMISSED_KEY, 'true');
+    setVisible(false);
+    setDeferredPrompt(null);
+  }
+
   async function instalar() {
     if (!deferredPrompt) return;
 
     await deferredPrompt.prompt();
-    const choice = await deferredPrompt.userChoice;
+    await deferredPrompt.userChoice;
 
-    if (choice.outcome === 'accepted') {
-      setVisible(false);
-    }
-
+    localStorage.setItem(INSTALL_DISMISSED_KEY, 'true');
+    setVisible(false);
     setDeferredPrompt(null);
   }
 
@@ -59,7 +73,7 @@ export default function InstallAppButton() {
         Instalar
       </button>
 
-      <button className="btn btn-secondary" onClick={() => setVisible(false)}>
+      <button className="btn btn-secondary" onClick={fechar}>
         Agora não
       </button>
     </div>
