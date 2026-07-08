@@ -63,13 +63,15 @@ function PainelContent() {
         {isAdmin && (
           <div className="card section" style={{ border: totalAdminPendencias ? '2px solid rgba(21, 128, 61, 0.42)' : '2px solid rgba(21, 128, 61, 0.22)' }}>
             <h2>Área do administrador {totalAdminPendencias > 0 ? `(${totalAdminPendencias})` : ''}</h2>
-            <p className="muted">Você está logado como admin. Clique direto no que precisa aprovar ou recusar.</p>
+            <p className="muted">Acesso rápido para aprovar, vender destaque, ajustar planos e conferir segurança.</p>
             <div className="actions" style={{ justifyContent: 'flex-start', flexWrap: 'wrap' }}>
               <Link className={pendentesAdmin ? 'btn btn-primary' : 'btn btn-secondary'} href="/admin/pendentes">Aprovar anúncios ({pendentesAdmin})</Link>
               <Link className={destaquesPendentes ? 'btn btn-primary' : 'btn btn-secondary'} href="/admin/destaques">Aprovar destaques ({destaquesPendentes})</Link>
               <Link className={denunciasAbertas ? 'btn btn-primary' : 'btn btn-secondary'} href="/admin/denuncias">Ver denúncias ({denunciasAbertas})</Link>
+              <Link className="btn btn-secondary" href="/admin/monetizacao">Planos e pagamentos</Link>
+              <Link className="btn btn-secondary" href="/admin/seguranca">Backup e segurança</Link>
               <Link className="btn btn-secondary" href="/admin/vitrines">Gerenciar vitrines</Link>
-              <Link className="btn btn-secondary" href="/admin">Painel admin completo</Link>
+              <Link className="btn btn-primary" href="/admin">Central admin completa</Link>
             </div>
           </div>
         )}
