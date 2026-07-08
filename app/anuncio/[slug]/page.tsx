@@ -3,9 +3,9 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
-import { ExternalLink, MapPin, Share2 } from 'lucide-react';
+import { ExternalLink, MapPin, Share2, Store } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
-import type { Anuncio } from '@/types';
+import type { Anuncio, Vitrine } from '@/types';
 import { formatMoney } from '@/lib/whatsapp';
 import WhatsAppButton from '@/components/WhatsAppButton';
 import EmptyState from '@/components/EmptyState';
@@ -19,6 +19,7 @@ function mapsUrl(anuncio: Anuncio) {
 export default function AnuncioDetalhePage() {
   const params = useParams<{ slug: string }>();
   const [anuncio, setAnuncio] = useState<Anuncio | null>(null);
+  const [vitrine, setVitrine] = useState<Vitrine | null>(null);
   const [loading, setLoading] = useState(true);
   const [selectedFoto, setSelectedFoto] = useState<string | null>(null);
 
@@ -31,10 +32,20 @@ export default function AnuncioDetalhePage() {
         .single();
 
       if (data) {
-        setAnuncio(data as Anuncio);
+        const anuncioData = data as Anuncio;
+        setAnuncio(anuncioData);
         const foto = data.fotos_anuncios?.find((f: any) => f.principal)?.url_foto || data.fotos_anuncios?.[0]?.url_foto || null;
         setSelectedFoto(foto);
         await supabase.rpc('incrementar_visualizacao', { anuncio_uuid: data.id });
+
+        const { data: vitrineData } = await supabase
+          .from('vitrines')
+          .select('*')
+          .eq('usuario_id', anuncioData.usuario_id)
+          .eq('vitrine_ativa', true)
+          .maybeSingle();
+
+        setVitrine((vitrineData || null) as Vitrine | null);
       }
       setLoading(false);
     }
@@ -85,6 +96,22 @@ export default function AnuncioDetalhePage() {
             <div className="price" style={{ fontSize: 34 }}>{formatMoney(anuncio.preco, anuncio.preco_a_combinar)}</div>
             <p className="muted" style={{ display: 'flex', gap: 6, alignItems: 'center' }}><MapPin size={18} /> {anuncio.bairro ? `${anuncio.bairro} - ` : ''}{anuncio.cidade} - {anuncio.estado}</p>
             <p style={{ whiteSpace: 'pre-wrap', lineHeight: 1.55 }}>{anuncio.descricao}</p>
+
+            {vitrine && (
+              <div className="card" style={{ background: '#f8faf4', marginBottom: 12 }}>
+                <strong>Vendido por</strong>
+                <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginTop: 10 }}>
+                  <div style={{ width: 48, height: 48, borderRadius: 16, background: '#dcfce7', display: 'grid', placeItems: 'center', overflow: 'hidden', color: '#14532d' }}>
+                    {vitrine.foto_url ? <img src={vitrine.foto_url} alt={vitrine.nome_vitrine} style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <Store size={24} />}
+                  </div>
+                  <div>
+                    <p style={{ margin: 0, fontWeight: 900 }}>{vitrine.nome_vitrine}</p>
+                    <p className="muted" style={{ margin: '3px 0 0' }}>{vitrine.cidade || anuncio.cidade} - {vitrine.estado || anuncio.estado}</p>
+                  </div>
+                </div>
+                <Link className="btn btn-secondary btn-full" style={{ marginTop: 12 }} href={`/vendedor/${vitrine.slug}`}>Ver vitrine do vendedor</Link>
+              </div>
+            )}
 
             {(anuncio.endereco || anuncio.referencia || linkMapa) && (
               <div className="card" style={{ background: '#f8faf4', marginBottom: 12 }}>
