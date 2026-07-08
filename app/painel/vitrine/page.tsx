@@ -2,13 +2,13 @@
 
 import { ChangeEvent, FormEvent, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
-import { ImagePlus, Lock, Send, Store } from 'lucide-react';
+import { BadgeDollarSign, CalendarClock, ImagePlus, Lock, Send, Store } from 'lucide-react';
 import AuthGuard from '@/components/AuthGuard';
 import { supabase } from '@/lib/supabase';
 import { slugify } from '@/lib/slug';
 import { uploadVitrineImagem } from '@/lib/upload';
 import { CIDADES_POR_ESTADO, ESTADOS } from '@/lib/constants';
-import type { Usuario, Vitrine } from '@/types';
+import type { MonetizacaoPlano, PagamentoConfiguracao, Usuario, Vitrine, VitrinePagamento } from '@/types';
 
 const POSICOES = [
   { value: 'center', label: 'Centro' },
@@ -18,15 +18,41 @@ const POSICOES = [
   { value: 'right', label: 'Direita' }
 ];
 
+function formatMoney(value?: number | string | null) {
+  const numero = typeof value === 'number' ? value : Number(value || 0);
+  return numero.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+}
+
+function dataBR(value?: string | null) {
+  if (!value) return '—';
+  return new Date(`${value}T12:00:00`).toLocaleDateString('pt-BR');
+}
+
+function statusLabel(status?: string | null) {
+  if (status === 'ativa') return 'Ativa';
+  if (status === 'vencida') return 'Vencida';
+  if (status === 'cancelada') return 'Cancelada';
+  if (status === 'gratis_lancamento') return 'Grátis no lançamento';
+  return 'Aguardando pagamento';
+}
+
 function MinhaVitrineContent() {
   const [perfil, setPerfil] = useState<Usuario | null>(null);
   const [vitrine, setVitrine] = useState<Vitrine | null>(null);
+  const [planos, setPlanos] = useState<MonetizacaoPlano[]>([]);
+  const [pagamentos, setPagamentos] = useState<VitrinePagamento[]>([]);
+  const [configs, setConfigs] = useState<PagamentoConfiguracao[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState<'logo' | 'banner' | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const logoInputRef = useRef<HTMLInputElement | null>(null);
   const bannerInputRef = useRef<HTMLInputElement | null>(null);
+
+  const planoMensal = planos.find((plano) => plano.codigo === 'vitrine_mensal') || planos[0];
+  const pagamentoPendente = pagamentos.find((pagamento) => pagamento.status === 'pendente');
+  const pagamentoPago = pagamentos.find((pagamento) => pagamento.status === 'pago');
+  const pix = configs.find((config) => config.ativo && config.pix_chave)?.pix_chave || null;
 
   const cidades = useMemo(() => {
     const uf = vitrine?.estado || perfil?.estado || 'TO';
@@ -35,22 +61,43 @@ function MinhaVitrineContent() {
     return lista;
   }, [vitrine?.estado, vitrine?.cidade, perfil?.estado]);
 
-  useEffect(() => {
-    async function load() {
-      const { data: userData } = await supabase.auth.getUser();
-      if (!userData.user) return;
+  async function carregarPagamentos(vitrineId: string) {
+    const { data } = await supabase
+      .from('vitrine_pagamentos')
+      .select('*')
+      .eq('vitrine_id', vitrineId)
+      .order('created_at', { ascending: false });
+    setPagamentos((data || []) as VitrinePagamento[]);
+  }
 
-      const { data: perfilData } = await supabase.from('usuarios').select('*').eq('id', userData.user.id).single();
-      const usuario = perfilData as Usuario;
-      setPerfil(usuario);
-
-      const { data: vitrineData } = await supabase.from('vitrines').select('*').eq('usuario_id', userData.user.id).maybeSingle();
-      setVitrine((vitrineData || null) as Vitrine | null);
+  async function load() {
+    setLoading(true);
+    const { data: userData } = await supabase.auth.getUser();
+    if (!userData.user) {
       setLoading(false);
+      return;
     }
 
-    load();
-  }, []);
+    const [{ data: perfilData }, { data: planosData }, { data: configsData }] = await Promise.all([
+      supabase.from('usuarios').select('*').eq('id', userData.user.id).single(),
+      supabase.from('monetizacao_planos').select('*').eq('tipo', 'vitrine').eq('ativo', true).order('ordem'),
+      supabase.from('pagamento_configuracoes').select('*').order('provedor')
+    ]);
+
+    const usuario = perfilData as Usuario;
+    setPerfil(usuario);
+    setPlanos((planosData || []) as MonetizacaoPlano[]);
+    setConfigs((configsData || []) as PagamentoConfiguracao[]);
+
+    const { data: vitrineData } = await supabase.from('vitrines').select('*').eq('usuario_id', userData.user.id).maybeSingle();
+    const vitrineAtual = (vitrineData || null) as Vitrine | null;
+    setVitrine(vitrineAtual);
+
+    if (vitrineAtual) await carregarPagamentos(vitrineAtual.id);
+    setLoading(false);
+  }
+
+  useEffect(() => { load(); }, []);
 
   function update<K extends keyof Vitrine>(key: K, value: Vitrine[K]) {
     setVitrine((prev) => prev ? { ...prev, [key]: value } : prev);
@@ -60,35 +107,78 @@ function MinhaVitrineContent() {
     setVitrine((prev) => prev ? { ...prev, estado: uf, cidade: '' } : prev);
   }
 
+  async function criarPagamento(vitrineAtual: Vitrine, plano: MonetizacaoPlano) {
+    const { error } = await supabase.from('vitrine_pagamentos').insert({
+      vitrine_id: vitrineAtual.id,
+      usuario_id: vitrineAtual.usuario_id,
+      plano_id: plano.id,
+      valor: Number(plano.preco) || 0,
+      meses: 1,
+      status: 'pendente',
+      observacao: 'Solicitação de mensalidade da vitrine'
+    });
+
+    if (error) throw error;
+    await carregarPagamentos(vitrineAtual.id);
+  }
+
   async function solicitarVitrine() {
-    if (!perfil) return;
+    if (!perfil || !planoMensal) return;
 
     setSaving(true);
     setMessage(null);
 
-    const baseSlug = `${slugify(perfil.nome || 'vendedor')}-${perfil.id.slice(0, 6)}`;
-    const nova = {
-      usuario_id: perfil.id,
-      nome_vitrine: perfil.nome || 'Minha vitrine',
-      slug: baseSlug,
-      descricao: 'Vitrine de produtos e serviços no AgroMarket.',
-      cidade: perfil.cidade || '',
-      estado: perfil.estado || 'TO',
-      whatsapp: perfil.whatsapp || '',
-      vitrine_ativa: false,
-      plano: 'aguardando_aprovacao',
-      gratis_ate: null,
-      logo_object_fit: 'cover',
-      logo_object_position: 'center',
-      banner_object_position: 'center'
-    };
+    try {
+      const baseSlug = `${slugify(perfil.nome || 'vendedor')}-${perfil.id.slice(0, 6)}`;
+      const nova = {
+        usuario_id: perfil.id,
+        nome_vitrine: perfil.nome || 'Minha vitrine',
+        slug: baseSlug,
+        descricao: 'Vitrine de produtos e serviços no AgroMarket.',
+        cidade: perfil.cidade || '',
+        estado: perfil.estado || 'TO',
+        whatsapp: perfil.whatsapp || '',
+        vitrine_ativa: false,
+        plano: 'vitrine_mensal',
+        plano_id: planoMensal.id,
+        assinatura_status: 'pendente_pagamento',
+        gratis_ate: null,
+        logo_object_fit: 'cover',
+        logo_object_position: 'center',
+        banner_object_position: 'center'
+      };
 
-    const { data, error } = await supabase.from('vitrines').insert(nova).select('*').single();
+      const { data, error } = await supabase.from('vitrines').insert(nova).select('*').single();
+      if (error) throw error;
 
-    if (error) setMessage(error.message);
-    else {
-      setVitrine(data as Vitrine);
-      setMessage('Solicitação de vitrine enviada. Você já pode preparar a lojinha, mas ela só fica pública após autorização do admin.');
+      const vitrineCriada = data as Vitrine;
+      setVitrine(vitrineCriada);
+      await criarPagamento(vitrineCriada, planoMensal);
+      setMessage('Lojinha criada em modo rascunho. Agora faça o pagamento mensal para o admin liberar a vitrine pública.');
+    } catch (err) {
+      setMessage(err instanceof Error ? err.message : 'Erro ao solicitar vitrine.');
+    }
+
+    setSaving(false);
+  }
+
+  async function solicitarPagamentoMensal() {
+    if (!vitrine || !planoMensal) return;
+
+    setSaving(true);
+    setMessage(null);
+
+    try {
+      if (pagamentoPendente) {
+        setMessage('Já existe uma mensalidade pendente. Aguarde a confirmação do pagamento pelo admin.');
+      } else {
+        await criarPagamento(vitrine, planoMensal);
+        await supabase.from('vitrines').update({ assinatura_status: 'pendente_pagamento', updated_at: new Date().toISOString() }).eq('id', vitrine.id);
+        setVitrine({ ...vitrine, assinatura_status: 'pendente_pagamento' });
+        setMessage('Mensalidade solicitada. Após o pagamento, o admin libera/renova sua lojinha por 30 dias.');
+      }
+    } catch (err) {
+      setMessage(err instanceof Error ? err.message : 'Erro ao solicitar mensalidade.');
     }
 
     setSaving(false);
@@ -151,7 +241,7 @@ function MinhaVitrineContent() {
     if (error) setMessage(error.message);
     else {
       setVitrine(data as Vitrine);
-      setMessage(vitrine.vitrine_ativa ? 'Vitrine salva.' : 'Vitrine salva. Ela continua aguardando autorização do admin para ficar pública.');
+      setMessage(vitrine.vitrine_ativa ? 'Vitrine salva.' : 'Vitrine salva. Ela continua aguardando pagamento/liberação para ficar pública.');
     }
 
     setSaving(false);
@@ -161,14 +251,28 @@ function MinhaVitrineContent() {
 
   if (!vitrine) {
     return (
-      <div className="card" style={{ maxWidth: 680, margin: '0 auto' }}>
+      <div className="card" style={{ maxWidth: 760, margin: '0 auto' }}>
         {message && <div className="notice">{message}</div>}
-        <span className="badge"><Lock size={14} /> Vitrine com autorização</span>
-        <h2>Sua lojinha ainda não está liberada</h2>
-        <p className="muted">Para evitar lojas falsas, a vitrine só é criada quando você solicita e o administrador autoriza. Você pode anunciar normalmente mesmo sem vitrine.</p>
+        <span className="badge"><BadgeDollarSign size={14} /> Vitrine mensal</span>
+        <h2>Ter uma lojinha no AgroMarket</h2>
+        <p className="muted">Você pode anunciar normalmente sem lojinha. A vitrine é opcional e funciona como uma página própria do produtor, com banner, logo, produtos, avaliações e link para compartilhar.</p>
+
+        <div className="card" style={{ background: '#f8faf4' }}>
+          <h3 style={{ marginTop: 0 }}>{planoMensal?.nome || 'Vitrine mensal'}</h3>
+          <div className="price" style={{ fontSize: 32 }}>{formatMoney(planoMensal?.preco || 0)}<span className="muted" style={{ fontSize: 18 }}> / mês</span></div>
+          <p>{planoMensal?.descricao || 'Lojinha pública mensal para divulgar seus produtos agro.'}</p>
+          <ul style={{ margin: 0, paddingLeft: 20, lineHeight: 1.7 }}>
+            <li>Nome da loja diferente do nome do usuário.</li>
+            <li>Banner, logo, descrição, cidade e WhatsApp.</li>
+            <li>Produtos organizados dentro da lojinha.</li>
+            <li>Avaliações com estrelas.</li>
+            <li>Link público para compartilhar.</li>
+          </ul>
+        </div>
+
         <div style={{ display: 'grid', gap: 10 }}>
-          <button className="btn btn-primary btn-full" type="button" onClick={solicitarVitrine} disabled={saving}>
-            <Send size={18} /> {saving ? 'Enviando solicitação...' : 'Solicitar liberação da vitrine'}
+          <button className="btn btn-primary btn-full" type="button" onClick={solicitarVitrine} disabled={saving || !planoMensal}>
+            <Send size={18} /> {saving ? 'Criando lojinha...' : 'Criar lojinha e solicitar mensalidade'}
           </button>
           <Link className="btn btn-secondary btn-full" href="/anunciar">Anunciar sem vitrine</Link>
           <Link className="btn btn-secondary btn-full" href="/painel/perfil">Voltar ao perfil</Link>
@@ -181,15 +285,39 @@ function MinhaVitrineContent() {
   const logoFit = vitrine.logo_object_fit || 'cover';
   const logoPosition = vitrine.logo_object_position || 'center';
   const bannerPosition = vitrine.banner_object_position || 'center';
-  const aguardandoAutorizacao = !vitrine.vitrine_ativa;
+  const aguardandoPagamento = !vitrine.vitrine_ativa || vitrine.assinatura_status !== 'ativa';
+  const vencimento = vitrine.assinatura_vencimento;
 
   return (
     <div className="grid grid-2">
       <form className="form card" onSubmit={salvar}>
         {message && <div className="notice">{message}</div>}
-        {aguardandoAutorizacao && (
+
+        <div className="card" style={{ background: aguardandoPagamento ? '#fff7ed' : '#f0fdf4', border: aguardandoPagamento ? '1px solid #fed7aa' : '1px solid #bbf7d0' }}>
+          <span className="badge"><CalendarClock size={14} /> Mensalidade da vitrine</span>
+          <h2 style={{ marginBottom: 6 }}>{statusLabel(vitrine.assinatura_status)}</h2>
+          <p className="muted">Plano: {planoMensal?.nome || 'Vitrine mensal'} — {formatMoney(planoMensal?.preco || 0)} / mês</p>
+          <p className="muted">Vencimento atual: <strong>{dataBR(vencimento)}</strong></p>
+
+          {pagamentoPendente && (
+            <div className="notice">
+              Mensalidade pendente de {formatMoney(pagamentoPendente.valor)}. Após confirmar o pagamento, o admin libera/renova sua lojinha por 30 dias.
+              {pix && <><br />Chave PIX para pagamento: <strong>{pix}</strong></>}
+            </div>
+          )}
+
+          {!pagamentoPendente && (
+            <button className="btn btn-primary btn-full" type="button" onClick={solicitarPagamentoMensal} disabled={saving}>
+              <BadgeDollarSign size={18} /> Solicitar pagamento mensal
+            </button>
+          )}
+
+          {pagamentoPago && <p className="muted">Último pagamento confirmado: {pagamentoPago.pago_em ? new Date(pagamentoPago.pago_em).toLocaleDateString('pt-BR') : '—'}</p>}
+        </div>
+
+        {aguardandoPagamento && (
           <div className="notice">
-            Sua vitrine foi solicitada e está aguardando autorização. Você pode preparar a lojinha, mas ela só ficará pública depois da liberação do administrador.
+            Você pode preparar a lojinha, mas ela só fica pública depois da mensalidade ser confirmada pelo administrador.
           </div>
         )}
 
@@ -300,17 +428,17 @@ function MinhaVitrineContent() {
 
       <aside className="card">
         <h2>Prévia da lojinha</h2>
-        <p className="muted">A vitrine é uma lojinha pública, mas só aparece para compradores depois da autorização do admin.</p>
+        <p className="muted">A vitrine é uma lojinha pública mensal. Ela aparece para compradores quando a mensalidade estiver ativa.</p>
         <div style={{ display: 'grid', gap: 8, margin: '14px 0' }}>
-          <span className="badge">Plano: {vitrine.plano === 'gratis_lancamento' ? 'Grátis no lançamento' : vitrine.plano}</span>
-          {vitrine.gratis_ate && <span className="badge">Grátis até: {new Date(vitrine.gratis_ate).toLocaleDateString('pt-BR')}</span>}
-          <span className="badge">Status: {vitrine.vitrine_ativa ? 'Pública' : 'Aguardando autorização'}</span>
+          <span className="badge">Plano: Vitrine mensal</span>
+          <span className="badge">Status: {statusLabel(vitrine.assinatura_status)}</span>
+          <span className="badge">Vencimento: {dataBR(vitrine.assinatura_vencimento)}</span>
         </div>
 
         <div className="card" style={{ background: '#f8faf4', padding: 0, overflow: 'hidden' }}>
           <div style={{ minHeight: 120, background: vitrine.banner_url ? `url(${vitrine.banner_url}) ${bannerPosition}/cover` : 'linear-gradient(135deg, #052e16, #166534)', padding: 14, display: 'flex', alignItems: 'end' }}>
-            <div style={{ width: 58, height: 58, borderRadius: 18, background: '#fff', overflow: 'hidden', display: 'grid', placeItems: 'center', color: '#14532d' }}>
-              {vitrine.foto_url ? <img src={vitrine.foto_url} alt="Logo" style={{ width: '100%', height: '100%', objectFit: logoFit as any, objectPosition: logoPosition }} /> : <Store size={26} />}
+            <div style={{ width: 58, height: 58, borderRadius: '50%', background: '#fff', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 5, color: '#14532d' }}>
+              {vitrine.foto_url ? <img src={vitrine.foto_url} alt="Logo" style={{ width: '100%', height: '100%', objectFit: 'contain', objectPosition: logoPosition, borderRadius: '50%' }} /> : <Store size={26} />}
             </div>
           </div>
           <div style={{ padding: 14 }}>
@@ -321,10 +449,10 @@ function MinhaVitrineContent() {
         </div>
 
         <div style={{ display: 'grid', gap: 10, marginTop: 14 }}>
-          {vitrine.vitrine_ativa ? (
+          {vitrine.vitrine_ativa && vitrine.assinatura_status === 'ativa' ? (
             <Link className="btn btn-primary btn-full" href={linkPublico}>Abrir lojinha pública</Link>
           ) : (
-            <button className="btn btn-secondary btn-full" type="button" disabled>Disponível após autorização</button>
+            <button className="btn btn-secondary btn-full" type="button" disabled>Disponível após pagamento</button>
           )}
           <Link className="btn btn-secondary btn-full" href="/anunciar">Anunciar sem vitrine</Link>
           <Link className="btn btn-secondary btn-full" href="/painel/perfil">Voltar ao perfil</Link>
@@ -342,7 +470,7 @@ export default function MinhaVitrinePage() {
           <div className="section-head">
             <div>
               <h1>Minha vitrine</h1>
-              <p>Configure sua lojinha pública. A publicação depende da autorização do administrador.</p>
+              <p>Configure sua lojinha pública. Para aparecer para compradores, a mensalidade precisa estar ativa.</p>
             </div>
           </div>
           <MinhaVitrineContent />
