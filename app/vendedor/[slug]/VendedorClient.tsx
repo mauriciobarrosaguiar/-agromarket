@@ -50,7 +50,8 @@ export default function VendedorClient() {
   if (!vitrine) return <main className="page"><div className="container"><EmptyState title="Vitrine não encontrada" description="Essa vitrine pode estar desativada ou ainda não existir." /></div></main>;
 
   const numero = (vitrine.whatsapp || '').replace(/\D/g, '');
-  const whatsapp = numero ? `https://wa.me/${numero}?text=${encodeURIComponent(`Olá, vi sua vitrine no AgroMarket: ${vitrine.nome_vitrine}\n\nLink da vitrine: ${window.location.origin}/vendedor/${vitrine.slug}`)}` : null;
+  const linkVitrine = `https://agromarket-two.vercel.app/vendedor/${vitrine.slug}`;
+  const whatsapp = numero ? `https://wa.me/${numero}?text=${encodeURIComponent(`Olá, vi sua vitrine no AgroMarket: ${vitrine.nome_vitrine}\n\nLink da vitrine: ${linkVitrine}`)}` : null;
   const logoFit = vitrine.logo_object_fit || 'cover';
   const logoPosition = vitrine.logo_object_position || 'center';
   const bannerPosition = vitrine.banner_object_position || 'center';
