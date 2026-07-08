@@ -229,9 +229,13 @@ export default function AnuncioForm({ anuncio }: { anuncio?: Anuncio }) {
 
       const { data: perfilSeguranca } = await supabase
         .from('usuarios')
-        .select('foto_url,selfie_url,localizacao_validada')
+        .select('foto_url,selfie_url,localizacao_validada,cadastro_completo,cpf,documento_numero')
         .eq('id', user.id)
         .maybeSingle();
+
+      if (!perfilSeguranca?.cadastro_completo || !perfilSeguranca?.cpf || !perfilSeguranca?.documento_numero) {
+        throw new Error('Antes de anunciar, complete seu perfil com CPF e dados do documento.');
+      }
 
       if (!perfilSeguranca?.selfie_url && !perfilSeguranca?.foto_url) {
         throw new Error('Antes de anunciar, complete seu perfil com selfie/foto do divulgador.');
@@ -367,7 +371,7 @@ export default function AnuncioForm({ anuncio }: { anuncio?: Anuncio }) {
       {savingStep && <div className="notice">{savingStep}</div>}
 
       <div className="notice">
-        Ao publicar, use fotos reais, informe dados verdadeiros e não anuncie itens proibidos ou em situação irregular. Agora é obrigatório ter perfil com foto/selfie e localização real validada. <a href="/painel/perfil" style={{ fontWeight: 900 }}>Completar perfil</a>
+        Ao publicar, use fotos reais, informe dados verdadeiros e não anuncie itens proibidos ou em situação irregular. Agora é obrigatório ter perfil com CPF/dados do documento, selfie tirada na hora e localização real validada. <a href="/painel/perfil" style={{ fontWeight: 900 }}>Completar perfil</a>
       </div>
 
       <div className="form-row">
