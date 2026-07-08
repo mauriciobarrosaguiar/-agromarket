@@ -6,14 +6,12 @@ import { CheckCircle2, Eye, Pause, Pencil, Play, RefreshCcw, Sparkles, Trash2 } 
 import AuthGuard from '@/components/AuthGuard';
 import { supabase } from '@/lib/supabase';
 import { formatMoney } from '@/lib/whatsapp';
-import type { Anuncio, DestaqueSolicitacao, FotoAnuncio, StatusAnuncio } from '@/types';
+import type { Anuncio, DestaqueSolicitacao, FotoAnuncio, MonetizacaoPlano, StatusAnuncio } from '@/types';
 import EmptyState from '@/components/EmptyState';
 
 type AnuncioLinha = Anuncio & {
   fotos_anuncios?: FotoAnuncio[];
 };
-
-type DiasDestaque = 7 | 15 | 30;
 
 const STATUS_LABEL: Record<StatusAnuncio, string> = {
   pendente: 'Aguardando aprovação',
@@ -35,9 +33,15 @@ function formatarData(data?: string | null) {
   return new Date(data).toLocaleDateString('pt-BR');
 }
 
+function formatarPrecoPlano(valor: number | string | null | undefined) {
+  const numero = typeof valor === 'number' ? valor : Number(valor || 0);
+  return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number.isFinite(numero) ? numero : 0);
+}
+
 function MeusAnuncios() {
   const [anuncios, setAnuncios] = useState<AnuncioLinha[]>([]);
   const [solicitacoes, setSolicitacoes] = useState<Record<string, DestaqueSolicitacao>>({});
+  const [planosDestaque, setPlanosDestaque] = useState<MonetizacaoPlano[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingId, setLoadingId] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
@@ -49,7 +53,7 @@ function MeusAnuncios() {
       return;
     }
 
-    const [{ data: ads }, { data: pedidos }] = await Promise.all([
+    const [{ data: ads }, { data: pedidos }, { data: planos }] = await Promise.all([
       supabase
         .from('anuncios')
         .select('*, categorias(*), fotos_anuncios(*)')
@@ -61,7 +65,13 @@ function MeusAnuncios() {
         .select('*')
         .eq('usuario_id', userData.user.id)
         .in('status', ['pendente', 'aprovado'])
-        .order('created_at', { ascending: false })
+        .order('created_at', { ascending: false }),
+      supabase
+        .from('monetizacao_planos')
+        .select('*')
+        .eq('ativo', true)
+        .eq('tipo', 'destaque')
+        .order('ordem')
     ]);
 
     const mapa: Record<string, DestaqueSolicitacao> = {};
@@ -70,6 +80,7 @@ function MeusAnuncios() {
     });
 
     setSolicitacoes(mapa);
+    setPlanosDestaque((planos || []) as MonetizacaoPlano[]);
     setAnuncios((ads || []) as AnuncioLinha[]);
     setLoading(false);
   }
@@ -95,8 +106,9 @@ function MeusAnuncios() {
     setLoadingId(null);
   }
 
-  async function solicitarDestaque(ad: AnuncioLinha, dias: DiasDestaque) {
-    const ok = confirm(`Solicitar destaque por ${dias} dias para o anúncio "${ad.titulo}"?\n\nO admin irá analisar e liberar manualmente.`);
+  async function solicitarDestaque(ad: AnuncioLinha, plano: MonetizacaoPlano) {
+    const dias = Number(plano.dias || 7);
+    const ok = confirm(`Solicitar ${plano.nome} para o anúncio "${ad.titulo}"?\n\nValor: ${formatarPrecoPlano(plano.preco)}\nO admin irá analisar, confirmar pagamento e liberar.`);
     if (!ok) return;
 
     setLoadingId(ad.id);
@@ -107,7 +119,8 @@ function MeusAnuncios() {
       anuncio_id: ad.id,
       usuario_id: userData.user?.id,
       dias,
-      status: 'pendente'
+      status: 'pendente',
+      observacao: `${plano.nome} - ${formatarPrecoPlano(plano.preco)}`
     });
 
     if (error) {
@@ -195,12 +208,12 @@ function MeusAnuncios() {
                   <div className="card" style={{ background: '#f8faf4' }}>
                     <strong>Destacar anúncio</strong>
                     <p className="muted" style={{ marginTop: 4 }}>Solicite destaque para aparecer acima na busca e na página inicial.</p>
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8 }}>
-                      {[7, 15, 30].map((dias) => (
-                        <button key={dias} className="btn btn-secondary" disabled={isLoading} onClick={() => solicitarDestaque(ad, dias as DiasDestaque)}>
-                          {dias} dias
+                    <div style={{ display: 'grid', gap: 8 }}>
+                      {planosDestaque.length ? planosDestaque.map((plano) => (
+                        <button key={plano.id} className="btn btn-secondary btn-full" disabled={isLoading} onClick={() => solicitarDestaque(ad, plano)}>
+                          {plano.nome} · {formatarPrecoPlano(plano.preco)}
                         </button>
-                      ))}
+                      )) : <p className="muted">Nenhum plano de destaque ativo.</p>}
                     </div>
                   </div>
                 )}
