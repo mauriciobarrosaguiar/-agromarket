@@ -20,6 +20,22 @@ function resumoAvaliacoes(avaliacoes: AvaliacaoVendedor[]) {
   return { total, media, validas };
 }
 
+function vitrineLiberada(vitrine: Vitrine) {
+  if (!vitrine.vitrine_ativa) return false;
+  const hoje = new Date().toISOString().slice(0, 10);
+
+  if (vitrine.assinatura_status === 'ativa') {
+    return !vitrine.assinatura_vencimento || vitrine.assinatura_vencimento >= hoje;
+  }
+
+  if (vitrine.assinatura_status === 'gratis_lancamento') {
+    const vencimento = vitrine.gratis_ate || vitrine.assinatura_vencimento;
+    return !vencimento || vencimento >= hoje;
+  }
+
+  return false;
+}
+
 function capa(ad: AnuncioLoja) {
   const fotos = [...(ad.fotos_anuncios || [])].sort((a, b) => (a.ordem || 0) - (b.ordem || 0));
   return fotos.find((foto) => foto.principal)?.url_foto || fotos[0]?.url_foto || null;
@@ -63,7 +79,6 @@ export default function VendedorClient() {
 
   useEffect(() => {
     async function load() {
-      const hoje = new Date().toISOString().slice(0, 10);
       const { data: userData } = await supabase.auth.getUser();
       const usuarioAtual = userData.user?.id || null;
       setUserId(usuarioAtual);
@@ -73,11 +88,9 @@ export default function VendedorClient() {
         .select('*')
         .eq('slug', params.slug)
         .eq('vitrine_ativa', true)
-        .eq('assinatura_status', 'ativa')
-        .gte('assinatura_vencimento', hoje)
-        .single();
+        .maybeSingle();
 
-      if (vitrineData) {
+      if (vitrineData && vitrineLiberada(vitrineData as Vitrine)) {
         const vitrineAtual = vitrineData as Vitrine;
         setVitrine(vitrineAtual);
 
@@ -214,19 +227,23 @@ export default function VendedorClient() {
         <section className="section">
           <div className="card" style={{ background: '#f8faf4' }}>
             <div className="section-head section-head-compact" style={{ marginBottom: 12 }}><div><h2 style={{ marginTop: 0 }}>Produtos da lojinha</h2><p>Busque dentro dos anúncios deste vendedor.</p></div></div>
-            <div className="field" style={{ marginBottom: 12 }}><span className="label">Pesquisar na lojinha</span><div style={{ position: 'relative' }}><Search size={18} style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: '#5f6f5b' }} /><input className="input" value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="Ex: codorna, leitoa, ração..." style={{ paddingLeft: 44 }} /></div></div>
-            <div style={{ display: 'flex', gap: 8, overflowX: 'auto', paddingBottom: 4 }}><button type="button" className={categoriaAtiva === 'todos' ? 'btn btn-primary' : 'btn btn-secondary'} onClick={() => setCategoriaAtiva('todos')}>Todos</button>{categoriasLoja.map((cat) => <button key={cat} type="button" className={categoriaAtiva === cat ? 'btn btn-primary' : 'btn btn-secondary'} onClick={() => setCategoriaAtiva(cat)} style={{ whiteSpace: 'nowrap' }}>{cat}</button>)}</div>
+            <div className="field" style={{ marginBottom: 12 }}><span className="label">Pesquisar na lojinha</span><div style={{ position: 'relative' }}><Search size={18} style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: '#66715d' }} /><input className="input" value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="Buscar produto, animal ou serviço..." style={{ paddingLeft: 44 }} /></div></div>
+            {categoriasLoja.length > 1 && <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 14 }}><button className={categoriaAtiva === 'todos' ? 'btn btn-primary' : 'btn btn-secondary'} onClick={() => setCategoriaAtiva('todos')}>Todos</button>{categoriasLoja.map((cat) => <button key={cat} className={categoriaAtiva === cat ? 'btn btn-primary' : 'btn btn-secondary'} onClick={() => setCategoriaAtiva(cat)}>{cat}</button>)}</div>}
+            {anunciosFiltrados.length ? <div className="grid grid-3">{anunciosFiltrados.map((ad) => { const foto = capa(ad); return <Link href={`/anuncio/${ad.slug}`} className="card" key={ad.id} style={{ padding: 0, overflow: 'hidden', textDecoration: 'none' }}><div style={{ height: 160, background: '#dfe8d3', display: 'grid', placeItems: 'center' }}>{foto ? <img src={foto} alt={ad.titulo} style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <Store size={30} />}</div><div style={{ padding: 12 }}><strong>{ad.titulo}</strong><div className="price">{formatMoney(ad.preco, ad.preco_a_combinar)}</div><p className="muted">{ad.cidade} - {ad.estado}</p></div></Link>; })}</div> : <EmptyState title="Nenhum anúncio encontrado" description="Tente outro termo de busca dentro da lojinha." />}
           </div>
         </section>
 
         <section className="section">
-          {anunciosFiltrados.length ? <div className="grid grid-4">{anunciosFiltrados.map((ad) => { const foto = capa(ad); return <Link key={ad.id} href={`/anuncio/${ad.slug}`} className="card" style={{ padding: 0, overflow: 'hidden', textDecoration: 'none' }}><div style={{ width: '100%', aspectRatio: '1 / 1', background: '#eef3ea', display: 'grid', placeItems: 'center', overflow: 'hidden' }}>{foto ? <img src={foto} alt={ad.titulo} style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <Store size={30} />}</div><div style={{ padding: 12 }}><div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 8 }}>{ad.destaque && <span className="badge">Destaque</span>}<span className="badge">{ad.categorias?.nome || ad.tipo_anuncio}</span></div><strong style={{ display: 'block', color: '#10230f', fontSize: 18, lineHeight: 1.15 }}>{ad.titulo}</strong><div className="price" style={{ fontSize: 22, marginTop: 6 }}>{formatMoney(ad.preco, ad.preco_a_combinar)}</div><p className="muted" style={{ margin: '6px 0 0' }}>{ad.cidade} - {ad.estado}</p></div></Link>; })}</div> : <EmptyState title="Nenhum produto encontrado" description="Tente buscar por outro termo ou categoria." />}
-        </section>
-
-        <section className="section">
-          <div className="grid grid-2">
-            <div className="card"><h2>Resumo das avaliações</h2><RatingStars nota={media} total={total} size={24} /><p className="muted">Média baseada nas avaliações feitas por usuários logados.</p>{validas.length ? <div style={{ display: 'grid', gap: 10, marginTop: 14 }}>{validas.slice(0, 4).map((item) => <div className="notice" key={item.id}><RatingStars nota={item.nota} size={15} showText={false} />{item.comentario && <p style={{ margin: '6px 0 0' }}>{item.comentario}</p>}</div>)}</div> : <p className="muted">Ainda não há avaliações para esta vitrine.</p>}</div>
-            <form className="card form" onSubmit={enviarAvaliacao}><h2>Avaliar vendedor</h2><p className="muted">Sua avaliação ajuda outros compradores a negociar com mais confiança.</p>{avaliacaoMsg && <div className="notice">{avaliacaoMsg}</div>}{!userId || modoVisitante ? <Link className="btn btn-primary btn-full" href="/login">Entrar para avaliar</Link> : userId === vitrine.usuario_id ? <div className="notice">Essa é sua vitrine. Use “Ver como visitante” para conferir a aparência pública da lojinha.</div> : <><div><span className="label">Nota</span><div style={{ display: 'flex', gap: 4, marginTop: 8 }}>{[1, 2, 3, 4, 5].map((star) => <button key={star} type="button" onClick={() => setNota(star)} style={{ border: 0, background: 'transparent', color: '#ca8a04', padding: 2, cursor: 'pointer' }} aria-label={`${star} estrela(s)`}><Star size={34} fill={star <= nota ? 'currentColor' : 'none'} strokeWidth={2.4} /></button>)}</div></div><label className="field"><span className="label">Comentário, opcional</span><textarea className="textarea" value={comentario} onChange={(e) => setComentario(e.target.value)} placeholder="Ex: bom atendimento, respondeu rápido, produto conforme anunciado..." /></label><button className="btn btn-primary btn-full" disabled={avaliando} type="submit">{avaliando ? 'Salvando...' : 'Salvar avaliação'}</button></>}</form>
+          <div className="card">
+            <h2>Avaliações do vendedor</h2>
+            <RatingStars nota={media} total={total} size={20} />
+            <form className="form" onSubmit={enviarAvaliacao} style={{ marginTop: 14 }}>
+              {avaliacaoMsg && <div className="notice">{avaliacaoMsg}</div>}
+              <label className="field"><span className="label">Sua nota</span><select className="select" value={nota} onChange={(e) => setNota(Number(e.target.value))}><option value={5}>5 estrelas</option><option value={4}>4 estrelas</option><option value={3}>3 estrelas</option><option value={2}>2 estrelas</option><option value={1}>1 estrela</option></select></label>
+              <label className="field"><span className="label">Comentário, opcional</span><textarea className="textarea" value={comentario} onChange={(e) => setComentario(e.target.value)} placeholder="Conte como foi sua experiência com este vendedor." /></label>
+              <button className="btn btn-primary" disabled={avaliando} type="submit">{avaliando ? 'Salvando...' : 'Avaliar vendedor'}</button>
+            </form>
+            <div style={{ display: 'grid', gap: 10, marginTop: 16 }}>{validas.slice(0, 5).map((item) => <div className="card" style={{ background: '#f8faf4' }} key={item.id}><RatingStars nota={item.nota} total={0} size={15} /><p style={{ marginBottom: 0 }}>{item.comentario || 'Sem comentário.'}</p></div>)}</div>
           </div>
         </section>
       </div>
