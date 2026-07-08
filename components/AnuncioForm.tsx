@@ -6,7 +6,7 @@ import { supabase } from '@/lib/supabase';
 import { makeUniqueSlug } from '@/lib/slug';
 import { uploadAnuncioFoto } from '@/lib/upload';
 import { CIDADES_POR_ESTADO, ESTADOS, TIPOS_ANUNCIO, UNIDADES } from '@/lib/constants';
-import type { Categoria, Anuncio, TipoAnuncio } from '@/types';
+import type { Categoria, Anuncio, TipoAnuncio, Usuario } from '@/types';
 
 type FormState = {
   tipo_anuncio: TipoAnuncio;
@@ -79,6 +79,7 @@ export default function AnuncioForm({ anuncio }: { anuncio?: Anuncio }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [savingStep, setSavingStep] = useState<string | null>(null);
+  const [perfil, setPerfil] = useState<Usuario | null>(null);
 
   const cidades = useMemo(() => {
     const lista = CIDADES_POR_ESTADO[state.estado] || [];
@@ -93,6 +94,29 @@ export default function AnuncioForm({ anuncio }: { anuncio?: Anuncio }) {
     }
     load();
   }, []);
+
+  useEffect(() => {
+    async function loadPerfil() {
+      if (anuncio) return;
+      const { data: userData } = await supabase.auth.getUser();
+      if (!userData.user) return;
+
+      const { data } = await supabase.from('usuarios').select('*').eq('id', userData.user.id).single();
+      if (!data) return;
+
+      const userProfile = data as Usuario;
+      setPerfil(userProfile);
+      setState((prev) => ({
+        ...prev,
+        nome_contato: userProfile.nome || prev.nome_contato,
+        whatsapp: userProfile.whatsapp || prev.whatsapp,
+        estado: userProfile.estado || prev.estado || 'TO',
+        cidade: userProfile.cidade || prev.cidade
+      }));
+    }
+
+    loadPerfil();
+  }, [anuncio]);
 
   useEffect(() => {
     if (!anuncio) return;
@@ -342,11 +366,13 @@ export default function AnuncioForm({ anuncio }: { anuncio?: Anuncio }) {
       <div className="form-row">
         <label className="field">
           <span className="label">Nome do contato *</span>
-          <input className="input" value={state.nome_contato} onChange={(e) => update('nome_contato', e.target.value)} placeholder="Seu nome ou empresa" />
+          <input className="input" value={state.nome_contato} readOnly title="Esse nome vem do seu cadastro" />
+          <span className="muted">Vem do seu cadastro. Para alterar, vá em Perfil.</span>
         </label>
         <label className="field">
           <span className="label">WhatsApp *</span>
-          <input className="input" value={state.whatsapp} onChange={(e) => update('whatsapp', e.target.value)} placeholder="5563999999999" />
+          <input className="input" value={state.whatsapp} readOnly title="Esse WhatsApp vem do seu cadastro" />
+          <span className="muted">Vem do seu cadastro. Para alterar, vá em Perfil.</span>
         </label>
       </div>
 
