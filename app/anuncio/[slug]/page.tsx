@@ -3,12 +3,18 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
-import { MapPin, Share2 } from 'lucide-react';
+import { ExternalLink, MapPin, Share2 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import type { Anuncio } from '@/types';
 import { formatMoney } from '@/lib/whatsapp';
 import WhatsAppButton from '@/components/WhatsAppButton';
 import EmptyState from '@/components/EmptyState';
+
+function mapsUrl(anuncio: Anuncio) {
+  if (anuncio.latitude && anuncio.longitude) return `https://www.google.com/maps?q=${anuncio.latitude},${anuncio.longitude}`;
+  const partes = [anuncio.endereco, anuncio.bairro, anuncio.cidade, anuncio.estado].filter(Boolean).join(', ');
+  return partes ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(partes)}` : null;
+}
 
 export default function AnuncioDetalhePage() {
   const params = useParams<{ slug: string }>();
@@ -55,6 +61,7 @@ export default function AnuncioDetalhePage() {
   if (!anuncio) return <main className="page"><div className="container"><EmptyState title="Anúncio não encontrado" /></div></main>;
 
   const fotos = anuncio.fotos_anuncios || [];
+  const linkMapa = mapsUrl(anuncio);
 
   return (
     <main className="page">
@@ -76,8 +83,17 @@ export default function AnuncioDetalhePage() {
             <span className="badge">{anuncio.categorias?.nome || anuncio.tipo_anuncio}</span>
             <h1 style={{ marginBottom: 8 }}>{anuncio.titulo}</h1>
             <div className="price" style={{ fontSize: 34 }}>{formatMoney(anuncio.preco, anuncio.preco_a_combinar)}</div>
-            <p className="muted" style={{ display: 'flex', gap: 6, alignItems: 'center' }}><MapPin size={18} /> {anuncio.cidade} - {anuncio.estado}</p>
+            <p className="muted" style={{ display: 'flex', gap: 6, alignItems: 'center' }}><MapPin size={18} /> {anuncio.bairro ? `${anuncio.bairro} - ` : ''}{anuncio.cidade} - {anuncio.estado}</p>
             <p style={{ whiteSpace: 'pre-wrap', lineHeight: 1.55 }}>{anuncio.descricao}</p>
+
+            {(anuncio.endereco || anuncio.referencia || linkMapa) && (
+              <div className="card" style={{ background: '#f8faf4', marginBottom: 12 }}>
+                <strong>Localização</strong>
+                {anuncio.endereco && <p className="muted" style={{ marginBottom: 4 }}>{anuncio.endereco}</p>}
+                {anuncio.referencia && <p className="muted" style={{ marginTop: 0 }}>Referência: {anuncio.referencia}</p>}
+                {linkMapa && <a className="btn btn-secondary btn-full" href={linkMapa} target="_blank" rel="noreferrer"><ExternalLink size={17} /> Abrir no Google Maps</a>}
+              </div>
+            )}
 
             <div className="card" style={{ background: '#f8faf4' }}>
               <strong>Contato</strong>
