@@ -3,7 +3,7 @@
 import { FormEvent, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useParams, useSearchParams } from 'next/navigation';
-import { MapPin, MessageCircle, Search, ShieldCheck, ShoppingBag, Star, Store } from 'lucide-react';
+import { Lock, MapPin, MessageCircle, Search, ShieldCheck, ShoppingBag, Star, Store } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import type { Anuncio, AvaliacaoVendedor, FotoAnuncio, Vitrine } from '@/types';
 import EmptyState from '@/components/EmptyState';
@@ -169,6 +169,7 @@ export default function VendedorClient() {
     : (vitrine.descricao || 'Produtos, animais e serviços disponíveis no AgroMarket.');
   const { total, media, validas } = resumoAvaliacoes(avaliacoes);
   const vendedorEhDono = Boolean(userId && userId === vitrine.usuario_id && !modoVisitante);
+  const podeVerWhatsapp = Boolean(userId && !modoVisitante);
   const mensagemVitrine = `🌱 Lojinha AgroMarket\n\n🏪 ${vitrine.nome_vitrine}\n⭐ ${total ? `${media.toFixed(1)} de 5 (${total} avaliações)` : 'Ainda sem avaliações'}\n📍 ${localTexto}\n📦 ${anuncios.length} anúncio(s) disponível(is)\n\n${descricaoCurta}\n\nVeja a vitrine:`;
 
   return (
@@ -215,7 +216,11 @@ export default function VendedorClient() {
             <p style={{ whiteSpace: 'pre-wrap', lineHeight: 1.55 }}>{vitrine.descricao || 'Vendedor AgroMarket.'}</p>
 
             <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-              {whatsapp && <a className="btn btn-whatsapp" href={whatsapp} target="_blank" rel="noreferrer"><MessageCircle size={18} /> Chamar vendedor</a>}
+              {whatsapp && podeVerWhatsapp ? (
+                <a className="btn btn-whatsapp" href={whatsapp} target="_blank" rel="noreferrer"><MessageCircle size={18} /> Chamar vendedor</a>
+              ) : (
+                <Link className="btn btn-primary" href="/login"><Lock size={18} /> Entrar para chamar vendedor</Link>
+              )}
               <ShareButton label="Compartilhar lojinha" title={vitrine.nome_vitrine} message={mensagemVitrine} path={`/vendedor/${vitrine.slug}`} />
               {vendedorEhDono && <Link className="btn btn-secondary" href={`/vendedor/${vitrine.slug}?visao=visitante`}>Ver como visitante</Link>}
               {vendedorEhDono && <Link className="btn btn-secondary" href="/painel/vitrine">Editar vitrine</Link>}
