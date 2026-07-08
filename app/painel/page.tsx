@@ -12,6 +12,8 @@ function PainelContent() {
   const [perfil, setPerfil] = useState<Usuario | null>(null);
   const [vitrine, setVitrine] = useState<Vitrine | null>(null);
   const [pendentesAdmin, setPendentesAdmin] = useState(0);
+  const [destaquesPendentes, setDestaquesPendentes] = useState(0);
+  const [denunciasAbertas, setDenunciasAbertas] = useState(0);
 
   useEffect(() => {
     async function load() {
@@ -29,11 +31,14 @@ function PainelContent() {
       setVitrine((minhaVitrine || null) as Vitrine | null);
 
       if (meuPerfil?.tipo_usuario === 'admin') {
-        const { count } = await supabase
-          .from('anuncios')
-          .select('id', { count: 'exact', head: true })
-          .eq('status', 'pendente');
-        setPendentesAdmin(count || 0);
+        const [{ count: adsCount }, { count: destaquesCount }, { count: denunciasCount }] = await Promise.all([
+          supabase.from('anuncios').select('id', { count: 'exact', head: true }).eq('status', 'pendente'),
+          supabase.from('destaque_solicitacoes').select('id', { count: 'exact', head: true }).eq('status', 'pendente'),
+          supabase.from('denuncias').select('id', { count: 'exact', head: true }).eq('status', 'aberta')
+        ]);
+        setPendentesAdmin(adsCount || 0);
+        setDestaquesPendentes(destaquesCount || 0);
+        setDenunciasAbertas(denunciasCount || 0);
       }
     }
     load();
@@ -42,6 +47,7 @@ function PainelContent() {
   const totalViews = anuncios.reduce((acc, ad) => acc + (ad.visualizacoes || 0), 0);
   const totalClicks = anuncios.reduce((acc, ad) => acc + (ad.cliques_whatsapp || 0), 0);
   const isAdmin = perfil?.tipo_usuario === 'admin';
+  const totalAdminPendencias = pendentesAdmin + destaquesPendentes + denunciasAbertas;
 
   return (
     <main className="page">
@@ -55,11 +61,13 @@ function PainelContent() {
         </div>
 
         {isAdmin && (
-          <div className="card section" style={{ border: '2px solid rgba(21, 128, 61, 0.22)' }}>
-            <h2>Área do administrador</h2>
-            <p className="muted">Você está logado como admin. Aprove anúncios e controle vitrines.</p>
+          <div className="card section" style={{ border: totalAdminPendencias ? '2px solid rgba(21, 128, 61, 0.42)' : '2px solid rgba(21, 128, 61, 0.22)' }}>
+            <h2>Área do administrador {totalAdminPendencias > 0 ? `(${totalAdminPendencias})` : ''}</h2>
+            <p className="muted">Você está logado como admin. Clique direto no que precisa aprovar ou recusar.</p>
             <div className="actions" style={{ justifyContent: 'flex-start', flexWrap: 'wrap' }}>
-              <Link className="btn btn-primary" href="/admin/pendentes">Aprovar pendentes ({pendentesAdmin})</Link>
+              <Link className={pendentesAdmin ? 'btn btn-primary' : 'btn btn-secondary'} href="/admin/pendentes">Aprovar anúncios ({pendentesAdmin})</Link>
+              <Link className={destaquesPendentes ? 'btn btn-primary' : 'btn btn-secondary'} href="/admin/destaques">Aprovar destaques ({destaquesPendentes})</Link>
+              <Link className={denunciasAbertas ? 'btn btn-primary' : 'btn btn-secondary'} href="/admin/denuncias">Ver denúncias ({denunciasAbertas})</Link>
               <Link className="btn btn-secondary" href="/admin/vitrines">Gerenciar vitrines</Link>
               <Link className="btn btn-secondary" href="/admin">Painel admin completo</Link>
             </div>
