@@ -7,8 +7,10 @@ export function formatMoney(value?: number | null, combinar = false) {
   return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
 }
 
-export function makeWhatsAppLink(phone: string, title: string) {
+export function makeWhatsAppLink(phone: string, title: string, anuncioUrl?: string) {
   const cleanPhone = onlyNumbers(phone);
-  const message = encodeURIComponent(`Olá, vi seu anúncio no AgroMarket e tenho interesse em: ${title}`);
-  return `https://wa.me/${cleanPhone}?text=${message}`;
+  const message = anuncioUrl
+    ? `Olá, vi seu anúncio no AgroMarket e tenho interesse em: ${title}\n\nLink do anúncio: ${anuncioUrl}`
+    : `Olá, vi seu anúncio no AgroMarket e tenho interesse em: ${title}`;
+  return `https://wa.me/${cleanPhone}?text=${encodeURIComponent(message)}`;
 }
