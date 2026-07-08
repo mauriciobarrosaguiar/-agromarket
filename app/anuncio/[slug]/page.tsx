@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
-import { MapPin, Share2, Store, X } from 'lucide-react';
+import { ChevronLeft, ChevronRight, MapPin, Share2, Store, X } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import type { Anuncio, Vitrine } from '@/types';
 import { formatMoney } from '@/lib/whatsapp';
@@ -16,7 +16,7 @@ export default function AnuncioDetalhePage() {
   const [vitrine, setVitrine] = useState<Vitrine | null>(null);
   const [loading, setLoading] = useState(true);
   const [selectedFoto, setSelectedFoto] = useState<string | null>(null);
-  const [fotoAberta, setFotoAberta] = useState<string | null>(null);
+  const [fotoAbertaIndex, setFotoAbertaIndex] = useState<number | null>(null);
 
   useEffect(() => {
     async function load() {
@@ -29,7 +29,8 @@ export default function AnuncioDetalhePage() {
       if (data) {
         const anuncioData = data as Anuncio;
         setAnuncio(anuncioData);
-        const foto = data.fotos_anuncios?.find((f: any) => f.principal)?.url_foto || data.fotos_anuncios?.[0]?.url_foto || null;
+        const fotosOrdenadas = [...(data.fotos_anuncios || [])].sort((a: any, b: any) => (a.ordem || 0) - (b.ordem || 0));
+        const foto = fotosOrdenadas.find((f: any) => f.principal)?.url_foto || fotosOrdenadas[0]?.url_foto || null;
         setSelectedFoto(foto);
         await supabase.rpc('incrementar_visualizacao', { anuncio_uuid: data.id });
 
@@ -66,7 +67,30 @@ export default function AnuncioDetalhePage() {
   if (loading) return <main className="page"><div className="container"><div className="card">Carregando...</div></div></main>;
   if (!anuncio) return <main className="page"><div className="container"><EmptyState title="Anúncio não encontrado" /></div></main>;
 
-  const fotos = anuncio.fotos_anuncios || [];
+  const fotos = [...(anuncio.fotos_anuncios || [])].sort((a, b) => (a.ordem || 0) - (b.ordem || 0));
+  const fotoAberta = fotoAbertaIndex !== null ? fotos[fotoAbertaIndex]?.url_foto : null;
+
+  function abrirFotoSelecionada() {
+    if (!selectedFoto || !fotos.length) return;
+    const index = fotos.findIndex((foto) => foto.url_foto === selectedFoto);
+    setFotoAbertaIndex(index >= 0 ? index : 0);
+  }
+
+  function fotoAnterior() {
+    setFotoAbertaIndex((atual) => {
+      if (!fotos.length) return null;
+      if (atual === null) return 0;
+      return (atual - 1 + fotos.length) % fotos.length;
+    });
+  }
+
+  function proximaFoto() {
+    setFotoAbertaIndex((atual) => {
+      if (!fotos.length) return null;
+      if (atual === null) return 0;
+      return (atual + 1) % fotos.length;
+    });
+  }
 
   return (
     <main className="page">
@@ -77,14 +101,14 @@ export default function AnuncioDetalhePage() {
             <button
               type="button"
               className="gallery-main"
-              onClick={() => selectedFoto && setFotoAberta(selectedFoto)}
+              onClick={abrirFotoSelecionada}
               style={{ border: 0, width: '100%', padding: 0, cursor: selectedFoto ? 'zoom-in' : 'default' }}
             >
               {selectedFoto ? (
                 <img src={selectedFoto} alt={anuncio.titulo} style={{ width: '100%', height: '100%', objectFit: 'contain', background: '#eef3ea' }} />
               ) : <span className="muted">Sem foto</span>}
             </button>
-            {selectedFoto && <p className="muted" style={{ textAlign: 'center', margin: '8px 0 0' }}>Toque na foto para ver inteira</p>}
+            {selectedFoto && <p className="muted" style={{ textAlign: 'center', margin: '8px 0 0' }}>Toque na foto para ampliar</p>}
             {fotos.length > 1 && (
               <div className="thumb-row">
                 {fotos.map((f) => (
@@ -142,7 +166,7 @@ export default function AnuncioDetalhePage() {
         <div
           role="dialog"
           aria-modal="true"
-          onClick={() => setFotoAberta(null)}
+          onClick={() => setFotoAbertaIndex(null)}
           style={{
             position: 'fixed',
             inset: 0,
@@ -156,17 +180,65 @@ export default function AnuncioDetalhePage() {
           <button
             type="button"
             className="btn btn-secondary"
-            onClick={() => setFotoAberta(null)}
+            onClick={(e) => { e.stopPropagation(); setFotoAbertaIndex(null); }}
             style={{ position: 'fixed', top: 14, right: 14, zIndex: 1000 }}
           >
             <X size={18} /> Fechar
           </button>
+
+          {fotos.length > 1 && (
+            <>
+              <button
+                type="button"
+                className="btn btn-secondary"
+                onClick={(e) => { e.stopPropagation(); fotoAnterior(); }}
+                style={{ position: 'fixed', left: 12, top: '50%', transform: 'translateY(-50%)', zIndex: 1000, borderRadius: 999, padding: 12 }}
+                aria-label="Foto anterior"
+              >
+                <ChevronLeft size={26} />
+              </button>
+
+              <button
+                type="button"
+                className="btn btn-secondary"
+                onClick={(e) => { e.stopPropagation(); proximaFoto(); }}
+                style={{ position: 'fixed', right: 12, top: '50%', transform: 'translateY(-50%)', zIndex: 1000, borderRadius: 999, padding: 12 }}
+                aria-label="Próxima foto"
+              >
+                <ChevronRight size={26} />
+              </button>
+            </>
+          )}
+
           <img
             src={fotoAberta}
             alt="Foto ampliada do anúncio"
             onClick={(e) => e.stopPropagation()}
-            style={{ maxWidth: '100%', maxHeight: '92vh', objectFit: 'contain', borderRadius: 12 }}
+            style={{ maxWidth: '100%', maxHeight: fotos.length > 1 ? '82vh' : '92vh', objectFit: 'contain', borderRadius: 12 }}
           />
+
+          {fotos.length > 1 && (
+            <div
+              onClick={(e) => e.stopPropagation()}
+              style={{ position: 'fixed', left: 10, right: 10, bottom: 12, zIndex: 1000 }}
+            >
+              <div style={{ color: '#fff', textAlign: 'center', fontWeight: 800, marginBottom: 8 }}>
+                {(fotoAbertaIndex || 0) + 1} / {fotos.length}
+              </div>
+              <div style={{ display: 'flex', gap: 8, overflowX: 'auto', justifyContent: 'center' }}>
+                {fotos.map((foto, index) => (
+                  <button
+                    type="button"
+                    key={foto.id}
+                    onClick={() => setFotoAbertaIndex(index)}
+                    style={{ border: index === fotoAbertaIndex ? '3px solid #22c55e' : '2px solid rgba(255,255,255,.55)', padding: 0, borderRadius: 12, overflow: 'hidden', width: 62, height: 62, flex: '0 0 auto', background: '#111' }}
+                  >
+                    <img src={foto.url_foto} alt="Miniatura" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       )}
     </main>
