@@ -4,10 +4,16 @@ import Link from 'next/link';
 import { FormEvent, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 
+function getRedirectUrl() {
+  const base = process.env.NEXT_PUBLIC_SITE_URL || (typeof window !== 'undefined' ? window.location.origin : '');
+  return `${base.replace(/\/$/, '')}/login`;
+}
+
 export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [senha, setSenha] = useState('');
   const [loading, setLoading] = useState(false);
+  const [resending, setResending] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
 
   async function submit(e: FormEvent) {
@@ -18,6 +24,27 @@ export default function LoginPage() {
     if (error) setMessage(error.message);
     else window.location.href = '/painel';
     setLoading(false);
+  }
+
+  async function reenviarConfirmacao() {
+    if (!email) {
+      setMessage('Informe seu e-mail para reenviar a confirmação.');
+      return;
+    }
+
+    setResending(true);
+    setMessage(null);
+
+    const { error } = await supabase.auth.resend({
+      type: 'signup',
+      email,
+      options: {
+        emailRedirectTo: getRedirectUrl()
+      }
+    });
+
+    setMessage(error ? error.message : 'Enviamos um novo e-mail de confirmação. Confira sua caixa de entrada e spam.');
+    setResending(false);
   }
 
   return (
@@ -38,6 +65,11 @@ export default function LoginPage() {
             </label>
             <button className="btn btn-primary btn-full" disabled={loading}>{loading ? 'Entrando...' : 'Entrar'}</button>
           </form>
+
+          <button className="btn btn-secondary btn-full" type="button" onClick={reenviarConfirmacao} disabled={resending}>
+            {resending ? 'Reenviando...' : 'Reenviar confirmação de e-mail'}
+          </button>
+
           <p className="muted">Ainda não tem conta? <Link href="/cadastro"><strong>Cadastrar</strong></Link></p>
         </div>
       </div>
