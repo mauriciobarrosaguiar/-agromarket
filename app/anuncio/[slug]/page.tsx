@@ -1,14 +1,25 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { FormEvent, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
-import { ChevronLeft, ChevronRight, MapPin, Share2, Store, X } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Flag, MapPin, Share2, Store, X } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import type { Anuncio, Vitrine } from '@/types';
 import { formatMoney } from '@/lib/whatsapp';
 import WhatsAppButton from '@/components/WhatsAppButton';
 import EmptyState from '@/components/EmptyState';
+
+const MOTIVOS_DENUNCIA = [
+  'Golpe ou fraude',
+  'Produto proibido',
+  'Imagem falsa',
+  'Preço enganoso',
+  'Contato errado',
+  'Animal em situação irregular',
+  'Anúncio repetido',
+  'Outro motivo'
+];
 
 export default function AnuncioDetalhePage() {
   const params = useParams<{ slug: string }>();
@@ -17,6 +28,12 @@ export default function AnuncioDetalhePage() {
   const [loading, setLoading] = useState(true);
   const [selectedFoto, setSelectedFoto] = useState<string | null>(null);
   const [fotoAbertaIndex, setFotoAbertaIndex] = useState<number | null>(null);
+  const [denunciaAberta, setDenunciaAberta] = useState(false);
+  const [motivo, setMotivo] = useState(MOTIVOS_DENUNCIA[0]);
+  const [descricaoDenuncia, setDescricaoDenuncia] = useState('');
+  const [contatoDenuncia, setContatoDenuncia] = useState('');
+  const [denunciando, setDenunciando] = useState(false);
+  const [denunciaMsg, setDenunciaMsg] = useState<string | null>(null);
 
   useEffect(() => {
     async function load() {
@@ -62,6 +79,35 @@ export default function AnuncioDetalhePage() {
   async function registrarClique() {
     if (!anuncio) return;
     await supabase.rpc('incrementar_clique_whatsapp', { anuncio_uuid: anuncio.id });
+  }
+
+  async function enviarDenuncia(e: FormEvent) {
+    e.preventDefault();
+    if (!anuncio) return;
+
+    setDenunciando(true);
+    setDenunciaMsg(null);
+
+    const { data: userData } = await supabase.auth.getUser();
+    const { error } = await supabase.from('denuncias').insert({
+      anuncio_id: anuncio.id,
+      denunciante_id: userData.user?.id || null,
+      motivo,
+      descricao: descricaoDenuncia.trim() || null,
+      contato: contatoDenuncia.trim() || null,
+      status: 'aberta'
+    });
+
+    if (error) {
+      setDenunciaMsg(error.message);
+    } else {
+      setDenunciaMsg('Denúncia enviada. Vamos analisar esse anúncio.');
+      setDescricaoDenuncia('');
+      setContatoDenuncia('');
+      setMotivo(MOTIVOS_DENUNCIA[0]);
+    }
+
+    setDenunciando(false);
   }
 
   if (loading) return <main className="page"><div className="container"><div className="card">Carregando...</div></div></main>;
@@ -154,13 +200,58 @@ export default function AnuncioDetalhePage() {
               {anuncio.quantidade && <p className="muted">Quantidade: {anuncio.quantidade} {anuncio.unidade}</p>}
             </div>
 
-            <div style={{ display: 'grid', gap: 10, marginTop: 14 }} onClick={registrarClique}>
-              <WhatsAppButton phone={anuncio.whatsapp} title={anuncio.titulo} full />
+            <div style={{ display: 'grid', gap: 10, marginTop: 14 }}>
+              <div onClick={registrarClique}>
+                <WhatsAppButton phone={anuncio.whatsapp} title={anuncio.titulo} full />
+              </div>
               <button className="btn btn-secondary btn-full" onClick={compartilhar}><Share2 size={18} /> Compartilhar anúncio</button>
+              <button className="btn btn-danger btn-full" onClick={() => setDenunciaAberta(true)}><Flag size={18} /> Denunciar anúncio</button>
             </div>
           </section>
         </div>
       </div>
+
+      {denunciaAberta && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          onClick={() => setDenunciaAberta(false)}
+          style={{ position: 'fixed', inset: 0, zIndex: 998, background: 'rgba(0,0,0,.72)', display: 'grid', placeItems: 'center', padding: 14 }}
+        >
+          <form className="card form" onSubmit={enviarDenuncia} onClick={(e) => e.stopPropagation()} style={{ width: 'min(560px, 100%)', maxHeight: '88vh', overflowY: 'auto' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'center' }}>
+              <div>
+                <h2 style={{ margin: 0 }}>Denunciar anúncio</h2>
+                <p className="muted" style={{ margin: '6px 0 0' }}>Ajude a manter o AgroMarket seguro.</p>
+              </div>
+              <button className="btn btn-secondary" type="button" onClick={() => setDenunciaAberta(false)}><X size={18} /></button>
+            </div>
+
+            {denunciaMsg && <div className="notice">{denunciaMsg}</div>}
+
+            <label className="field">
+              <span className="label">Motivo</span>
+              <select className="select" value={motivo} onChange={(e) => setMotivo(e.target.value)}>
+                {MOTIVOS_DENUNCIA.map((item) => <option key={item} value={item}>{item}</option>)}
+              </select>
+            </label>
+
+            <label className="field">
+              <span className="label">Explique rapidamente</span>
+              <textarea className="textarea" value={descricaoDenuncia} onChange={(e) => setDescricaoDenuncia(e.target.value)} placeholder="Ex: foto falsa, telefone não responde, suspeita de golpe..." />
+            </label>
+
+            <label className="field">
+              <span className="label">Seu contato, opcional</span>
+              <input className="input" value={contatoDenuncia} onChange={(e) => setContatoDenuncia(e.target.value)} placeholder="WhatsApp ou e-mail para retorno" />
+            </label>
+
+            <button className="btn btn-danger btn-full" disabled={denunciando} type="submit">
+              {denunciando ? 'Enviando...' : 'Enviar denúncia'}
+            </button>
+          </form>
+        </div>
+      )}
 
       {fotoAberta && (
         <div
