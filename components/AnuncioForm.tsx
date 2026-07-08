@@ -1,11 +1,11 @@
 'use client';
 
-import { FormEvent, useEffect, useState } from 'react';
+import { FormEvent, useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import { makeUniqueSlug } from '@/lib/slug';
 import { uploadAnuncioFoto } from '@/lib/upload';
-import { ESTADOS, TIPOS_ANUNCIO, UNIDADES } from '@/lib/constants';
+import { CIDADES_POR_ESTADO, ESTADOS, TIPOS_ANUNCIO, UNIDADES } from '@/lib/constants';
 import type { Categoria, Anuncio, TipoAnuncio } from '@/types';
 
 type FormState = {
@@ -48,6 +48,12 @@ export default function AnuncioForm({ anuncio }: { anuncio?: Anuncio }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const cidades = useMemo(() => {
+    const lista = CIDADES_POR_ESTADO[state.estado] || [];
+    if (state.cidade && !lista.includes(state.cidade)) return [state.cidade, ...lista];
+    return lista;
+  }, [state.estado, state.cidade]);
+
   useEffect(() => {
     async function load() {
       const { data } = await supabase.from('categorias').select('*').eq('ativo', true).order('ordem');
@@ -79,6 +85,10 @@ export default function AnuncioForm({ anuncio }: { anuncio?: Anuncio }) {
     setState((prev) => ({ ...prev, [key]: value }));
   }
 
+  function updateEstado(uf: string) {
+    setState((prev) => ({ ...prev, estado: uf, cidade: '' }));
+  }
+
   async function submit(e: FormEvent) {
     e.preventDefault();
     setError(null);
@@ -89,7 +99,7 @@ export default function AnuncioForm({ anuncio }: { anuncio?: Anuncio }) {
       const user = userData.user;
       if (!user) throw new Error('Faça login para criar anúncio.');
 
-      if (!state.titulo || !state.descricao || !state.categoria_id || !state.cidade || !state.whatsapp || !state.nome_contato) {
+      if (!state.titulo || !state.descricao || !state.categoria_id || !state.estado || !state.cidade || !state.whatsapp || !state.nome_contato) {
         throw new Error('Preencha os campos obrigatórios.');
       }
 
@@ -201,13 +211,17 @@ export default function AnuncioForm({ anuncio }: { anuncio?: Anuncio }) {
 
       <div className="form-row">
         <label className="field">
-          <span className="label">Cidade *</span>
-          <input className="input" value={state.cidade} onChange={(e) => update('cidade', e.target.value)} placeholder="Ex: Palmas" />
+          <span className="label">Estado *</span>
+          <select className="select" value={state.estado} onChange={(e) => updateEstado(e.target.value)}>
+            <option value="">Selecione o estado</option>
+            {ESTADOS.map((uf) => <option key={uf} value={uf}>{uf}</option>)}
+          </select>
         </label>
         <label className="field">
-          <span className="label">Estado *</span>
-          <select className="select" value={state.estado} onChange={(e) => update('estado', e.target.value)}>
-            {ESTADOS.map((uf) => <option key={uf} value={uf}>{uf}</option>)}
+          <span className="label">Cidade *</span>
+          <select className="select" value={state.cidade} onChange={(e) => update('cidade', e.target.value)} disabled={!state.estado}>
+            <option value="">{state.estado ? 'Selecione a cidade' : 'Escolha o estado primeiro'}</option>
+            {cidades.map((nomeCidade) => <option key={nomeCidade} value={nomeCidade}>{nomeCidade}</option>)}
           </select>
         </label>
       </div>
