@@ -101,7 +101,7 @@ export default function HomePage() {
           {!hasSupabaseEnv && <div className="notice" style={{ marginBottom: 14 }}>Configure o Supabase no arquivo .env.local para carregar dados reais.</div>}
           <div className="hero-card" style={{ padding: 20, borderRadius: 24 }}>
             <div style={{ maxWidth: 900 }}>
-              <span className="badge"><Sparkles size={15} /> Anuncie grátis no lançamento</span>
+              <span className="badge"><Sparkles size={15} /> Anuncie Grátis</span>
               <h1 style={{ fontSize: 'clamp(30px, 7vw, 50px)', lineHeight: 1, marginBottom: 10 }}>Compre e venda no agro perto de você.</h1>
               <p style={{ marginBottom: 14 }}>Produtos rurais, animais, máquinas, serviços e oportunidades em um só lugar, com negociação direta pelo WhatsApp.</p>
               <SearchBar />
