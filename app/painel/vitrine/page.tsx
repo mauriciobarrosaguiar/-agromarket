@@ -2,7 +2,7 @@
 
 import { ChangeEvent, FormEvent, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
-import { BadgeDollarSign, CalendarClock, ImagePlus, Lock, Send, Store } from 'lucide-react';
+import { AlertTriangle, BadgeDollarSign, CalendarClock, CheckCircle2, FileText, ImagePlus, Lock, MapPin, Send, Store } from 'lucide-react';
 import AuthGuard from '@/components/AuthGuard';
 import { supabase } from '@/lib/supabase';
 import { slugify } from '@/lib/slug';
@@ -17,6 +17,12 @@ const POSICOES = [
   { value: 'left', label: 'Esquerda' },
   { value: 'right', label: 'Direita' }
 ];
+
+const MAX_ACCURACY_METERS = 150;
+
+function onlyNumbers(value?: string | null) {
+  return String(value || '').replace(/\D/g, '');
+}
 
 function formatMoney(value?: number | string | null) {
   const numero = typeof value === 'number' ? value : Number(value || 0);
@@ -36,6 +42,28 @@ function statusLabel(status?: string | null) {
   return 'Aguardando pagamento';
 }
 
+function requisitosPerfil(perfil: Usuario | null) {
+  if (!perfil) return [];
+  const cpfOk = onlyNumbers(perfil.cpf).length === 11;
+  const docDadosOk = Boolean(perfil.documento_numero && perfil.documento_orgao_emissor && perfil.documento_uf);
+  const docArquivoOk = Boolean(perfil.documento_url);
+  const selfieOk = Boolean(perfil.selfie_url || perfil.foto_url);
+  const gpsOk = Boolean(
+    perfil.localizacao_validada &&
+    perfil.latitude &&
+    perfil.longitude &&
+    (perfil.localizacao_accuracy || 999999) <= MAX_ACCURACY_METERS
+  );
+
+  return [
+    { label: 'Selfie/foto do responsável', ok: selfieOk },
+    { label: 'CPF válido no perfil', ok: cpfOk },
+    { label: 'Dados do documento preenchidos', ok: docDadosOk },
+    { label: 'Arquivo do documento enviado', ok: docArquivoOk },
+    { label: 'Localização real validada por GPS preciso', ok: gpsOk }
+  ];
+}
+
 function MinhaVitrineContent() {
   const [perfil, setPerfil] = useState<Usuario | null>(null);
   const [vitrine, setVitrine] = useState<Vitrine | null>(null);
@@ -53,6 +81,8 @@ function MinhaVitrineContent() {
   const pagamentoPendente = pagamentos.find((pagamento) => pagamento.status === 'pendente');
   const pagamentoPago = pagamentos.find((pagamento) => pagamento.status === 'pago');
   const pix = configs.find((config) => config.ativo && config.pix_chave)?.pix_chave || null;
+  const requisitos = requisitosPerfil(perfil);
+  const perfilVerificadoParaVitrine = requisitos.length > 0 && requisitos.every((item) => item.ok);
 
   const cidades = useMemo(() => {
     const uf = vitrine?.estado || perfil?.estado || 'TO';
@@ -124,6 +154,10 @@ function MinhaVitrineContent() {
 
   async function solicitarVitrine() {
     if (!perfil || !planoMensal) return;
+    if (!perfilVerificadoParaVitrine) {
+      setMessage('Para criar lojinha, complete a verificação do perfil com documento enviado e localização real por GPS.');
+      return;
+    }
 
     setSaving(true);
     setMessage(null);
@@ -164,6 +198,10 @@ function MinhaVitrineContent() {
 
   async function solicitarPagamentoMensal() {
     if (!vitrine || !planoMensal) return;
+    if (!perfilVerificadoParaVitrine) {
+      setMessage('Antes de solicitar mensalidade, complete a verificação do perfil com documento enviado e GPS preciso.');
+      return;
+    }
 
     setSaving(true);
     setMessage(null);
@@ -249,6 +287,23 @@ function MinhaVitrineContent() {
 
   if (loading) return <div className="card">Carregando sua vitrine...</div>;
 
+  const checklist = (
+    <div className="card" style={{ background: perfilVerificadoParaVitrine ? '#f0fdf4' : '#fff7ed', border: perfilVerificadoParaVitrine ? '1px solid #bbf7d0' : '1px solid #fed7aa' }}>
+      <span className="badge">{perfilVerificadoParaVitrine ? <CheckCircle2 size={14} /> : <AlertTriangle size={14} />} Verificação obrigatória</span>
+      <h3 style={{ marginBottom: 8 }}>Documento e localização da lojinha</h3>
+      <p className="muted">Para criar ou renovar lojinha, o responsável precisa estar verificado com documento enviado e GPS real preciso.</p>
+      <div style={{ display: 'grid', gap: 8 }}>
+        {requisitos.map((item) => (
+          <div key={item.label} style={{ display: 'flex', gap: 8, alignItems: 'center', color: item.ok ? '#166534' : '#9a3412', fontWeight: 800 }}>
+            {item.ok ? <CheckCircle2 size={18} /> : <AlertTriangle size={18} />}
+            {item.label}
+          </div>
+        ))}
+      </div>
+      {!perfilVerificadoParaVitrine && <Link className="btn btn-primary btn-full" href="/painel/perfil" style={{ marginTop: 14 }}><FileText size={18} /> Completar verificação do perfil</Link>}
+    </div>
+  );
+
   if (!vitrine) {
     return (
       <div className="card" style={{ maxWidth: 760, margin: '0 auto' }}>
@@ -256,6 +311,8 @@ function MinhaVitrineContent() {
         <span className="badge"><BadgeDollarSign size={14} /> Vitrine mensal</span>
         <h2>Ter uma lojinha no AgroMarket</h2>
         <p className="muted">Você pode anunciar normalmente sem lojinha. A vitrine é opcional e funciona como uma página própria do produtor, com banner, logo, produtos, avaliações e link para compartilhar.</p>
+
+        {checklist}
 
         <div className="card" style={{ background: '#f8faf4' }}>
           <h3 style={{ marginTop: 0 }}>{planoMensal?.nome || 'Vitrine mensal'}</h3>
@@ -271,7 +328,7 @@ function MinhaVitrineContent() {
         </div>
 
         <div style={{ display: 'grid', gap: 10 }}>
-          <button className="btn btn-primary btn-full" type="button" onClick={solicitarVitrine} disabled={saving || !planoMensal}>
+          <button className="btn btn-primary btn-full" type="button" onClick={solicitarVitrine} disabled={saving || !planoMensal || !perfilVerificadoParaVitrine}>
             <Send size={18} /> {saving ? 'Criando lojinha...' : 'Criar lojinha e solicitar mensalidade'}
           </button>
           <Link className="btn btn-secondary btn-full" href="/anunciar">Anunciar sem vitrine</Link>
@@ -286,18 +343,18 @@ function MinhaVitrineContent() {
   const logoPosition = vitrine.logo_object_position || 'center';
   const bannerPosition = vitrine.banner_object_position || 'center';
   const aguardandoPagamento = !vitrine.vitrine_ativa || vitrine.assinatura_status !== 'ativa';
-  const vencimento = vitrine.assinatura_vencimento;
 
   return (
     <div className="grid grid-2">
       <form className="form card" onSubmit={salvar}>
         {message && <div className="notice">{message}</div>}
+        {checklist}
 
         <div className="card" style={{ background: aguardandoPagamento ? '#fff7ed' : '#f0fdf4', border: aguardandoPagamento ? '1px solid #fed7aa' : '1px solid #bbf7d0' }}>
           <span className="badge"><CalendarClock size={14} /> Mensalidade da vitrine</span>
           <h2 style={{ marginBottom: 6 }}>{statusLabel(vitrine.assinatura_status)}</h2>
           <p className="muted">Plano: {planoMensal?.nome || 'Vitrine mensal'} — {formatMoney(planoMensal?.preco || 0)} / mês</p>
-          <p className="muted">Vencimento atual: <strong>{dataBR(vencimento)}</strong></p>
+          <p className="muted">Vencimento atual: <strong>{dataBR(vitrine.assinatura_vencimento)}</strong></p>
 
           {pagamentoPendente && (
             <div className="notice">
@@ -307,7 +364,7 @@ function MinhaVitrineContent() {
           )}
 
           {!pagamentoPendente && (
-            <button className="btn btn-primary btn-full" type="button" onClick={solicitarPagamentoMensal} disabled={saving}>
+            <button className="btn btn-primary btn-full" type="button" onClick={solicitarPagamentoMensal} disabled={saving || !perfilVerificadoParaVitrine}>
               <BadgeDollarSign size={18} /> Solicitar pagamento mensal
             </button>
           )}
@@ -315,111 +372,50 @@ function MinhaVitrineContent() {
           {pagamentoPago && <p className="muted">Último pagamento confirmado: {pagamentoPago.pago_em ? new Date(pagamentoPago.pago_em).toLocaleDateString('pt-BR') : '—'}</p>}
         </div>
 
-        {aguardandoPagamento && (
-          <div className="notice">
-            Você pode preparar a lojinha, mas ela só fica pública depois da mensalidade ser confirmada pelo administrador.
-          </div>
-        )}
+        {aguardandoPagamento && <div className="notice">Você pode preparar a lojinha, mas ela só fica pública depois da mensalidade ser confirmada pelo administrador.</div>}
 
         <div className="card" style={{ background: '#f8faf4' }}>
           <h3 style={{ marginTop: 0 }}>Imagens da vitrine</h3>
           <p className="muted">Logo recomendada: quadrada, 600 x 600 px. Banner recomendado: horizontal, 1200 x 500 px.</p>
-
           <div className="form-row">
             <div className="field">
               <span className="label">Logo da vitrine</span>
               <input ref={logoInputRef} type="file" accept="image/png,image/jpeg,image/webp" style={{ display: 'none' }} onChange={(e) => selecionarImagem(e, 'logo')} />
-              <button className="btn btn-secondary btn-full" type="button" onClick={() => logoInputRef.current?.click()} disabled={uploading !== null}>
-                <ImagePlus size={18} /> {uploading === 'logo' ? 'Enviando logo...' : 'Selecionar logo'}
-              </button>
+              <button className="btn btn-secondary btn-full" type="button" onClick={() => logoInputRef.current?.click()} disabled={uploading !== null}><ImagePlus size={18} /> {uploading === 'logo' ? 'Enviando logo...' : 'Selecionar logo'}</button>
               <div style={{ width: 118, height: 118, borderRadius: 28, background: '#eaf3e3', display: 'grid', placeItems: 'center', overflow: 'hidden', color: '#14532d', border: '1px solid #dfe8d9' }}>
                 {vitrine.foto_url ? <img src={vitrine.foto_url} alt="Logo" style={{ width: '100%', height: '100%', objectFit: logoFit as any, objectPosition: logoPosition }} /> : <Store size={32} />}
               </div>
             </div>
-
             <div className="field">
               <span className="label">Banner da vitrine</span>
               <input ref={bannerInputRef} type="file" accept="image/png,image/jpeg,image/webp" style={{ display: 'none' }} onChange={(e) => selecionarImagem(e, 'banner')} />
-              <button className="btn btn-secondary btn-full" type="button" onClick={() => bannerInputRef.current?.click()} disabled={uploading !== null}>
-                <ImagePlus size={18} /> {uploading === 'banner' ? 'Enviando banner...' : 'Selecionar banner'}
-              </button>
+              <button className="btn btn-secondary btn-full" type="button" onClick={() => bannerInputRef.current?.click()} disabled={uploading !== null}><ImagePlus size={18} /> {uploading === 'banner' ? 'Enviando banner...' : 'Selecionar banner'}</button>
               <div style={{ height: 118, borderRadius: 22, background: vitrine.banner_url ? `url(${vitrine.banner_url}) ${bannerPosition}/cover` : 'linear-gradient(135deg, #052e16, #166534)', border: '1px solid #dfe8d9' }} />
             </div>
           </div>
-
           <div className="form-row" style={{ marginTop: 14 }}>
-            <label className="field">
-              <span className="label">Ajuste da logo</span>
-              <select className="select" value={logoFit} onChange={(e) => update('logo_object_fit', e.target.value as Vitrine['logo_object_fit'])}>
-                <option value="cover">Preencher espaço</option>
-                <option value="contain">Mostrar inteira</option>
-              </select>
-            </label>
-            <label className="field">
-              <span className="label">Parte da logo</span>
-              <select className="select" value={logoPosition} onChange={(e) => update('logo_object_position', e.target.value)}>
-                {POSICOES.map((p) => <option key={p.value} value={p.value}>{p.label}</option>)}
-              </select>
-            </label>
+            <label className="field"><span className="label">Ajuste da logo</span><select className="select" value={logoFit} onChange={(e) => update('logo_object_fit', e.target.value as Vitrine['logo_object_fit'])}><option value="cover">Preencher espaço</option><option value="contain">Mostrar inteira</option></select></label>
+            <label className="field"><span className="label">Parte da logo</span><select className="select" value={logoPosition} onChange={(e) => update('logo_object_position', e.target.value)}>{POSICOES.map((p) => <option key={p.value} value={p.value}>{p.label}</option>)}</select></label>
           </div>
-
-          <label className="field" style={{ marginTop: 14 }}>
-            <span className="label">Parte do banner</span>
-            <select className="select" value={bannerPosition} onChange={(e) => update('banner_object_position', e.target.value)}>
-              {POSICOES.map((p) => <option key={p.value} value={p.value}>{p.label}</option>)}
-            </select>
-          </label>
+          <label className="field" style={{ marginTop: 14 }}><span className="label">Parte do banner</span><select className="select" value={bannerPosition} onChange={(e) => update('banner_object_position', e.target.value)}>{POSICOES.map((p) => <option key={p.value} value={p.value}>{p.label}</option>)}</select></label>
         </div>
 
-        <label className="field">
-          <span className="label">Nome da vitrine *</span>
-          <input className="input" value={vitrine.nome_vitrine} onChange={(e) => update('nome_vitrine', e.target.value)} placeholder="Ex: Chácara Flor da Dona Mariquinha" />
-        </label>
-
-        <label className="field">
-          <span className="label">Link personalizado *</span>
-          <input className="input" value={vitrine.slug} onChange={(e) => update('slug', slugify(e.target.value))} placeholder="chacara-flor-da-dona-mariquinha" />
-          <span className="muted">Seu link ficará assim: /vendedor/{vitrine.slug}</span>
-        </label>
-
-        <label className="field">
-          <span className="label">Descrição</span>
-          <textarea className="textarea" value={vitrine.descricao || ''} onChange={(e) => update('descricao', e.target.value)} placeholder="Conte o que você vende, onde atende e seus diferenciais." />
-        </label>
+        <label className="field"><span className="label">Nome da vitrine *</span><input className="input" value={vitrine.nome_vitrine} onChange={(e) => update('nome_vitrine', e.target.value)} placeholder="Ex: Chácara Flor da Dona Mariquinha" /></label>
+        <label className="field"><span className="label">Link personalizado *</span><input className="input" value={vitrine.slug} onChange={(e) => update('slug', slugify(e.target.value))} placeholder="chacara-flor-da-dona-mariquinha" /><span className="muted">Seu link ficará assim: /vendedor/{vitrine.slug}</span></label>
+        <label className="field"><span className="label">Descrição</span><textarea className="textarea" value={vitrine.descricao || ''} onChange={(e) => update('descricao', e.target.value)} placeholder="Conte o que você vende, onde atende e seus diferenciais." /></label>
 
         <div className="form-row">
-          <label className="field">
-            <span className="label">Estado</span>
-            <select className="select" value={vitrine.estado || ''} onChange={(e) => trocarEstado(e.target.value)}>
-              <option value="">Selecione o estado</option>
-              {ESTADOS.map((uf) => <option key={uf} value={uf}>{uf}</option>)}
-            </select>
-          </label>
-          <label className="field">
-            <span className="label">Cidade</span>
-            <select className="select" value={vitrine.cidade || ''} onChange={(e) => update('cidade', e.target.value)} disabled={!vitrine.estado}>
-              <option value="">{vitrine.estado ? 'Selecione a cidade' : 'Escolha o estado primeiro'}</option>
-              {cidades.map((nomeCidade) => <option key={nomeCidade} value={nomeCidade}>{nomeCidade}</option>)}
-            </select>
-          </label>
+          <label className="field"><span className="label">Estado</span><select className="select" value={vitrine.estado || ''} onChange={(e) => trocarEstado(e.target.value)}><option value="">Selecione o estado</option>{ESTADOS.map((uf) => <option key={uf} value={uf}>{uf}</option>)}</select></label>
+          <label className="field"><span className="label">Cidade</span><select className="select" value={vitrine.cidade || ''} onChange={(e) => update('cidade', e.target.value)} disabled={!vitrine.estado}><option value="">{vitrine.estado ? 'Selecione a cidade' : 'Escolha o estado primeiro'}</option>{cidades.map((nomeCidade) => <option key={nomeCidade} value={nomeCidade}>{nomeCidade}</option>)}</select></label>
         </div>
 
-        <label className="field">
-          <span className="label">WhatsApp da vitrine</span>
-          <input className="input" value={vitrine.whatsapp || ''} onChange={(e) => update('whatsapp', e.target.value)} placeholder={perfil?.whatsapp || '5563999999999'} />
-        </label>
+        <label className="field"><span className="label">WhatsApp da vitrine</span><input className="input" value={vitrine.whatsapp || ''} onChange={(e) => update('whatsapp', e.target.value)} placeholder={perfil?.whatsapp || '5563999999999'} /></label>
 
         <details className="card" style={{ background: '#f8faf4' }}>
           <summary style={{ fontWeight: 900, cursor: 'pointer' }}>Avançado: usar imagem por URL</summary>
           <div className="form" style={{ marginTop: 12 }}>
-            <label className="field">
-              <span className="label">URL da logo</span>
-              <input className="input" value={vitrine.foto_url || ''} onChange={(e) => update('foto_url', e.target.value)} placeholder="Opcional: cole o link de uma imagem" />
-            </label>
-            <label className="field">
-              <span className="label">URL do banner</span>
-              <input className="input" value={vitrine.banner_url || ''} onChange={(e) => update('banner_url', e.target.value)} placeholder="Opcional: cole o link de um banner" />
-            </label>
+            <label className="field"><span className="label">URL da logo</span><input className="input" value={vitrine.foto_url || ''} onChange={(e) => update('foto_url', e.target.value)} placeholder="Opcional: cole o link de uma imagem" /></label>
+            <label className="field"><span className="label">URL do banner</span><input className="input" value={vitrine.banner_url || ''} onChange={(e) => update('banner_url', e.target.value)} placeholder="Opcional: cole o link de um banner" /></label>
           </div>
         </details>
 
@@ -433,8 +429,8 @@ function MinhaVitrineContent() {
           <span className="badge">Plano: Vitrine mensal</span>
           <span className="badge">Status: {statusLabel(vitrine.assinatura_status)}</span>
           <span className="badge">Vencimento: {dataBR(vitrine.assinatura_vencimento)}</span>
+          <span className="badge">Verificação: {perfilVerificadoParaVitrine ? 'Perfil verificado' : 'Pendente'}</span>
         </div>
-
         <div className="card" style={{ background: '#f8faf4', padding: 0, overflow: 'hidden' }}>
           <div style={{ minHeight: 120, background: vitrine.banner_url ? `url(${vitrine.banner_url}) ${bannerPosition}/cover` : 'linear-gradient(135deg, #052e16, #166534)', padding: 14, display: 'flex', alignItems: 'end' }}>
             <div style={{ width: 58, height: 58, borderRadius: '50%', background: '#fff', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 5, color: '#14532d' }}>
@@ -447,13 +443,8 @@ function MinhaVitrineContent() {
             <p>{vitrine.descricao}</p>
           </div>
         </div>
-
         <div style={{ display: 'grid', gap: 10, marginTop: 14 }}>
-          {vitrine.vitrine_ativa && vitrine.assinatura_status === 'ativa' ? (
-            <Link className="btn btn-primary btn-full" href={linkPublico}>Abrir lojinha pública</Link>
-          ) : (
-            <button className="btn btn-secondary btn-full" type="button" disabled>Disponível após pagamento</button>
-          )}
+          {vitrine.vitrine_ativa && vitrine.assinatura_status === 'ativa' ? <Link className="btn btn-primary btn-full" href={linkPublico}>Abrir lojinha pública</Link> : <button className="btn btn-secondary btn-full" type="button" disabled>Disponível após pagamento</button>}
           <Link className="btn btn-secondary btn-full" href="/anunciar">Anunciar sem vitrine</Link>
           <Link className="btn btn-secondary btn-full" href="/painel/perfil">Voltar ao perfil</Link>
         </div>
@@ -470,7 +461,7 @@ export default function MinhaVitrinePage() {
           <div className="section-head">
             <div>
               <h1>Minha vitrine</h1>
-              <p>Configure sua lojinha pública. Para aparecer para compradores, a mensalidade precisa estar ativa.</p>
+              <p>Configure sua lojinha pública. Para aparecer para compradores, a mensalidade precisa estar ativa e o perfil precisa estar verificado.</p>
             </div>
           </div>
           <MinhaVitrineContent />
