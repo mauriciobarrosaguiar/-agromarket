@@ -9,7 +9,7 @@ import type { Anuncio, Categoria } from '@/types';
 import AnuncioCard from '@/components/AnuncioCard';
 import EmptyState from '@/components/EmptyState';
 
-type Ordenacao = 'recentes' | 'menor_preco' | 'maior_preco' | 'mais_vistos' | 'perto_de_mim';
+type Ordenacao = 'perto_de_mim' | 'recentes' | 'menor_preco' | 'maior_preco' | 'mais_vistos';
 type PrecoFiltro = 'todos' | 'com_preco' | 'a_combinar';
 
 type Coordenadas = {
@@ -17,10 +17,20 @@ type Coordenadas = {
   lng: number;
 };
 
+type AnuncioComDistancia = Anuncio & {
+  distancia_calculada?: number | null;
+};
+
 function parseValor(valor: string): number | null {
   if (!valor) return null;
   const numero = Number(valor.replace(/[^\d,\.]/g, '').replace(',', '.'));
   return Number.isFinite(numero) ? numero : null;
+}
+
+function formatarMoedaCampo(valor: string) {
+  const numero = parseValor(valor);
+  if (numero === null) return '';
+  return numero.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 }
 
 function distanciaKm(origem: Coordenadas, anuncio: Anuncio) {
@@ -40,7 +50,7 @@ function limparBusca(valor: string) {
 
 export default function AnunciosPage() {
   const router = useRouter();
-  const [anuncios, setAnuncios] = useState<Anuncio[]>([]);
+  const [anuncios, setAnuncios] = useState<AnuncioComDistancia[]>([]);
   const [categorias, setCategorias] = useState<Categoria[]>([]);
   const [categoria, setCategoria] = useState('');
   const [estado, setEstado] = useState('');
@@ -49,7 +59,7 @@ export default function AnunciosPage() {
   const [precoMin, setPrecoMin] = useState('');
   const [precoMax, setPrecoMax] = useState('');
   const [precoFiltro, setPrecoFiltro] = useState<PrecoFiltro>('todos');
-  const [ordenacao, setOrdenacao] = useState<Ordenacao>('recentes');
+  const [ordenacao, setOrdenacao] = useState<Ordenacao>('perto_de_mim');
   const [distancia, setDistancia] = useState('');
   const [coords, setCoords] = useState<Coordenadas | null>(null);
   const [loading, setLoading] = useState(true);
@@ -58,7 +68,7 @@ export default function AnunciosPage() {
   const [message, setMessage] = useState<string | null>(null);
 
   const cidades = useMemo(() => estado ? (CIDADES_POR_ESTADO[estado] || []) : [], [estado]);
-  const filtrosAtivos = [q, categoria, estado, cidade, tipo, precoMin, precoMax, precoFiltro !== 'todos' ? precoFiltro : '', distancia, ordenacao !== 'recentes' ? ordenacao : ''].filter(Boolean).length;
+  const filtrosAtivos = [q, categoria, estado, cidade, tipo, precoMin, precoMax, precoFiltro !== 'todos' ? precoFiltro : '', distancia, ordenacao !== 'perto_de_mim' ? ordenacao : ''].filter(Boolean).length;
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -70,8 +80,16 @@ export default function AnunciosPage() {
     setPrecoMin(params.get('preco_min') || '');
     setPrecoMax(params.get('preco_max') || '');
     setPrecoFiltro((params.get('preco') as PrecoFiltro) || 'todos');
-    setOrdenacao((params.get('ordem') as Ordenacao) || 'recentes');
+    setOrdenacao((params.get('ordem') as Ordenacao) || 'perto_de_mim');
     setDistancia(params.get('distancia') || '');
+
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => setCoords({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
+        () => undefined,
+        { enableHighAccuracy: true, timeout: 10000, maximumAge: 120000 }
+      );
+    }
   }, []);
 
   useEffect(() => {
@@ -124,17 +142,20 @@ export default function AnunciosPage() {
         return;
       }
 
-      let lista = (data || []) as Anuncio[];
+      let lista = (data || []) as AnuncioComDistancia[];
 
-      if ((distancia || ordenacao === 'perto_de_mim') && coords) {
+      if (coords) {
         const limite = parseValor(distancia);
         lista = lista
-          .map((ad) => ({ ...ad, distancia_calculada: distanciaKm(coords, ad) }) as Anuncio & { distancia_calculada: number | null })
-          .filter((ad) => ad.distancia_calculada !== null && (limite === null || ad.distancia_calculada <= limite))
-          .sort((a, b) => (a.distancia_calculada || 999999) - (b.distancia_calculada || 999999));
+          .map((ad) => ({ ...ad, distancia_calculada: distanciaKm(coords, ad) }))
+          .filter((ad) => !distancia || (ad.distancia_calculada !== null && ad.distancia_calculada !== undefined && (limite === null || ad.distancia_calculada <= limite)));
+
+        if (ordenacao === 'perto_de_mim') {
+          lista = lista.sort((a, b) => (a.distancia_calculada ?? 999999) - (b.distancia_calculada ?? 999999));
+        }
       }
 
-      if ((distancia || ordenacao === 'perto_de_mim') && !coords) {
+      if (distancia && !coords) {
         setMessage('Para filtrar por distância, toque em “Usar minha localização”.');
       }
 
@@ -156,7 +177,7 @@ export default function AnunciosPage() {
     if (precoMin) params.set('preco_min', precoMin);
     if (precoMax) params.set('preco_max', precoMax);
     if (precoFiltro !== 'todos') params.set('preco', precoFiltro);
-    if (ordenacao !== 'recentes') params.set('ordem', ordenacao);
+    if (ordenacao !== 'perto_de_mim') params.set('ordem', ordenacao);
     if (distancia) params.set('distancia', distancia);
     router.push(`/anuncios?${params.toString()}`);
   }
@@ -170,7 +191,7 @@ export default function AnunciosPage() {
     setPrecoMin('');
     setPrecoMax('');
     setPrecoFiltro('todos');
-    setOrdenacao('recentes');
+    setOrdenacao('perto_de_mim');
     setDistancia('');
     setMessage(null);
     router.push('/anuncios');
@@ -193,7 +214,8 @@ export default function AnunciosPage() {
       (pos) => {
         setCoords({ lat: pos.coords.latitude, lng: pos.coords.longitude });
         setGeoLoading(false);
-        setMessage('Localização capturada. Agora você pode ordenar ou filtrar por distância.');
+        setOrdenacao('perto_de_mim');
+        setMessage('Localização ativa. Os anúncios com localização cadastrada aparecem primeiro.');
       },
       () => {
         setGeoLoading(false);
@@ -226,102 +248,122 @@ export default function AnunciosPage() {
             <button className="btn btn-primary" type="submit"><Search size={18} /> Buscar</button>
           </div>
 
-          <div className="form-row">
-            <label className="field">
-              <span className="label">Categoria</span>
-              <select className="select" value={categoria} onChange={(e) => setCategoria(e.target.value)}>
-                <option value="">Todas</option>
-                {categorias.map((cat) => <option key={cat.id} value={cat.id}>{cat.nome}</option>)}
-              </select>
-            </label>
+          <div style={{ display: 'grid', gap: 10 }}>
+            <button className="btn btn-secondary btn-full" type="button" onClick={usarMinhaLocalizacao} disabled={geoLoading}>
+              <LocateFixed size={18} /> {geoLoading ? 'Pegando localização...' : coords ? 'Localização ativa: anúncios próximos primeiro' : 'Usar minha localização'}
+            </button>
 
-            <label className="field">
-              <span className="label">Tipo</span>
-              <select className="select" value={tipo} onChange={(e) => setTipo(e.target.value)}>
-                <option value="">Todos</option>
-                {TIPOS_ANUNCIO.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
-              </select>
-            </label>
-          </div>
+            <details>
+              <summary className="btn btn-secondary btn-full" style={{ listStyle: 'none', cursor: 'pointer' }}>
+                <SlidersHorizontal size={18} /> Filtros avançados {filtrosAtivos ? `(${filtrosAtivos})` : ''}
+              </summary>
 
-          <div className="form-row">
-            <label className="field">
-              <span className="label">Estado</span>
-              <select className="select" value={estado} onChange={(e) => mudarEstado(e.target.value)}>
-                <option value="">Todos</option>
-                {ESTADOS.map((uf) => <option key={uf} value={uf}>{uf}</option>)}
-              </select>
-            </label>
+              <div className="form" style={{ marginTop: 14 }}>
+                <div className="form-row">
+                  <label className="field">
+                    <span className="label">Categoria</span>
+                    <select className="select" value={categoria} onChange={(e) => setCategoria(e.target.value)}>
+                      <option value="">Todas</option>
+                      {categorias.map((cat) => <option key={cat.id} value={cat.id}>{cat.nome}</option>)}
+                    </select>
+                  </label>
 
-            <label className="field">
-              <span className="label">Cidade</span>
-              <select className="select" value={cidade} onChange={(e) => setCidade(e.target.value)} disabled={!estado}>
-                <option value="">{estado ? 'Todas' : 'Escolha o estado primeiro'}</option>
-                {cidades.map((nomeCidade) => <option key={nomeCidade} value={nomeCidade}>{nomeCidade}</option>)}
-              </select>
-            </label>
-          </div>
+                  <label className="field">
+                    <span className="label">Tipo</span>
+                    <select className="select" value={tipo} onChange={(e) => setTipo(e.target.value)}>
+                      <option value="">Todos</option>
+                      {TIPOS_ANUNCIO.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
+                    </select>
+                  </label>
+                </div>
 
-          <div className="form-row">
-            <label className="field">
-              <span className="label">Preço mínimo</span>
-              <input className="input" inputMode="decimal" value={precoMin} onChange={(e) => setPrecoMin(e.target.value.replace(/[^\d,\.]/g, ''))} placeholder="Ex: 20" />
-            </label>
+                <div className="form-row">
+                  <label className="field">
+                    <span className="label">Estado</span>
+                    <select className="select" value={estado} onChange={(e) => mudarEstado(e.target.value)}>
+                      <option value="">Todos</option>
+                      {ESTADOS.map((uf) => <option key={uf} value={uf}>{uf}</option>)}
+                    </select>
+                  </label>
 
-            <label className="field">
-              <span className="label">Preço máximo</span>
-              <input className="input" inputMode="decimal" value={precoMax} onChange={(e) => setPrecoMax(e.target.value.replace(/[^\d,\.]/g, ''))} placeholder="Ex: 150" />
-            </label>
-          </div>
+                  <label className="field">
+                    <span className="label">Cidade</span>
+                    <select className="select" value={cidade} onChange={(e) => setCidade(e.target.value)} disabled={!estado}>
+                      <option value="">{estado ? 'Todas' : 'Escolha o estado primeiro'}</option>
+                      {cidades.map((nomeCidade) => <option key={nomeCidade} value={nomeCidade}>{nomeCidade}</option>)}
+                    </select>
+                  </label>
+                </div>
 
-          <div className="form-row">
-            <label className="field">
-              <span className="label">Preço</span>
-              <select className="select" value={precoFiltro} onChange={(e) => setPrecoFiltro(e.target.value as PrecoFiltro)}>
-                <option value="todos">Todos</option>
-                <option value="com_preco">Somente com preço</option>
-                <option value="a_combinar">Somente a combinar</option>
-              </select>
-            </label>
+                <div className="form-row">
+                  <label className="field">
+                    <span className="label">Preço mínimo</span>
+                    <input
+                      className="input"
+                      inputMode="decimal"
+                      value={precoMin}
+                      onChange={(e) => setPrecoMin(e.target.value.replace(/[^\d,\.]/g, ''))}
+                      onBlur={() => setPrecoMin(formatarMoedaCampo(precoMin))}
+                      placeholder="Ex: R$ 20,00"
+                    />
+                  </label>
 
-            <label className="field">
-              <span className="label">Ordenar por</span>
-              <select className="select" value={ordenacao} onChange={(e) => setOrdenacao(e.target.value as Ordenacao)}>
-                <option value="recentes">Mais recentes</option>
-                <option value="menor_preco">Menor preço</option>
-                <option value="maior_preco">Maior preço</option>
-                <option value="mais_vistos">Mais vistos</option>
-                <option value="perto_de_mim">Perto de mim</option>
-              </select>
-            </label>
-          </div>
+                  <label className="field">
+                    <span className="label">Preço máximo</span>
+                    <input
+                      className="input"
+                      inputMode="decimal"
+                      value={precoMax}
+                      onChange={(e) => setPrecoMax(e.target.value.replace(/[^\d,\.]/g, ''))}
+                      onBlur={() => setPrecoMax(formatarMoedaCampo(precoMax))}
+                      placeholder="Ex: R$ 150,00"
+                    />
+                  </label>
+                </div>
 
-          <div className="form-row">
-            <label className="field">
-              <span className="label">Distância máxima</span>
-              <select className="select" value={distancia} onChange={(e) => setDistancia(e.target.value)}>
-                <option value="">Sem limite</option>
-                <option value="10">Até 10 km</option>
-                <option value="25">Até 25 km</option>
-                <option value="50">Até 50 km</option>
-                <option value="100">Até 100 km</option>
-                <option value="200">Até 200 km</option>
-              </select>
-            </label>
+                <div className="form-row">
+                  <label className="field">
+                    <span className="label">Preço</span>
+                    <select className="select" value={precoFiltro} onChange={(e) => setPrecoFiltro(e.target.value as PrecoFiltro)}>
+                      <option value="todos">Todos</option>
+                      <option value="com_preco">Somente com preço</option>
+                      <option value="a_combinar">Somente a combinar</option>
+                    </select>
+                  </label>
 
-            <label className="field" style={{ justifyContent: 'end' }}>
-              <button className="btn btn-secondary btn-full" type="button" onClick={usarMinhaLocalizacao} disabled={geoLoading}>
-                <LocateFixed size={18} /> {geoLoading ? 'Pegando localização...' : coords ? 'Localização ativa' : 'Usar minha localização'}
-              </button>
-            </label>
-          </div>
+                  <label className="field">
+                    <span className="label">Ordenar por</span>
+                    <select className="select" value={ordenacao} onChange={(e) => setOrdenacao(e.target.value as Ordenacao)}>
+                      <option value="perto_de_mim">Mais próximos primeiro</option>
+                      <option value="recentes">Mais recentes</option>
+                      <option value="menor_preco">Menor preço</option>
+                      <option value="maior_preco">Maior preço</option>
+                      <option value="mais_vistos">Mais vistos</option>
+                    </select>
+                  </label>
+                </div>
 
-          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span className="muted" style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><SlidersHorizontal size={17} /> {filtrosAtivos} filtro(s) ativo(s)</span>
-            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-              <button className="btn btn-secondary" type="button" onClick={limparFiltros}><X size={17} /> Limpar</button>
-              <button className="btn btn-primary" type="submit">Aplicar filtros</button>
-            </div>
+                <label className="field">
+                  <span className="label">Distância máxima</span>
+                  <select className="select" value={distancia} onChange={(e) => setDistancia(e.target.value)}>
+                    <option value="">Sem limite</option>
+                    <option value="10">Até 10 km</option>
+                    <option value="25">Até 25 km</option>
+                    <option value="50">Até 50 km</option>
+                    <option value="100">Até 100 km</option>
+                    <option value="200">Até 200 km</option>
+                  </select>
+                </label>
+
+                <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span className="muted" style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><SlidersHorizontal size={17} /> {filtrosAtivos} filtro(s) ativo(s)</span>
+                  <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                    <button className="btn btn-secondary" type="button" onClick={limparFiltros}><X size={17} /> Limpar</button>
+                    <button className="btn btn-primary" type="submit">Aplicar filtros</button>
+                  </div>
+                </div>
+              </div>
+            </details>
           </div>
         </form>
 
