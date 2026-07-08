@@ -137,6 +137,8 @@ export default function AnuncioForm({ anuncio }: { anuncio?: Anuncio }) {
     setSavingStep(null);
     setLoading(true);
 
+    let anuncioIdCriado: string | null = null;
+
     try {
       const user = await getUsuarioLogado();
       if (!user) {
@@ -145,6 +147,10 @@ export default function AnuncioForm({ anuncio }: { anuncio?: Anuncio }) {
 
       if (!state.titulo || !state.descricao || !state.categoria_id || !state.estado || !state.cidade || !state.whatsapp || !state.nome_contato) {
         throw new Error('Preencha os campos obrigatórios.');
+      }
+
+      if (!anuncio && (!files || files.length === 0)) {
+        throw new Error('Adicione pelo menos uma foto. Não permitimos anúncio sem imagem.');
       }
 
       const precoNumero = state.preco_a_combinar || !state.preco ? null : parseDecimal(state.preco);
@@ -196,38 +202,45 @@ export default function AnuncioForm({ anuncio }: { anuncio?: Anuncio }) {
         );
         if (error) throw error;
         anuncioId = data.id;
+        anuncioIdCriado = data.id;
       }
 
       if (files && files.length > 0 && anuncioId) {
         const list = Array.from(files).slice(0, 5);
+        let fotosEnviadas = 0;
+
         for (let i = 0; i < list.length; i++) {
-          try {
-            setSavingStep(`Enviando foto ${i + 1} de ${list.length}...`);
-            const url = await comTempoLimite(
-              uploadAnuncioFoto(list[i], anuncioId, i),
-              30000,
-              'A foto demorou demais para enviar.'
-            );
-            const { error: photoError } = await comTempoLimite(
-              supabase.from('fotos_anuncios').insert({
-                anuncio_id: anuncioId,
-                url_foto: url,
-                ordem: i,
-                principal: i === 0
-              }),
-              15000,
-              'Demorou demais para registrar a foto.'
-            );
-            if (photoError) throw photoError;
-          } catch (photoError) {
-            console.error('Falha ao enviar foto. O anúncio foi salvo sem esta foto.', photoError);
-            break;
-          }
+          setSavingStep(`Enviando foto ${i + 1} de ${list.length}...`);
+          const url = await comTempoLimite(
+            uploadAnuncioFoto(list[i], anuncioId, i),
+            45000,
+            'A foto demorou demais para enviar. Tente uma imagem menor ou uma internet melhor.'
+          );
+          const { error: photoError } = await comTempoLimite(
+            supabase.from('fotos_anuncios').insert({
+              anuncio_id: anuncioId,
+              url_foto: url,
+              ordem: i,
+              principal: i === 0
+            }),
+            15000,
+            'Demorou demais para registrar a foto.'
+          );
+          if (photoError) throw photoError;
+          fotosEnviadas++;
+        }
+
+        if (fotosEnviadas === 0) {
+          throw new Error('Não foi possível enviar a foto. O anúncio não será salvo sem imagem.');
         }
       }
 
       router.push('/painel/anuncios');
     } catch (err) {
+      if (anuncioIdCriado) {
+        await supabase.from('anuncios').delete().eq('id', anuncioIdCriado);
+      }
+
       const message = err instanceof Error ? err.message : 'Erro ao salvar anúncio.';
       setError(message);
       window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -338,9 +351,9 @@ export default function AnuncioForm({ anuncio }: { anuncio?: Anuncio }) {
       </div>
 
       <label className="field">
-        <span className="label">Fotos</span>
-        <input className="input" type="file" multiple accept="image/png,image/jpeg,image/webp" onChange={(e) => setFiles(e.target.files)} />
-        <span className="muted">Até 5 fotos no MVP. A primeira foto vira capa.</span>
+        <span className="label">Fotos *</span>
+        <input className="input" type="file" multiple accept="image/png,image/jpeg,image/webp" required={!anuncio} onChange={(e) => setFiles(e.target.files)} />
+        <span className="muted">Obrigatório: pelo menos 1 foto. Até 5 fotos no MVP. A primeira foto vira capa.</span>
       </label>
 
       <button className="btn btn-primary btn-full" disabled={loading} type="submit">
