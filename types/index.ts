@@ -3,6 +3,7 @@ export type StatusUsuario = 'ativo' | 'pendente' | 'bloqueado';
 export type TipoAnuncio = 'produto' | 'animal' | 'servico' | 'emprego' | 'maquina' | 'equipamento';
 export type StatusAnuncio = 'pendente' | 'aprovado' | 'recusado' | 'pausado' | 'vendido' | 'expirado' | 'bloqueado';
 export type StatusDenuncia = 'aberta' | 'em_analise' | 'resolvida' | 'ignorada';
+export type StatusDestaqueSolicitacao = 'pendente' | 'aprovado' | 'recusado' | 'cancelado' | 'expirado';
 
 export type Usuario = {
   id: string;
@@ -86,6 +87,8 @@ export type Anuncio = {
   nome_contato: string;
   status: StatusAnuncio;
   destaque: boolean;
+  destaque_inicio?: string | null;
+  destaque_fim?: string | null;
   visualizacoes: number;
   cliques_whatsapp: number;
   data_publicacao?: string | null;
@@ -106,6 +109,21 @@ export type Denuncia = {
   contato?: string | null;
   status: StatusDenuncia;
   acao_admin?: string | null;
+  created_at?: string;
+  updated_at?: string;
+};
+
+export type DestaqueSolicitacao = {
+  id: string;
+  anuncio_id: string;
+  usuario_id: string;
+  dias: 7 | 15 | 30;
+  status: StatusDestaqueSolicitacao;
+  observacao?: string | null;
+  admin_id?: string | null;
+  aprovado_em?: string | null;
+  inicio_em?: string | null;
+  fim_em?: string | null;
   created_at?: string;
   updated_at?: string;
 };
