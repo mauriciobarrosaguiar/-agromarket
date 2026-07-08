@@ -89,15 +89,27 @@ export default function AnuncioForm({ anuncio }: { anuncio?: Anuncio }) {
     setState((prev) => ({ ...prev, estado: uf, cidade: '' }));
   }
 
+  async function getUsuarioLogado() {
+    const { data: sessionData } = await supabase.auth.getSession();
+    if (sessionData.session?.user) return sessionData.session.user;
+
+    const { data: userData } = await supabase.auth.getUser();
+    if (userData.user) return userData.user;
+
+    return null;
+  }
+
   async function submit(e: FormEvent) {
     e.preventDefault();
     setError(null);
     setLoading(true);
 
     try {
-      const { data: userData } = await supabase.auth.getUser();
-      const user = userData.user;
-      if (!user) throw new Error('Faça login para criar anúncio.');
+      const user = await getUsuarioLogado();
+      if (!user) {
+        const voltarPara = encodeURIComponent('/anunciar');
+        throw new Error(`Sua sessão não está ativa neste navegador. Entre novamente para publicar o anúncio. Abra /login?next=${voltarPara}`);
+      }
 
       if (!state.titulo || !state.descricao || !state.categoria_id || !state.estado || !state.cidade || !state.whatsapp || !state.nome_contato) {
         throw new Error('Preencha os campos obrigatórios.');
