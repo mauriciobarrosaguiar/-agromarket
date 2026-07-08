@@ -109,7 +109,6 @@ export default function VitrinesPage() {
         {loading ? <div className="card">Carregando lojinhas...</div> : lojasFiltradas.length ? (
           <div className="grid grid-2">
             {lojasFiltradas.map((loja) => {
-              const logoFit = loja.logo_object_fit || 'cover';
               const logoPosition = loja.logo_object_position || 'center';
               const bannerPosition = loja.banner_object_position || 'center';
               return (
@@ -117,8 +116,8 @@ export default function VitrinesPage() {
                   <div style={{ minHeight: 150, background: loja.banner_url ? `url(${loja.banner_url}) ${bannerPosition}/cover` : 'linear-gradient(135deg, #052e16, #166534)', display: 'flex', alignItems: 'end', padding: 14, position: 'relative' }}>
                     <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(180deg, rgba(0,0,0,.04), rgba(0,0,0,.58))' }} />
                     <div style={{ position: 'relative', display: 'flex', gap: 12, alignItems: 'center', color: '#fff' }}>
-                      <div style={{ width: 72, height: 72, borderRadius: 22, background: '#fff', color: '#14532d', display: 'grid', placeItems: 'center', overflow: 'hidden', boxShadow: '0 14px 30px rgba(0,0,0,.2)' }}>
-                        {loja.foto_url ? <img src={loja.foto_url} alt={loja.nome_vitrine} style={{ width: '100%', height: '100%', objectFit: logoFit as any, objectPosition: logoPosition }} /> : <Store size={32} />}
+                      <div style={{ width: 76, height: 76, borderRadius: '50%', background: '#fff', color: '#14532d', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', padding: 6, border: '2px solid rgba(255,255,255,.92)', boxShadow: '0 14px 30px rgba(0,0,0,.2)', flexShrink: 0 }}>
+                        {loja.foto_url ? <img src={loja.foto_url} alt={loja.nome_vitrine} style={{ width: '100%', height: '100%', objectFit: 'contain', objectPosition: logoPosition, borderRadius: '50%', display: 'block' }} /> : <Store size={32} />}
                       </div>
                       <div style={{ minWidth: 0 }}>
                         <strong style={{ display: 'block', color: '#fff', fontSize: 22, lineHeight: 1.08 }}>{loja.nome_vitrine}</strong>
