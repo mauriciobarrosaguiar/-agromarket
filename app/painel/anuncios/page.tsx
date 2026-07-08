@@ -120,9 +120,9 @@ function MeusAnuncios() {
 
           return (
             <article className="card" key={ad.id} style={{ overflow: 'hidden', padding: 0 }}>
-              <div style={{ display: 'grid', gridTemplateColumns: '130px 1fr', gap: 0 }}>
-                <div style={{ minHeight: 150, background: '#eef3ea', display: 'grid', placeItems: 'center', overflow: 'hidden' }}>
-                  {foto ? <img src={foto} alt={ad.titulo} style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <span className="muted">Sem foto</span>}
+              <div style={{ display: 'grid', gridTemplateColumns: 'minmax(132px, 34%) 1fr', gap: 0, alignItems: 'start' }}>
+                <div style={{ width: '100%', aspectRatio: '1 / 1', background: '#eef3ea', display: 'grid', placeItems: 'center', overflow: 'hidden', alignSelf: 'start' }}>
+                  {foto ? <img src={foto} alt={ad.titulo} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} /> : <span className="muted">Sem foto</span>}
                 </div>
 
                 <div style={{ padding: 14, minWidth: 0 }}>
