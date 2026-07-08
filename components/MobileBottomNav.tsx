@@ -1,14 +1,14 @@
 'use client';
 
 import Link from 'next/link';
-import { Home, Search, PlusCircle, LayoutDashboard, UserRound } from 'lucide-react';
+import { Home, Search, PlusCircle, Store, UserRound } from 'lucide-react';
 import { usePathname } from 'next/navigation';
 
 const tabs = [
   { href: '/', label: 'Início', icon: Home },
   { href: '/anuncios', label: 'Buscar', icon: Search },
   { href: '/anunciar', label: 'Anunciar', icon: PlusCircle },
-  { href: '/painel', label: 'Painel', icon: LayoutDashboard },
+  { href: '/painel/vitrine', label: 'Vitrine', icon: Store },
   { href: '/painel/perfil', label: 'Perfil', icon: UserRound }
 ];
 
