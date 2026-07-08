@@ -40,6 +40,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               <Link href="/planos">Planos</Link>
               <Link href="/anuncios">Anúncios</Link>
             </div>
+            <div style={{ marginTop: 18, paddingTop: 14, borderTop: '1px solid var(--border)', fontWeight: 800 }}>
+              Feito pela MBA Labs • <a href="https://www.mbalabs.com.br" target="_blank" rel="noreferrer">www.mbalabs.com.br</a>
+            </div>
           </div>
         </footer>
         <InstallAppButton />
