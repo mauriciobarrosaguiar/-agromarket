@@ -1,22 +1,46 @@
-import Link from 'next/link';
+'use client';
 
-const PLANOS_DESTAQUE = [
-  { nome: 'Destaque 7 dias', preco: 'R$ 9,90', descricao: 'Ideal para vender rápido um produto, animal ou serviço.' },
-  { nome: 'Destaque 15 dias', preco: 'R$ 17,90', descricao: 'Mais tempo aparecendo acima nos anúncios.' },
-  { nome: 'Destaque 30 dias', preco: 'R$ 29,90', descricao: 'Melhor opção para máquinas, serviços e lotes maiores.' }
-];
+import { useEffect, useState } from 'react';
+import Link from 'next/link';
+import { supabase } from '@/lib/supabase';
+import type { MonetizacaoPlano } from '@/types';
+
+function formatMoney(value: number | string | null | undefined) {
+  const n = typeof value === 'number' ? value : Number(value || 0);
+  return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number.isFinite(n) ? n : 0);
+}
 
 export default function PlanosPage() {
+  const [planos, setPlanos] = useState<MonetizacaoPlano[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function load() {
+      const { data } = await supabase
+        .from('monetizacao_planos')
+        .select('*')
+        .eq('ativo', true)
+        .order('ordem');
+
+      setPlanos((data || []) as MonetizacaoPlano[]);
+      setLoading(false);
+    }
+    load();
+  }, []);
+
+  const destaques = planos.filter((plano) => plano.tipo === 'destaque');
+  const vitrines = planos.filter((plano) => plano.tipo === 'vitrine' || plano.tipo === 'assinatura');
+
   return (
     <main className="page">
       <div className="container">
         <section className="card" style={{ maxWidth: 980, margin: '0 auto' }}>
-          <span className="badge">Monetização inicial</span>
+          <span className="badge">Planos e preços</span>
           <h1>Planos AgroMarket</h1>
-          <p className="muted">No lançamento, o cadastro e os anúncios comuns ficam grátis. A monetização começa com destaque manual liberado pelo administrador.</p>
+          <p className="muted">Cadastre grátis no lançamento. Para vender mais rápido, solicite destaque e apareça acima nas buscas.</p>
 
           <div className="notice">
-            MVP de lançamento: pagamento por PIX manual. O vendedor solicita destaque, o administrador confirma o pagamento e libera o anúncio pelo painel admin.
+            Pagamento inicial por PIX/manual. O vendedor solicita destaque, o administrador confirma e libera pelo painel. Os valores abaixo são editados no admin.
           </div>
 
           <section className="section">
@@ -35,37 +59,50 @@ export default function PlanosPage() {
 
           <section className="section">
             <h2>Destaque do anúncio</h2>
-            <div className="grid grid-3">
-              {PLANOS_DESTAQUE.map((plano) => (
-                <div className="card" key={plano.nome} style={{ background: '#f8faf4' }}>
-                  <span className="badge">Destaque</span>
-                  <h3>{plano.nome}</h3>
-                  <div className="price" style={{ fontSize: 30 }}>{plano.preco}</div>
-                  <p className="muted">{plano.descricao}</p>
-                  <ul style={{ paddingLeft: 20, lineHeight: 1.7 }}>
-                    <li>Aparece acima na busca.</li>
-                    <li>Recebe selo de destaque.</li>
-                    <li>Admin libera manualmente.</li>
-                  </ul>
-                </div>
-              ))}
-            </div>
+            {loading ? <div className="card">Carregando planos...</div> : (
+              <div className="grid grid-3">
+                {destaques.map((plano) => (
+                  <div className="card" key={plano.id} style={{ background: '#f8faf4' }}>
+                    <span className="badge">Destaque</span>
+                    <h3>{plano.nome}</h3>
+                    <div className="price" style={{ fontSize: 30 }}>{formatMoney(plano.preco)}</div>
+                    <p className="muted">{plano.descricao}</p>
+                    <ul style={{ paddingLeft: 20, lineHeight: 1.7 }}>
+                      <li>Aparece acima na busca.</li>
+                      <li>Recebe selo de destaque.</li>
+                      <li>Admin libera manualmente.</li>
+                    </ul>
+                  </div>
+                ))}
+              </div>
+            )}
           </section>
+
+          {vitrines.length > 0 && (
+            <section className="section">
+              <h2>Vitrine e assinatura</h2>
+              <div className="grid grid-3">
+                {vitrines.map((plano) => (
+                  <div className="card" key={plano.id} style={{ background: '#fff' }}>
+                    <span className="badge">{plano.tipo}</span>
+                    <h3>{plano.nome}</h3>
+                    <div className="price" style={{ fontSize: 30 }}>{formatMoney(plano.preco)}</div>
+                    <p className="muted">{plano.descricao}</p>
+                  </div>
+                ))}
+              </div>
+            </section>
+          )}
 
           <section className="card" style={{ background: '#fff' }}>
             <h2>Como funciona hoje</h2>
             <ol style={{ paddingLeft: 20, lineHeight: 1.7 }}>
               <li>Vendedor cria e aprova o anúncio.</li>
-              <li>Vendedor solicita destaque por 7, 15 ou 30 dias.</li>
-              <li>Admin combina pagamento por PIX manual.</li>
+              <li>Vendedor solicita destaque no painel.</li>
+              <li>Admin combina pagamento por PIX ou gateway configurado.</li>
               <li>Admin aprova o destaque no painel.</li>
               <li>O anúncio passa a aparecer como destaque até a data final.</li>
             </ol>
-          </section>
-
-          <section className="card" style={{ background: '#fff', marginTop: 16 }}>
-            <h2>Próxima etapa</h2>
-            <p>Depois do teste beta, podemos adicionar PIX automático, comprovante, vencimento automático e plano premium da vitrine.</p>
           </section>
 
           <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 24 }}>
