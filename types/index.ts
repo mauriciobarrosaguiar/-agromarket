@@ -4,6 +4,7 @@ export type TipoAnuncio = 'produto' | 'animal' | 'servico' | 'emprego' | 'maquin
 export type StatusAnuncio = 'pendente' | 'aprovado' | 'recusado' | 'pausado' | 'vendido' | 'expirado' | 'bloqueado';
 export type StatusDenuncia = 'aberta' | 'em_analise' | 'resolvida' | 'ignorada';
 export type StatusDestaqueSolicitacao = 'pendente' | 'aprovado' | 'recusado' | 'cancelado' | 'expirado';
+export type StatusAvaliacaoVendedor = 'aprovada' | 'pendente' | 'oculta' | 'removida';
 export type TipoPlanoMonetizacao = 'destaque' | 'vitrine' | 'assinatura';
 export type ProvedorPagamento = 'asaas' | 'efi';
 export type AmbientePagamento = 'sandbox' | 'producao';
@@ -141,6 +142,19 @@ export type DestaqueSolicitacao = {
   aprovado_em?: string | null;
   inicio_em?: string | null;
   fim_em?: string | null;
+  created_at?: string;
+  updated_at?: string;
+};
+
+export type AvaliacaoVendedor = {
+  id: string;
+  vitrine_id: string;
+  vendedor_id: string;
+  avaliador_id: string;
+  anuncio_id?: string | null;
+  nota: number;
+  comentario?: string | null;
+  status: StatusAvaliacaoVendedor;
   created_at?: string;
   updated_at?: string;
 };
