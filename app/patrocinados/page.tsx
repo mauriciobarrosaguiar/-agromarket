@@ -2,14 +2,24 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { ChevronLeft, ExternalLink } from 'lucide-react';
+import { ChevronLeft, ExternalLink, MessageCircle } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import type { PatrocinadoHome } from '@/types';
 import EmptyState from '@/components/EmptyState';
 
-function destinoValido(url?: string | null) {
-  if (!url) return '#';
-  return url;
+function onlyNumbers(value?: string | null) {
+  return String(value || '').replace(/\D/g, '');
+}
+
+function destinoValido(item: PatrocinadoHome) {
+  const telefone = onlyNumbers(item.whatsapp_anunciante);
+  if (telefone) {
+    const texto = `Olá, vi o patrocinado no AgroMarket e tenho interesse: ${item.titulo}`;
+    return `https://wa.me/${telefone}?text=${encodeURIComponent(texto)}`;
+  }
+
+  if (item.link_url) return item.link_url;
+  return '#';
 }
 
 export default function PatrocinadosPage() {
@@ -23,6 +33,7 @@ export default function PatrocinadosPage() {
         .from('patrocinados_home')
         .select('*')
         .eq('ativo', true)
+        .eq('status', 'aprovado')
         .or(`inicio_em.is.null,inicio_em.lte.${hoje}`)
         .or(`fim_em.is.null,fim_em.gte.${hoje}`)
         .order('ordem')
@@ -53,8 +64,9 @@ export default function PatrocinadosPage() {
         {loading ? <div className="card">Carregando patrocinados...</div> : itens.length ? (
           <div className="grid grid-2">
             {itens.map((item) => {
-              const href = destinoValido(item.link_url);
+              const href = destinoValido(item);
               const externo = href.startsWith('http');
+              const temWhatsapp = Boolean(onlyNumbers(item.whatsapp_anunciante));
               return (
                 <a
                   key={item.id}
@@ -72,7 +84,7 @@ export default function PatrocinadosPage() {
                     <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 10 }}>
                       {item.nome_anunciante && <span className="badge">{item.nome_anunciante}</span>}
                       {(item.cidade || item.estado) && <span className="badge">{item.cidade || 'Cidade'} - {item.estado || 'UF'}</span>}
-                      {item.link_url && <span className="badge"><ExternalLink size={14} /> Abrir</span>}
+                      {temWhatsapp ? <span className="badge"><MessageCircle size={14} /> WhatsApp</span> : item.link_url && <span className="badge"><ExternalLink size={14} /> Abrir</span>}
                     </div>
                   </div>
                 </a>
