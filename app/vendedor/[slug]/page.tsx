@@ -8,6 +8,7 @@ import { supabase } from '@/lib/supabase';
 import type { Anuncio, Vitrine } from '@/types';
 import AnuncioCard from '@/components/AnuncioCard';
 import EmptyState from '@/components/EmptyState';
+import ShareButton from '@/components/ShareButton';
 
 export default function VendedorPage() {
   const params = useParams<{ slug: string }>();
@@ -53,6 +54,11 @@ export default function VendedorPage() {
   const logoFit = vitrine.logo_object_fit || 'cover';
   const logoPosition = vitrine.logo_object_position || 'center';
   const bannerPosition = vitrine.banner_object_position || 'center';
+  const localTexto = `${vitrine.cidade || 'Cidade não informada'} - ${vitrine.estado || 'UF'}`;
+  const descricaoCurta = (vitrine.descricao || 'Produtos, animais e serviços disponíveis no AgroMarket.').length > 150
+    ? `${(vitrine.descricao || '').slice(0, 150)}...`
+    : (vitrine.descricao || 'Produtos, animais e serviços disponíveis no AgroMarket.');
+  const mensagemVitrine = `🌱 Vitrine AgroMarket\n\n🏪 ${vitrine.nome_vitrine}\n📍 ${localTexto}\n📦 ${anuncios.length} anúncio(s) disponível(is)\n\n${descricaoCurta}\n\nVeja a vitrine:`;
 
   return (
     <main className="page">
@@ -65,7 +71,7 @@ export default function VendedorPage() {
               </div>
               <div>
                 <h1 style={{ margin: 0, color: '#fff' }}>{vitrine.nome_vitrine}</h1>
-                <p style={{ margin: '6px 0 0', color: 'rgba(255,255,255,.86)', display: 'flex', gap: 6, alignItems: 'center' }}><MapPin size={17} /> {vitrine.cidade || 'Cidade não informada'} - {vitrine.estado || 'UF'}</p>
+                <p style={{ margin: '6px 0 0', color: 'rgba(255,255,255,.86)', display: 'flex', gap: 6, alignItems: 'center' }}><MapPin size={17} /> {localTexto}</p>
               </div>
             </div>
           </div>
@@ -82,6 +88,7 @@ export default function VendedorPage() {
 
             <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
               {whatsapp && <a className="btn btn-whatsapp" href={whatsapp} target="_blank" rel="noreferrer"><MessageCircle size={18} /> Chamar vendedor</a>}
+              <ShareButton label="Compartilhar vitrine" title={vitrine.nome_vitrine} message={mensagemVitrine} path={`/vendedor/${vitrine.slug}`} />
               <Link className="btn btn-secondary" href="/anuncios">Ver outros anúncios</Link>
             </div>
           </div>
