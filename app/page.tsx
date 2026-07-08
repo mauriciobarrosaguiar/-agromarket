@@ -4,12 +4,13 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { BadgeCheck, LocateFixed, PlusCircle, Search, ShieldCheck, Sparkles, Store } from 'lucide-react';
 import { supabase, hasSupabaseEnv } from '@/lib/supabase';
-import type { Anuncio, Categoria } from '@/types';
+import type { Anuncio, Categoria, PatrocinadoHome } from '@/types';
 import { formatMoney } from '@/lib/whatsapp';
 import SearchBar from '@/components/SearchBar';
 import CategoryPills from '@/components/CategoryPills';
 import AnuncioCard from '@/components/AnuncioCard';
 import EmptyState from '@/components/EmptyState';
+import PatrocinadoCarousel from '@/components/PatrocinadoCarousel';
 
 type Coordenadas = {
   lat: number;
@@ -44,6 +45,7 @@ function ordenarPorProximidade(lista: AnuncioComDistancia[], coords: Coordenadas
 export default function HomePage() {
   const [categorias, setCategorias] = useState<Categoria[]>([]);
   const [anuncios, setAnuncios] = useState<AnuncioComDistancia[]>([]);
+  const [patrocinados, setPatrocinados] = useState<PatrocinadoHome[]>([]);
   const [coords, setCoords] = useState<Coordenadas | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -59,7 +61,8 @@ export default function HomePage() {
 
   useEffect(() => {
     async function load() {
-      const [{ data: cats }, { data: ads }] = await Promise.all([
+      const hoje = new Date().toISOString().slice(0, 10);
+      const [{ data: cats }, { data: ads }, { data: banners }] = await Promise.all([
         supabase.from('categorias').select('*').eq('ativo', true).order('ordem').limit(12),
         supabase
           .from('anuncios')
@@ -67,10 +70,20 @@ export default function HomePage() {
           .eq('status', 'aprovado')
           .order('destaque', { ascending: false })
           .order('created_at', { ascending: false })
-          .limit(20)
+          .limit(20),
+        supabase
+          .from('patrocinados_home')
+          .select('*')
+          .eq('ativo', true)
+          .or(`inicio_em.is.null,inicio_em.lte.${hoje}`)
+          .or(`fim_em.is.null,fim_em.gte.${hoje}`)
+          .order('ordem')
+          .order('created_at', { ascending: false })
+          .limit(10)
       ]);
       setCategorias((cats || []) as Categoria[]);
       setAnuncios(ordenarPorProximidade((ads || []) as AnuncioComDistancia[], coords));
+      setPatrocinados((banners || []) as PatrocinadoHome[]);
       setLoading(false);
     }
     load();
@@ -127,6 +140,8 @@ export default function HomePage() {
           </div>
         </div>
       </section>
+
+      <PatrocinadoCarousel itens={patrocinados} />
 
       <section className="section">
         <div className="container">
