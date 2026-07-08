@@ -4,6 +4,7 @@ import './globals.css';
 import Header from '@/components/Header';
 import MobileBottomNav from '@/components/MobileBottomNav';
 import InstallAppButton from '@/components/InstallAppButton';
+import AdminAlertWatcher from '@/components/AdminAlertWatcher';
 
 export const metadata: Metadata = {
   title: 'AgroMarket - Produtos, serviços e empregos no Agro',
@@ -41,6 +42,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         </footer>
         <InstallAppButton />
         <MobileBottomNav />
+        <AdminAlertWatcher />
       </body>
     </html>
   );
