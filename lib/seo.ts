@@ -5,7 +5,9 @@ export const DEFAULT_SITE_URL = 'https://agromarket-two.vercel.app';
 export const DEFAULT_IMAGE = '/icon-192.png';
 
 export function getSiteUrl() {
-  return process.env.NEXT_PUBLIC_SITE_URL || process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : DEFAULT_SITE_URL;
+  if (process.env.NEXT_PUBLIC_SITE_URL) return process.env.NEXT_PUBLIC_SITE_URL.replace(/\/$/, '');
+  if (process.env.VERCEL_URL) return `https://${process.env.VERCEL_URL}`.replace(/\/$/, '');
+  return DEFAULT_SITE_URL;
 }
 
 export function getAbsoluteUrl(pathOrUrl: string) {
