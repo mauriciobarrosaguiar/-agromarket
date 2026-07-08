@@ -5,6 +5,11 @@ import { FormEvent, useMemo, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { CIDADES_POR_ESTADO, ESTADOS } from '@/lib/constants';
 
+function getRedirectUrl() {
+  const base = process.env.NEXT_PUBLIC_SITE_URL || (typeof window !== 'undefined' ? window.location.origin : '');
+  return `${base.replace(/\/$/, '')}/login`;
+}
+
 export default function CadastroPage() {
   const [nome, setNome] = useState('');
   const [email, setEmail] = useState('');
@@ -33,14 +38,21 @@ export default function CadastroPage() {
       return;
     }
 
-    const { data, error } = await supabase.auth.signUp({ email, password: senha });
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password: senha,
+      options: {
+        emailRedirectTo: getRedirectUrl()
+      }
+    });
+
     if (error || !data.user) {
       setMessage(error?.message || 'Erro ao cadastrar.');
       setLoading(false);
       return;
     }
 
-    const { error: profileError } = await supabase.from('usuarios').insert({
+    const { error: profileError } = await supabase.from('usuarios').upsert({
       id: data.user.id,
       nome,
       email,
@@ -52,7 +64,7 @@ export default function CadastroPage() {
     });
 
     if (profileError) setMessage(profileError.message);
-    else setMessage('Cadastro criado. Confirme seu e-mail, se o Supabase exigir confirmação, e depois faça login.');
+    else setMessage('Cadastro criado. Enviamos a confirmação para seu e-mail. Depois de confirmar, faça login.');
     setLoading(false);
   }
 
