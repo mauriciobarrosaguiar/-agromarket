@@ -167,7 +167,7 @@ function AdminMonetizacaoContent() {
         <div>
           <span className="badge"><DollarSign size={14} /> Admin comercial</span>
           <h1>Planos, preços e pagamentos</h1>
-          <p>Configure preço da vitrine, PIX, Asaas ou Efí de forma mais simples.</p>
+          <p>Configure preço da vitrine, Asaas, Efí, webhook e dados de recebimento de forma mais simples.</p>
         </div>
         <Link href="/admin" className="btn btn-secondary">Voltar admin</Link>
       </div>
@@ -179,7 +179,7 @@ function AdminMonetizacaoContent() {
           <section className="card" style={{ marginBottom: 18, background: 'linear-gradient(135deg, #052e16, #166534)', color: '#fff' }}>
             <span className="badge" style={{ background: 'rgba(255,255,255,.18)', color: '#fff' }}><Zap size={14} /> Configuração rápida</span>
             <h2 style={{ color: '#fff', marginBottom: 8 }}>Receber mensalidade da lojinha</h2>
-            <p style={{ color: 'rgba(255,255,255,.84)' }}>Use estes 3 passos: defina o preço, escolha o banco, preencha PIX/webhook e salve.</p>
+            <p style={{ color: 'rgba(255,255,255,.84)' }}>Use estes 3 passos: defina o preço, escolha o gateway, configure o webhook e salve.</p>
 
             <div className="grid grid-3" style={{ marginTop: 14 }}>
               <div className="card" style={{ background: 'rgba(255,255,255,.95)' }}>
@@ -210,7 +210,7 @@ function AdminMonetizacaoContent() {
             <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
               <div>
                 <h2 style={{ marginTop: 0 }}>Planos e preços</h2>
-                <p className="muted" style={{ marginBottom: 0 }}>Altere aqui o valor da vitrine mensal, destaque e outros planos.</p>
+                <p className="muted" style={{ marginBottom: 0 }}>Altere aqui o valor da vitrine mensal, destaque, patrocinado e outros planos.</p>
               </div>
               <button className="btn btn-primary" type="button" onClick={criarPlano}>Criar plano</button>
             </div>
@@ -266,7 +266,7 @@ function AdminMonetizacaoContent() {
             <div className="section-head">
               <div>
                 <h2>Configuração dos bancos</h2>
-                <p>Escolha o gateway, salve PIX e webhook. Tokens ficam somente na Vercel.</p>
+                <p>Escolha o gateway, salve o webhook e os dados de recebimento. Tokens ficam somente na Vercel.</p>
               </div>
             </div>
 
@@ -280,7 +280,7 @@ function AdminMonetizacaoContent() {
                     <h3>{config.nome_exibicao}</h3>
 
                     <div className="notice">
-                      <strong>Como configurar:</strong> marque como ativo, escolha o ambiente, informe a chave PIX, cole o webhook abaixo na conta do banco e configure os tokens na Vercel.
+                      <strong>Como configurar:</strong> marque como ativo, escolha o ambiente, cole o webhook abaixo na conta do gateway e configure os tokens seguros na Vercel.
                     </div>
 
                     <button className={config.ativo ? 'btn btn-primary btn-full' : 'btn btn-secondary btn-full'} type="button" onClick={() => ativarGateway(config.provedor)} disabled={saving === config.provedor}>
@@ -301,8 +301,8 @@ function AdminMonetizacaoContent() {
                     </div>
 
                     <label className="field">
-                      <span className="label">Chave PIX para recebimento</span>
-                      <input className="input" value={config.pix_chave || ''} onChange={(e) => atualizarConfig(config.id, { pix_chave: e.target.value })} placeholder="CPF/CNPJ/e-mail/telefone/chave aleatória" />
+                      <span className="label">Chave de recebimento</span>
+                      <input className="input" value={config.pix_chave || ''} onChange={(e) => atualizarConfig(config.id, { pix_chave: e.target.value })} placeholder="CPF/CNPJ/e-mail/telefone/chave cadastrada no gateway" />
                     </label>
 
                     <label className="field">
