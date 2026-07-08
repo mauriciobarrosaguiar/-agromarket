@@ -160,7 +160,6 @@ export default function VendedorClient() {
   const numero = (vitrine.whatsapp || '').replace(/\D/g, '');
   const linkVitrine = `https://agromarket-two.vercel.app/vendedor/${vitrine.slug}`;
   const whatsapp = numero ? `https://wa.me/${numero}?text=${encodeURIComponent(`Olá, vi sua lojinha no AgroMarket: ${vitrine.nome_vitrine}\n\nLink da vitrine: ${linkVitrine}`)}` : null;
-  const logoFit = vitrine.logo_object_fit || 'cover';
   const logoPosition = vitrine.logo_object_position || 'center';
   const bannerPosition = vitrine.banner_object_position || 'center';
   const localTexto = `${vitrine.cidade || 'Cidade não informada'} - ${vitrine.estado || 'UF'}`;
@@ -185,8 +184,8 @@ export default function VendedorClient() {
           <div style={{ minHeight: 220, background: vitrine.banner_url ? `url(${vitrine.banner_url}) ${bannerPosition}/cover` : 'linear-gradient(135deg, #052e16, #166534)', display: 'flex', alignItems: 'end', padding: 18, position: 'relative' }}>
             <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(180deg, rgba(0,0,0,.08), rgba(0,0,0,.62))' }} />
             <div style={{ position: 'relative', display: 'flex', gap: 14, alignItems: 'center', color: '#fff', width: '100%' }}>
-              <div style={{ width: 92, height: 92, borderRadius: 28, background: '#fff', color: '#14532d', display: 'grid', placeItems: 'center', overflow: 'hidden', fontWeight: 900, fontSize: 24, boxShadow: '0 18px 45px rgba(0,0,0,.22)' }}>
-                {vitrine.foto_url ? <img src={vitrine.foto_url} alt={vitrine.nome_vitrine} style={{ width: '100%', height: '100%', objectFit: logoFit as any, objectPosition: logoPosition }} /> : <Store size={38} />}
+              <div style={{ width: 92, height: 92, borderRadius: '50%', background: '#fff', color: '#14532d', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', padding: 7, border: '2px solid rgba(255,255,255,.92)', fontWeight: 900, fontSize: 24, boxShadow: '0 18px 45px rgba(0,0,0,.22)', flexShrink: 0 }}>
+                {vitrine.foto_url ? <img src={vitrine.foto_url} alt={vitrine.nome_vitrine} style={{ width: '100%', height: '100%', objectFit: 'contain', objectPosition: logoPosition, borderRadius: '50%', display: 'block' }} /> : <Store size={38} />}
               </div>
               <div style={{ minWidth: 0 }}>
                 <span className="badge" style={{ background: 'rgba(255,255,255,.18)', color: '#fff' }}><ShoppingBag size={14} /> Lojinha AgroMarket</span>
