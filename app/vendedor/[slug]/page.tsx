@@ -7,21 +7,34 @@ type PageProps = {
   params: Promise<{ slug: string }>;
 };
 
+function vitrineLiberada(vitrine: any) {
+  if (!vitrine?.vitrine_ativa) return false;
+  const hoje = new Date().toISOString().slice(0, 10);
+
+  if (vitrine.assinatura_status === 'ativa') {
+    return !vitrine.assinatura_vencimento || vitrine.assinatura_vencimento >= hoje;
+  }
+
+  if (vitrine.assinatura_status === 'gratis_lancamento') {
+    const vencimento = vitrine.gratis_ate || vitrine.assinatura_vencimento;
+    return !vencimento || vencimento >= hoje;
+  }
+
+  return false;
+}
+
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { slug } = await params;
   const supabase = createSeoSupabaseClient();
-  const hoje = new Date().toISOString().slice(0, 10);
 
   const { data } = await supabase
     .from('vitrines')
-    .select('nome_vitrine, descricao, cidade, estado, slug, foto_url, banner_url, vitrine_ativa, assinatura_status, assinatura_vencimento')
+    .select('nome_vitrine, descricao, cidade, estado, slug, foto_url, banner_url, vitrine_ativa, assinatura_status, assinatura_vencimento, gratis_ate')
     .eq('slug', slug)
     .eq('vitrine_ativa', true)
-    .eq('assinatura_status', 'ativa')
-    .gte('assinatura_vencimento', hoje)
     .maybeSingle();
 
-  if (!data) {
+  if (!data || !vitrineLiberada(data)) {
     return {
       title: `Vitrine não encontrada - ${SITE_NAME}`,
       description: 'Vitrine não encontrada, vencida ou indisponível no AgroMarket.',
