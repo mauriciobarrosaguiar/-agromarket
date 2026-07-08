@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
-import { MapPin, Share2, Store } from 'lucide-react';
+import { MapPin, Share2, Store, X } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import type { Anuncio, Vitrine } from '@/types';
 import { formatMoney } from '@/lib/whatsapp';
@@ -16,6 +16,7 @@ export default function AnuncioDetalhePage() {
   const [vitrine, setVitrine] = useState<Vitrine | null>(null);
   const [loading, setLoading] = useState(true);
   const [selectedFoto, setSelectedFoto] = useState<string | null>(null);
+  const [fotoAberta, setFotoAberta] = useState<string | null>(null);
 
   useEffect(() => {
     async function load() {
@@ -73,12 +74,29 @@ export default function AnuncioDetalhePage() {
         <Link href="/anuncios" className="muted">← Voltar aos anúncios</Link>
         <div className="detail-grid" style={{ marginTop: 16 }}>
           <div>
-            <div className="gallery-main">
-              {selectedFoto ? <img src={selectedFoto} alt={anuncio.titulo} style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <span className="muted">Sem foto</span>}
-            </div>
+            <button
+              type="button"
+              className="gallery-main"
+              onClick={() => selectedFoto && setFotoAberta(selectedFoto)}
+              style={{ border: 0, width: '100%', padding: 0, cursor: selectedFoto ? 'zoom-in' : 'default' }}
+            >
+              {selectedFoto ? (
+                <img src={selectedFoto} alt={anuncio.titulo} style={{ width: '100%', height: '100%', objectFit: 'contain', background: '#eef3ea' }} />
+              ) : <span className="muted">Sem foto</span>}
+            </button>
+            {selectedFoto && <p className="muted" style={{ textAlign: 'center', margin: '8px 0 0' }}>Toque na foto para ver inteira</p>}
             {fotos.length > 1 && (
               <div className="thumb-row">
-                {fotos.map((f) => <img key={f.id} className="thumb" src={f.url_foto} alt="Foto do anúncio" onClick={() => setSelectedFoto(f.url_foto)} />)}
+                {fotos.map((f) => (
+                  <img
+                    key={f.id}
+                    className="thumb"
+                    src={f.url_foto}
+                    alt="Foto do anúncio"
+                    onClick={() => setSelectedFoto(f.url_foto)}
+                    style={{ cursor: 'pointer' }}
+                  />
+                ))}
               </div>
             )}
           </div>
@@ -119,6 +137,38 @@ export default function AnuncioDetalhePage() {
           </section>
         </div>
       </div>
+
+      {fotoAberta && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          onClick={() => setFotoAberta(null)}
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 999,
+            background: 'rgba(0,0,0,.92)',
+            display: 'grid',
+            placeItems: 'center',
+            padding: 12
+          }}
+        >
+          <button
+            type="button"
+            className="btn btn-secondary"
+            onClick={() => setFotoAberta(null)}
+            style={{ position: 'fixed', top: 14, right: 14, zIndex: 1000 }}
+          >
+            <X size={18} /> Fechar
+          </button>
+          <img
+            src={fotoAberta}
+            alt="Foto ampliada do anúncio"
+            onClick={(e) => e.stopPropagation()}
+            style={{ maxWidth: '100%', maxHeight: '92vh', objectFit: 'contain', borderRadius: 12 }}
+          />
+        </div>
+      )}
     </main>
   );
 }
