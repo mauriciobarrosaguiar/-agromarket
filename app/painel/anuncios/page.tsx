@@ -113,7 +113,7 @@ function MeusAnuncios() {
         {anuncios.map((ad) => {
           const foto = capa(ad);
           const isLoading = loadingId === ad.id;
-          const podePausar = ad.status === 'aprovado' || ad.status === 'pendente';
+          const podePausar = ad.status === 'aprovado';
           const podeAtivar = ad.status === 'pausado' || ad.status === 'vendido';
           const podeVendido = ad.status === 'aprovado' || ad.status === 'pausado';
           const podeRenovar = ad.status === 'aprovado' || ad.status === 'pausado' || ad.status === 'vendido';
@@ -158,6 +158,9 @@ function MeusAnuncios() {
                     <button className="btn btn-secondary" disabled={isLoading} onClick={() => renovar(ad)}><RefreshCcw size={16} /> Renovar</button>
                   )}
                 </div>
+
+                {ad.status === 'recusado' && <div className="notice">Edite o anúncio para enviar novamente para aprovação.</div>}
+                {ad.status === 'pendente' && <div className="notice">Aguardando aprovação do administrador.</div>}
 
                 <button className="btn btn-danger btn-full" disabled={isLoading} onClick={() => excluir(ad)}><Trash2 size={16} /> Excluir anúncio</button>
               </div>
