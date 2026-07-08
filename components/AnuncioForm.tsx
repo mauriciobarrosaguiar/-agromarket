@@ -9,6 +9,8 @@ import { uploadAnuncioFoto } from '@/lib/upload';
 import { CIDADES_POR_ESTADO, ESTADOS, TIPOS_ANUNCIO, UNIDADES } from '@/lib/constants';
 import type { Categoria, Anuncio, TipoAnuncio, Usuario } from '@/types';
 
+const MAX_ACCURACY_METERS = 150;
+
 type FormState = {
   tipo_anuncio: TipoAnuncio;
   categoria_id: string;
@@ -25,6 +27,7 @@ type FormState = {
   referencia: string;
   latitude: string;
   longitude: string;
+  localizacao_accuracy: string;
   whatsapp: string;
   nome_contato: string;
 };
@@ -45,6 +48,7 @@ const initialState: FormState = {
   referencia: '',
   latitude: '',
   longitude: '',
+  localizacao_accuracy: '',
   whatsapp: '',
   nome_contato: ''
 };
@@ -150,6 +154,7 @@ export default function AnuncioForm({ anuncio }: { anuncio?: Anuncio }) {
       referencia: '',
       latitude: anuncio.latitude ? String(anuncio.latitude) : '',
       longitude: anuncio.longitude ? String(anuncio.longitude) : '',
+      localizacao_accuracy: '',
       whatsapp: anuncio.whatsapp,
       nome_contato: anuncio.nome_contato
     });
@@ -174,10 +179,19 @@ export default function AnuncioForm({ anuncio }: { anuncio?: Anuncio }) {
     setGeoLoading(true);
     navigator.geolocation.getCurrentPosition(
       (pos) => {
+        const accuracy = Math.round(pos.coords.accuracy || 999999);
+
+        if (accuracy > MAX_ACCURACY_METERS) {
+          setError(`Localização recusada: precisão baixa (${accuracy}m). Ative GPS, desative economia de bateria e tente em local aberto.`);
+          setGeoLoading(false);
+          return;
+        }
+
         setState((prev) => ({
           ...prev,
           latitude: String(pos.coords.latitude),
-          longitude: String(pos.coords.longitude)
+          longitude: String(pos.coords.longitude),
+          localizacao_accuracy: String(accuracy)
         }));
         setGeoLoading(false);
       },
@@ -185,7 +199,7 @@ export default function AnuncioForm({ anuncio }: { anuncio?: Anuncio }) {
         setError('Não consegui pegar sua localização. Verifique a permissão do GPS.');
         setGeoLoading(false);
       },
-      { enableHighAccuracy: true, timeout: 15000, maximumAge: 60000 }
+      { enableHighAccuracy: true, timeout: 20000, maximumAge: 0 }
     );
   }
 
@@ -213,6 +227,20 @@ export default function AnuncioForm({ anuncio }: { anuncio?: Anuncio }) {
         throw new Error('Sua sessão não está ativa neste navegador. Entre novamente pelo botão Perfil e tente publicar de novo.');
       }
 
+      const { data: perfilSeguranca } = await supabase
+        .from('usuarios')
+        .select('foto_url,selfie_url,localizacao_validada')
+        .eq('id', user.id)
+        .maybeSingle();
+
+      if (!perfilSeguranca?.selfie_url && !perfilSeguranca?.foto_url) {
+        throw new Error('Antes de anunciar, complete seu perfil com selfie/foto do divulgador.');
+      }
+
+      if (!perfilSeguranca?.localizacao_validada) {
+        throw new Error('Antes de anunciar, valide sua localização real no Perfil.');
+      }
+
       if (!state.titulo || !state.descricao || !state.categoria_id || !state.estado || !state.cidade || !state.whatsapp || !state.nome_contato) {
         throw new Error('Preencha os campos obrigatórios.');
       }
@@ -225,6 +253,7 @@ export default function AnuncioForm({ anuncio }: { anuncio?: Anuncio }) {
       const quantidadeNumero = state.quantidade ? parseDecimal(state.quantidade) : null;
       const latitudeNumero = parseCoordenada(state.latitude);
       const longitudeNumero = parseCoordenada(state.longitude);
+      const accuracyNumero = state.localizacao_accuracy ? Number(state.localizacao_accuracy) : null;
 
       if (!state.preco_a_combinar && state.preco && precoNumero === null) {
         throw new Error('Informe um preço válido. Exemplo: R$ 28,00.');
@@ -232,6 +261,14 @@ export default function AnuncioForm({ anuncio }: { anuncio?: Anuncio }) {
 
       if (state.quantidade && quantidadeNumero === null) {
         throw new Error('A quantidade deve conter somente números.');
+      }
+
+      if (latitudeNumero === null || longitudeNumero === null) {
+        throw new Error('Use o botão “Usar minha localização”. Não aceitamos localização digitada ou fictícia.');
+      }
+
+      if (accuracyNumero === null || accuracyNumero > MAX_ACCURACY_METERS) {
+        throw new Error('Capture novamente a localização com GPS de boa precisão para publicar o anúncio.');
       }
 
       const payload = {
@@ -330,7 +367,7 @@ export default function AnuncioForm({ anuncio }: { anuncio?: Anuncio }) {
       {savingStep && <div className="notice">{savingStep}</div>}
 
       <div className="notice">
-        Ao publicar, use fotos reais, informe dados verdadeiros e não anuncie itens proibidos ou em situação irregular. O AgroMarket apenas divulga o anúncio e não participa da negociação, pagamento ou entrega. <a href="/termos" style={{ fontWeight: 900 }}>Ver termos</a> · <a href="/seguranca" style={{ fontWeight: 900 }}>Ver segurança</a>
+        Ao publicar, use fotos reais, informe dados verdadeiros e não anuncie itens proibidos ou em situação irregular. Agora é obrigatório ter perfil com foto/selfie e localização real validada. <a href="/painel/perfil" style={{ fontWeight: 900 }}>Completar perfil</a>
       </div>
 
       <div className="form-row">
@@ -419,13 +456,13 @@ export default function AnuncioForm({ anuncio }: { anuncio?: Anuncio }) {
       </label>
 
       <div className="card" style={{ background: '#f8faf4' }}>
-        <h3 style={{ marginTop: 0 }}>Localização para proximidade</h3>
-        <p className="muted">Use a localização do celular para seu anúncio aparecer primeiro para compradores próximos. O botão de mapa/endereço exato não será exibido no anúncio.</p>
+        <h3 style={{ marginTop: 0 }}>Localização real do anúncio *</h3>
+        <p className="muted">A localização não pode ser digitada. Use o GPS do celular para evitar localização fictícia. O endereço exato não será exibido publicamente.</p>
         <button className="btn btn-secondary btn-full" type="button" onClick={usarLocalizacaoAtual} disabled={geoLoading}>
-          <MapPin size={18} /> {geoLoading ? 'Pegando localização...' : state.latitude && state.longitude ? 'Localização capturada' : 'Usar minha localização'}
+          <MapPin size={18} /> {geoLoading ? 'Validando GPS...' : state.latitude && state.longitude ? 'Localização real capturada' : 'Usar minha localização'}
         </button>
         {state.latitude && state.longitude && (
-          <div className="notice" style={{ marginTop: 12 }}>Localização salva para ordenação por proximidade.</div>
+          <div className="notice" style={{ marginTop: 12 }}>Localização salva com precisão de {state.localizacao_accuracy || '?'}m para ordenação por proximidade.</div>
         )}
       </div>
 
