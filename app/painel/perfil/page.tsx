@@ -1,7 +1,7 @@
 'use client';
 
-import { FormEvent, useEffect, useMemo, useState } from 'react';
-import { Camera, FileText, MapPin } from 'lucide-react';
+import { FormEvent, useEffect, useMemo, useRef, useState } from 'react';
+import { Camera, FileText, MapPin, X } from 'lucide-react';
 import AuthGuard from '@/components/AuthGuard';
 import { supabase } from '@/lib/supabase';
 import { CIDADES_POR_ESTADO, ESTADOS } from '@/lib/constants';
@@ -13,10 +13,15 @@ const MAX_ACCURACY_METERS = 150;
 function PerfilContent() {
   const [perfil, setPerfil] = useState<Usuario | null>(null);
   const [selfieFile, setSelfieFile] = useState<File | null>(null);
+  const [selfiePreview, setSelfiePreview] = useState<string | null>(null);
   const [documentoFile, setDocumentoFile] = useState<File | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [geoLoading, setGeoLoading] = useState(false);
+  const [cameraAberta, setCameraAberta] = useState(false);
+  const [cameraLoading, setCameraLoading] = useState(false);
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+  const streamRef = useRef<MediaStream | null>(null);
 
   const cidades = useMemo(() => {
     const uf = perfil?.estado || 'TO';
@@ -34,6 +39,88 @@ function PerfilContent() {
     }
     load();
   }, []);
+
+  useEffect(() => {
+    if (cameraAberta && videoRef.current && streamRef.current) {
+      videoRef.current.srcObject = streamRef.current;
+      videoRef.current.play().catch(() => null);
+    }
+  }, [cameraAberta]);
+
+  useEffect(() => {
+    return () => {
+      streamRef.current?.getTracks().forEach((track) => track.stop());
+      if (selfiePreview) URL.revokeObjectURL(selfiePreview);
+    };
+  }, [selfiePreview]);
+
+  function pararCamera() {
+    streamRef.current?.getTracks().forEach((track) => track.stop());
+    streamRef.current = null;
+    setCameraAberta(false);
+  }
+
+  async function abrirCameraSelfie() {
+    setMessage(null);
+
+    if (!navigator.mediaDevices?.getUserMedia) {
+      setMessage('Seu navegador não permitiu abrir a câmera. Use o app/navegador atualizado e permita acesso à câmera.');
+      return;
+    }
+
+    try {
+      setCameraLoading(true);
+      pararCamera();
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: false,
+        video: {
+          facingMode: 'user',
+          width: { ideal: 900 },
+          height: { ideal: 1200 }
+        }
+      });
+      streamRef.current = stream;
+      setCameraAberta(true);
+    } catch {
+      setMessage('Não consegui abrir a câmera frontal. Permita o acesso à câmera e tente novamente.');
+    } finally {
+      setCameraLoading(false);
+    }
+  }
+
+  async function tirarSelfieAgora() {
+    const video = videoRef.current;
+    if (!video || !video.videoWidth || !video.videoHeight) {
+      setMessage('A câmera ainda não carregou. Aguarde um instante e tente novamente.');
+      return;
+    }
+
+    const canvas = document.createElement('canvas');
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) {
+      setMessage('Não consegui capturar a selfie. Tente novamente.');
+      return;
+    }
+
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+    canvas.toBlob((blob) => {
+      if (!blob) {
+        setMessage('Não consegui gerar a foto. Tente novamente.');
+        return;
+      }
+
+      if (selfiePreview) URL.revokeObjectURL(selfiePreview);
+      const file = new File([blob], `selfie-${Date.now()}.jpg`, { type: 'image/jpeg' });
+      const preview = URL.createObjectURL(file);
+      setSelfieFile(file);
+      setSelfiePreview(preview);
+      setMessage('Selfie capturada na hora. Agora salve o perfil.');
+      pararCamera();
+    }, 'image/jpeg', 0.9);
+  }
 
   function capturarLocalizacaoReal() {
     setMessage(null);
@@ -93,7 +180,7 @@ function PerfilContent() {
       }
 
       if (!selfieUrl) {
-        throw new Error('Adicione uma selfie/foto do perfil. Ela será obrigatória para anunciar.');
+        throw new Error('Tire uma selfie na hora pela câmera. Não aceitamos foto enviada da galeria.');
       }
 
       if (!perfil.latitude || !perfil.longitude || !perfil.localizacao_validada) {
@@ -125,7 +212,7 @@ function PerfilContent() {
       setPerfil({ ...perfil, foto_url: selfieUrl, selfie_url: selfieUrl, documento_url: documentoUrl, localizacao_validada: true });
       setSelfieFile(null);
       setDocumentoFile(null);
-      setMessage('Perfil salvo com foto e localização real validadas.');
+      setMessage('Perfil salvo com selfie tirada na hora e localização real validadas.');
     } catch (err) {
       setMessage(err instanceof Error ? err.message : 'Erro ao salvar perfil.');
     } finally {
@@ -135,7 +222,7 @@ function PerfilContent() {
 
   if (!perfil) return <div className="card">Carregando...</div>;
 
-  const fotoPerfil = perfil.selfie_url || perfil.foto_url;
+  const fotoPerfil = selfiePreview || perfil.selfie_url || perfil.foto_url;
   const localizacaoOk = perfil.localizacao_validada && perfil.latitude && perfil.longitude;
 
   return (
@@ -143,21 +230,39 @@ function PerfilContent() {
       {message && <div className="notice">{message}</div>}
 
       <div className="notice">
-        Para anunciar com mais segurança, agora o perfil precisa ter <strong>selfie/foto</strong> e <strong>localização real validada por GPS</strong>. Documento é opcional e não aparece publicamente.
+        Para anunciar com mais segurança, o perfil precisa ter <strong>selfie tirada na hora</strong> e <strong>localização real validada por GPS</strong>. Documento é opcional e não aparece publicamente.
       </div>
 
       <div className="card" style={{ background: '#f8faf4' }}>
-        <h2 style={{ marginTop: 0 }}>Foto do divulgador *</h2>
+        <h2 style={{ marginTop: 0 }}>Selfie do divulgador *</h2>
+        <p className="muted">A selfie deve ser tirada agora pela câmera frontal. Não é permitido escolher foto da galeria.</p>
         <div style={{ display: 'flex', gap: 14, alignItems: 'center', flexWrap: 'wrap' }}>
-          <div style={{ width: 96, height: 96, borderRadius: 28, background: '#dcfce7', overflow: 'hidden', display: 'grid', placeItems: 'center', color: '#14532d', fontWeight: 900 }}>
-            {fotoPerfil ? <img src={fotoPerfil} alt="Foto do perfil" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <Camera size={34} />}
+          <div style={{ width: 112, height: 112, borderRadius: 32, background: '#dcfce7', overflow: 'hidden', display: 'grid', placeItems: 'center', color: '#14532d', fontWeight: 900 }}>
+            {fotoPerfil ? <img src={fotoPerfil} alt="Selfie do perfil" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <Camera size={38} />}
           </div>
-          <label className="field" style={{ flex: 1, minWidth: 220 }}>
-            <span className="label">Enviar selfie/foto *</span>
-            <input className="input" type="file" accept="image/png,image/jpeg,image/webp" onChange={(e) => setSelfieFile(e.target.files?.[0] || null)} />
+          <div style={{ flex: 1, minWidth: 220, display: 'grid', gap: 10 }}>
+            <button className="btn btn-primary btn-full" type="button" onClick={abrirCameraSelfie} disabled={cameraLoading || loading}>
+              <Camera size={18} /> {cameraLoading ? 'Abrindo câmera...' : selfieFile || fotoPerfil ? 'Tirar nova selfie' : 'Abrir câmera para selfie'}
+            </button>
             <span className="muted">Obrigatório para liberar anúncios com mais confiança.</span>
-          </label>
+          </div>
         </div>
+
+        {cameraAberta && (
+          <div className="card" style={{ background: '#fff', marginTop: 14 }}>
+            <video
+              ref={videoRef}
+              autoPlay
+              playsInline
+              muted
+              style={{ width: '100%', maxHeight: 420, objectFit: 'cover', borderRadius: 18, background: '#111' }}
+            />
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginTop: 12 }}>
+              <button className="btn btn-primary" type="button" onClick={tirarSelfieAgora}><Camera size={18} /> Tirar selfie</button>
+              <button className="btn btn-secondary" type="button" onClick={pararCamera}><X size={18} /> Cancelar</button>
+            </div>
+          </div>
+        )}
       </div>
 
       <label className="field"><span className="label">Nome</span><input className="input" value={perfil.nome} onChange={(e) => setPerfil({ ...perfil, nome: e.target.value })} /></label>
@@ -199,7 +304,7 @@ function PerfilContent() {
           <span className="label"><FileText size={16} /> Documento opcional</span>
           <input className="input" type="file" accept="image/png,image/jpeg,image/webp,application/pdf" onChange={(e) => setDocumentoFile(e.target.files?.[0] || null)} />
         </label>
-        {perfil.documento_url && <div className="notice">Documento já enviado.</div>}
+        {perfil.documento_url && <div className="notice">Documento já enviado em área privada.</div>}
       </div>
 
       <button className="btn btn-primary btn-full" disabled={loading}>
