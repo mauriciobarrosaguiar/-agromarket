@@ -4,6 +4,7 @@ export type TipoAnuncio = 'produto' | 'animal' | 'servico' | 'emprego' | 'maquin
 export type StatusAnuncio = 'pendente' | 'aprovado' | 'recusado' | 'pausado' | 'vendido' | 'expirado' | 'bloqueado';
 export type StatusDenuncia = 'aberta' | 'em_analise' | 'resolvida' | 'ignorada';
 export type StatusDestaqueSolicitacao = 'pendente' | 'aprovado' | 'recusado' | 'cancelado' | 'expirado';
+export type StatusPatrocinado = 'pendente' | 'aprovado' | 'recusado' | 'cancelado' | 'expirado';
 export type StatusAvaliacaoVendedor = 'aprovada' | 'pendente' | 'oculta' | 'removida';
 export type StatusAssinaturaVitrine = 'pendente_pagamento' | 'ativa' | 'vencida' | 'cancelada' | 'gratis_lancamento';
 export type StatusPagamentoVitrine = 'pendente' | 'pago' | 'recusado' | 'cancelado' | 'estornado';
@@ -215,6 +216,8 @@ export type VitrinePagamento = {
 
 export type PatrocinadoHome = {
   id: string;
+  usuario_id?: string | null;
+  vitrine_id?: string | null;
   titulo: string;
   subtitulo?: string | null;
   imagem_url: string;
@@ -225,12 +228,18 @@ export type PatrocinadoHome = {
   estado?: string | null;
   ordem: number;
   ativo: boolean;
+  status?: StatusPatrocinado | string;
+  motivo_recusa?: string | null;
+  admin_id?: string | null;
+  aprovado_em?: string | null;
   inicio_em?: string | null;
   fim_em?: string | null;
   visualizacoes: number;
   cliques: number;
   created_at?: string;
   updated_at?: string;
+  vitrines?: Pick<Vitrine, 'nome_vitrine' | 'slug'> | null;
+  usuarios?: Pick<Usuario, 'nome' | 'email' | 'whatsapp'> | null;
 };
 
 export type AnuncioWhatsappClique = {
