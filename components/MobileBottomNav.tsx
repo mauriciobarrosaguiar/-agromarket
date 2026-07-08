@@ -9,7 +9,7 @@ const tabs = [
   { href: '/anuncios', label: 'Buscar', icon: Search },
   { href: '/anunciar', label: 'Anunciar', icon: PlusCircle },
   { href: '/painel', label: 'Painel', icon: LayoutDashboard },
-  { href: '/login', label: 'Perfil', icon: UserRound }
+  { href: '/painel/perfil', label: 'Perfil', icon: UserRound }
 ];
 
 export default function MobileBottomNav() {
@@ -19,7 +19,7 @@ export default function MobileBottomNav() {
       <div className="mobile-bottom-inner">
         {tabs.map((tab) => {
           const Icon = tab.icon;
-          const active = pathname === tab.href;
+          const active = pathname === tab.href || (tab.href !== '/' && pathname.startsWith(tab.href));
           return (
             <Link key={tab.href} href={tab.href} className={`mobile-tab ${active ? 'active' : ''}`}>
               <Icon size={21} />
