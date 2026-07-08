@@ -1,8 +1,9 @@
 'use client';
 
 import Link from 'next/link';
-import { FormEvent, useState } from 'react';
+import { FormEvent, useMemo, useState } from 'react';
 import { supabase } from '@/lib/supabase';
+import { CIDADES_POR_ESTADO, ESTADOS } from '@/lib/constants';
 
 export default function CadastroPage() {
   const [nome, setNome] = useState('');
@@ -14,10 +15,23 @@ export default function CadastroPage() {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
 
+  const cidades = useMemo(() => CIDADES_POR_ESTADO[estado] || [], [estado]);
+
+  function trocarEstado(uf: string) {
+    setEstado(uf);
+    setCidade('');
+  }
+
   async function submit(e: FormEvent) {
     e.preventDefault();
     setLoading(true);
     setMessage(null);
+
+    if (!nome || !email || !senha || !whatsapp || !estado || !cidade) {
+      setMessage('Preencha todos os campos obrigatórios.');
+      setLoading(false);
+      return;
+    }
 
     const { data, error } = await supabase.auth.signUp({ email, password: senha });
     if (error || !data.user) {
@@ -53,11 +67,26 @@ export default function CadastroPage() {
             <label className="field"><span className="label">Nome</span><input className="input" value={nome} onChange={(e) => setNome(e.target.value)} /></label>
             <label className="field"><span className="label">E-mail</span><input className="input" type="email" value={email} onChange={(e) => setEmail(e.target.value)} /></label>
             <label className="field"><span className="label">Senha</span><input className="input" type="password" value={senha} onChange={(e) => setSenha(e.target.value)} /></label>
+            <label className="field"><span className="label">WhatsApp</span><input className="input" value={whatsapp} onChange={(e) => setWhatsapp(e.target.value)} placeholder="5563999999999" /></label>
+
             <div className="form-row">
-              <label className="field"><span className="label">WhatsApp</span><input className="input" value={whatsapp} onChange={(e) => setWhatsapp(e.target.value)} placeholder="5563999999999" /></label>
-              <label className="field"><span className="label">Cidade</span><input className="input" value={cidade} onChange={(e) => setCidade(e.target.value)} /></label>
+              <label className="field">
+                <span className="label">Estado</span>
+                <select className="select" value={estado} onChange={(e) => trocarEstado(e.target.value)}>
+                  <option value="">Selecione o estado</option>
+                  {ESTADOS.map((uf) => <option key={uf} value={uf}>{uf}</option>)}
+                </select>
+              </label>
+
+              <label className="field">
+                <span className="label">Cidade</span>
+                <select className="select" value={cidade} onChange={(e) => setCidade(e.target.value)} disabled={!estado}>
+                  <option value="">{estado ? 'Selecione a cidade' : 'Escolha o estado primeiro'}</option>
+                  {cidades.map((nomeCidade) => <option key={nomeCidade} value={nomeCidade}>{nomeCidade}</option>)}
+                </select>
+              </label>
             </div>
-            <label className="field"><span className="label">Estado</span><input className="input" value={estado} onChange={(e) => setEstado(e.target.value.toUpperCase())} maxLength={2} /></label>
+
             <button className="btn btn-primary btn-full" disabled={loading}>{loading ? 'Criando...' : 'Criar conta'}</button>
           </form>
           <p className="muted">Já tem conta? <Link href="/login"><strong>Entrar</strong></Link></p>
