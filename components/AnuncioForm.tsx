@@ -146,8 +146,8 @@ export default function AnuncioForm({ anuncio }: { anuncio?: Anuncio }) {
       cidade: anuncio.cidade,
       estado: anuncio.estado,
       bairro: anuncio.bairro || '',
-      endereco: anuncio.endereco || '',
-      referencia: anuncio.referencia || '',
+      endereco: '',
+      referencia: '',
       latitude: anuncio.latitude ? String(anuncio.latitude) : '',
       longitude: anuncio.longitude ? String(anuncio.longitude) : '',
       whatsapp: anuncio.whatsapp,
@@ -167,7 +167,7 @@ export default function AnuncioForm({ anuncio }: { anuncio?: Anuncio }) {
     setError(null);
 
     if (!navigator.geolocation) {
-      setError('Seu navegador não permitiu pegar localização automática. Preencha o endereço ou referência manualmente.');
+      setError('Seu navegador não permitiu pegar localização automática.');
       return;
     }
 
@@ -182,7 +182,7 @@ export default function AnuncioForm({ anuncio }: { anuncio?: Anuncio }) {
         setGeoLoading(false);
       },
       () => {
-        setError('Não consegui pegar sua localização. Verifique a permissão do GPS ou preencha manualmente.');
+        setError('Não consegui pegar sua localização. Verifique a permissão do GPS.');
         setGeoLoading(false);
       },
       { enableHighAccuracy: true, timeout: 15000, maximumAge: 60000 }
@@ -248,8 +248,8 @@ export default function AnuncioForm({ anuncio }: { anuncio?: Anuncio }) {
         cidade: state.cidade.trim(),
         estado: state.estado,
         bairro: state.bairro.trim() || null,
-        endereco: state.endereco.trim() || null,
-        referencia: state.referencia.trim() || null,
+        endereco: null,
+        referencia: null,
         latitude: latitudeNumero,
         longitude: longitudeNumero,
         whatsapp: state.whatsapp.trim(),
@@ -396,7 +396,7 @@ export default function AnuncioForm({ anuncio }: { anuncio?: Anuncio }) {
           <span className="label">Estado *</span>
           <select className="select" value={state.estado} onChange={(e) => updateEstado(e.target.value)}>
             <option value="">Selecione o estado</option>
-            {ESTADOS.map((uf) => <option key={uf} value={uf}>{uf}</option>)}
+            {ESTADOS.map((uf) => <option key={uf} value={uf}>{uf}</option>) }
           </select>
         </label>
         <label className="field">
@@ -414,24 +414,14 @@ export default function AnuncioForm({ anuncio }: { anuncio?: Anuncio }) {
       </label>
 
       <div className="card" style={{ background: '#f8faf4' }}>
-        <h3 style={{ marginTop: 0 }}>Localização exata</h3>
-        <p className="muted">Opcional, mas recomendado. Ajuda o comprador a saber onde fica o produto.</p>
-        <div className="form">
-          <label className="field">
-            <span className="label">Endereço ou local</span>
-            <input className="input" value={state.endereco} onChange={(e) => update('endereco', e.target.value)} placeholder="Ex: Chácara, fazenda, rua, setor ou ponto de entrega" />
-          </label>
-          <label className="field">
-            <span className="label">Referência</span>
-            <input className="input" value={state.referencia} onChange={(e) => update('referencia', e.target.value)} placeholder="Ex: Próximo ao posto, entrada pela TO-050..." />
-          </label>
-          <button className="btn btn-secondary btn-full" type="button" onClick={usarLocalizacaoAtual} disabled={geoLoading}>
-            <MapPin size={18} /> {geoLoading ? 'Pegando localização...' : 'Usar localização atual do celular'}
-          </button>
-          {state.latitude && state.longitude && (
-            <div className="notice">Localização capturada. Ela será salva no anúncio e abrirá no Google Maps.</div>
-          )}
-        </div>
+        <h3 style={{ marginTop: 0 }}>Localização para proximidade</h3>
+        <p className="muted">Use a localização do celular para seu anúncio aparecer primeiro para compradores próximos. O botão de mapa/endereço exato não será exibido no anúncio.</p>
+        <button className="btn btn-secondary btn-full" type="button" onClick={usarLocalizacaoAtual} disabled={geoLoading}>
+          <MapPin size={18} /> {geoLoading ? 'Pegando localização...' : state.latitude && state.longitude ? 'Localização capturada' : 'Usar minha localização'}
+        </button>
+        {state.latitude && state.longitude && (
+          <div className="notice" style={{ marginTop: 12 }}>Localização salva para ordenação por proximidade.</div>
+        )}
       </div>
 
       <div className="form-row">
