@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
-import { LogOut, Plus, UserRound } from 'lucide-react';
+import { Home, LogOut, Plus, Search, Store, UserRound } from 'lucide-react';
 
 export default function Header() {
   const [email, setEmail] = useState<string | null>(null);
@@ -30,19 +30,16 @@ export default function Header() {
         </Link>
 
         <nav className="nav">
-          <Link href="/anuncios">Anúncios</Link>
-          <Link href="/categoria/animais">Animais</Link>
-          <Link href="/categoria/servicos-rurais">Serviços</Link>
-          <Link href="/categoria/empregos">Empregos</Link>
+          <Link href="/"><Home size={17} /> Início</Link>
+          <Link href="/anuncios"><Search size={17} /> Buscar</Link>
+          <Link href="/vitrines"><Store size={17} /> Vitrine</Link>
+          <Link href="/painel/perfil"><UserRound size={17} /> Perfil</Link>
         </nav>
 
         <div className="actions">
           <Link className="btn btn-primary" href="/anunciar"><Plus size={18} /> Anunciar</Link>
           {email ? (
-            <>
-              <Link className="btn btn-secondary desktop-only" href="/painel"><UserRound size={18} /> Painel</Link>
-              <button className="btn btn-secondary" onClick={sair}><LogOut size={18} /> Sair</button>
-            </>
+            <button className="btn btn-secondary" onClick={sair}><LogOut size={18} /> Sair</button>
           ) : (
             <Link className="btn btn-secondary" href="/login"><UserRound size={18} /> Entrar</Link>
           )}
