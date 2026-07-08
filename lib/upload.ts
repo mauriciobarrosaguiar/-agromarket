@@ -14,3 +14,18 @@ export async function uploadAnuncioFoto(file: File, anuncioId: string, index: nu
   const { data } = supabase.storage.from('agromarket').getPublicUrl(path);
   return data.publicUrl;
 }
+
+export async function uploadVitrineImagem(file: File, usuarioId: string, tipo: 'logo' | 'banner') {
+  const ext = file.name.split('.').pop()?.toLowerCase() || 'jpg';
+  const path = `vitrines/${usuarioId}/${tipo}-${Date.now()}.${ext}`;
+
+  const { error } = await supabase.storage.from('agromarket').upload(path, file, {
+    cacheControl: '3600',
+    upsert: false
+  });
+
+  if (error) throw error;
+
+  const { data } = supabase.storage.from('agromarket').getPublicUrl(path);
+  return data.publicUrl;
+}
