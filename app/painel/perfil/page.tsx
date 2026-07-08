@@ -1,13 +1,21 @@
 'use client';
 
-import { FormEvent, useEffect, useState } from 'react';
+import { FormEvent, useEffect, useMemo, useState } from 'react';
 import AuthGuard from '@/components/AuthGuard';
 import { supabase } from '@/lib/supabase';
+import { CIDADES_POR_ESTADO, ESTADOS } from '@/lib/constants';
 import type { Usuario } from '@/types';
 
 function PerfilContent() {
   const [perfil, setPerfil] = useState<Usuario | null>(null);
   const [message, setMessage] = useState<string | null>(null);
+
+  const cidades = useMemo(() => {
+    const uf = perfil?.estado || 'TO';
+    const lista = CIDADES_POR_ESTADO[uf] || [];
+    if (perfil?.cidade && !lista.includes(perfil.cidade)) return [perfil.cidade, ...lista];
+    return lista;
+  }, [perfil?.estado, perfil?.cidade]);
 
   useEffect(() => {
     async function load() {
@@ -39,8 +47,19 @@ function PerfilContent() {
       <label className="field"><span className="label">Nome</span><input className="input" value={perfil.nome} onChange={(e) => setPerfil({ ...perfil, nome: e.target.value })} /></label>
       <label className="field"><span className="label">WhatsApp</span><input className="input" value={perfil.whatsapp || ''} onChange={(e) => setPerfil({ ...perfil, whatsapp: e.target.value })} /></label>
       <div className="form-row">
-        <label className="field"><span className="label">Cidade</span><input className="input" value={perfil.cidade || ''} onChange={(e) => setPerfil({ ...perfil, cidade: e.target.value })} /></label>
-        <label className="field"><span className="label">Estado</span><input className="input" value={perfil.estado || ''} onChange={(e) => setPerfil({ ...perfil, estado: e.target.value })} /></label>
+        <label className="field">
+          <span className="label">Estado</span>
+          <select className="select" value={perfil.estado || 'TO'} onChange={(e) => setPerfil({ ...perfil, estado: e.target.value, cidade: '' })}>
+            {ESTADOS.map((uf) => <option key={uf} value={uf}>{uf}</option>)}
+          </select>
+        </label>
+        <label className="field">
+          <span className="label">Cidade</span>
+          <select className="select" value={perfil.cidade || ''} onChange={(e) => setPerfil({ ...perfil, cidade: e.target.value })}>
+            <option value="">Selecione a cidade</option>
+            {cidades.map((nomeCidade) => <option key={nomeCidade} value={nomeCidade}>{nomeCidade}</option>)}
+          </select>
+        </label>
       </div>
       <button className="btn btn-primary">Salvar perfil</button>
     </form>
