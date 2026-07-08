@@ -52,44 +52,50 @@ function AdminVitrinesContent() {
       <div className="section-head">
         <div>
           <h1>Gerenciar vitrines</h1>
-          <p>Controle vitrines gratuitas, pagas, destaques e bloqueios.</p>
+          <p>Aprove solicitações de lojinha, libere grátis, destaque, verifique ou bloqueie vitrines.</p>
         </div>
-        <Link className="btn btn-secondary" href="/painel">Voltar</Link>
+        <Link className="btn btn-secondary" href="/admin">Voltar admin</Link>
       </div>
 
       {message && <div className="notice">{message}</div>}
 
-      {!vitrines.length ? <EmptyState title="Nenhuma vitrine criada" /> : (
+      {!vitrines.length ? <EmptyState title="Nenhuma vitrine solicitada" /> : (
         <div className="grid grid-2">
-          {vitrines.map((v) => (
-            <div className="card" key={v.id}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'flex-start' }}>
-                <div>
-                  <h2 style={{ marginTop: 0 }}>{v.nome_vitrine}</h2>
-                  <p className="muted" style={{ marginTop: 0 }}>{v.usuarios?.email}</p>
+          {vitrines.map((v) => {
+            const aguardando = !v.vitrine_ativa;
+            return (
+              <div className="card" key={v.id} style={{ border: aguardando ? '2px solid rgba(202, 138, 4, .35)' : undefined }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'flex-start', flexWrap: 'wrap' }}>
+                  <div>
+                    <h2 style={{ marginTop: 0 }}>{v.nome_vitrine}</h2>
+                    <p className="muted" style={{ marginTop: 0 }}>{v.usuarios?.email}</p>
+                    {v.usuarios?.whatsapp && <p className="muted" style={{ marginTop: 0 }}>WhatsApp: {v.usuarios.whatsapp}</p>}
+                  </div>
+                  <span className="badge">{v.vitrine_ativa ? 'Pública' : 'Aguardando autorização'}</span>
                 </div>
-                <span className="badge">{v.vitrine_ativa ? 'Ativa' : 'Desativada'}</span>
-              </div>
 
-              <p className="muted">{v.cidade || 'Cidade'} - {v.estado || 'UF'}</p>
-              <p>{v.descricao || 'Sem descrição.'}</p>
+                <p className="muted">{v.cidade || 'Cidade'} - {v.estado || 'UF'}</p>
+                <p>{v.descricao || 'Sem descrição.'}</p>
 
-              <div style={{ display: 'grid', gap: 8, margin: '12px 0' }}>
-                <span className="badge">Plano: {v.plano}</span>
-                {v.gratis_ate && <span className="badge">Grátis até: {new Date(v.gratis_ate).toLocaleDateString('pt-BR')}</span>}
-                {v.destaque && <span className="badge">Destaque</span>}
-                {v.verificado && <span className="badge">Verificado</span>}
-              </div>
+                <div style={{ display: 'grid', gap: 8, margin: '12px 0' }}>
+                  <span className="badge">Plano: {v.plano}</span>
+                  {v.gratis_ate && <span className="badge">Grátis até: {new Date(v.gratis_ate).toLocaleDateString('pt-BR')}</span>}
+                  {v.destaque && <span className="badge">Destaque</span>}
+                  {v.verificado && <span className="badge">Verificado</span>}
+                </div>
 
-              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                <Link className="btn btn-secondary" href={`/vendedor/${v.slug}`}>Ver vitrine</Link>
-                <button className="btn btn-primary" disabled={loadingId === v.id} onClick={() => liberarGratis(v.id)}>Liberar grátis</button>
-                <button className="btn btn-secondary" disabled={loadingId === v.id} onClick={() => atualizar(v.id, { vitrine_ativa: !v.vitrine_ativa })}>{v.vitrine_ativa ? 'Desativar' : 'Ativar'}</button>
-                <button className="btn btn-secondary" disabled={loadingId === v.id} onClick={() => atualizar(v.id, { destaque: !v.destaque })}>{v.destaque ? 'Remover destaque' : 'Destacar'}</button>
-                <button className="btn btn-secondary" disabled={loadingId === v.id} onClick={() => atualizar(v.id, { verificado: !v.verificado })}>{v.verificado ? 'Remover verificado' : 'Verificar'}</button>
+                {aguardando && <div className="notice">Solicitação aguardando liberação. Clique em “Autorizar vitrine grátis” para publicar a lojinha.</div>}
+
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                  {v.vitrine_ativa && <Link className="btn btn-secondary" href={`/vendedor/${v.slug}`}>Ver vitrine</Link>}
+                  <button className="btn btn-primary" disabled={loadingId === v.id} onClick={() => liberarGratis(v.id)}>{aguardando ? 'Autorizar vitrine grátis' : 'Renovar grátis'}</button>
+                  <button className="btn btn-secondary" disabled={loadingId === v.id} onClick={() => atualizar(v.id, { vitrine_ativa: !v.vitrine_ativa })}>{v.vitrine_ativa ? 'Desativar' : 'Ativar'}</button>
+                  <button className="btn btn-secondary" disabled={loadingId === v.id} onClick={() => atualizar(v.id, { destaque: !v.destaque })}>{v.destaque ? 'Remover destaque' : 'Destacar'}</button>
+                  <button className="btn btn-secondary" disabled={loadingId === v.id} onClick={() => atualizar(v.id, { verificado: !v.verificado })}>{v.verificado ? 'Remover verificado' : 'Verificar'}</button>
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>
