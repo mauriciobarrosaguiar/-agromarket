@@ -1,8 +1,16 @@
-export default function StatCard({ label, value }: { label: string; value: string | number }) {
-  return (
-    <div className="stat">
+import Link from 'next/link';
+
+export default function StatCard({ label, value, href }: { label: string; value: string | number; href?: string }) {
+  const content = (
+    <>
       <strong>{value}</strong>
       <span className="muted">{label}</span>
-    </div>
+    </>
   );
+
+  if (href) {
+    return <Link className="stat" href={href} style={{ textDecoration: 'none' }}>{content}</Link>;
+  }
+
+  return <div className="stat">{content}</div>;
 }
