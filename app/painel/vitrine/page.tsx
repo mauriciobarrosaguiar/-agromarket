@@ -1,12 +1,13 @@
 'use client';
 
-import { ChangeEvent, FormEvent, useEffect, useRef, useState } from 'react';
+import { ChangeEvent, FormEvent, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { ImagePlus, Lock, Send, Store } from 'lucide-react';
 import AuthGuard from '@/components/AuthGuard';
 import { supabase } from '@/lib/supabase';
 import { slugify } from '@/lib/slug';
 import { uploadVitrineImagem } from '@/lib/upload';
+import { CIDADES_POR_ESTADO, ESTADOS } from '@/lib/constants';
 import type { Usuario, Vitrine } from '@/types';
 
 const POSICOES = [
@@ -27,6 +28,13 @@ function MinhaVitrineContent() {
   const logoInputRef = useRef<HTMLInputElement | null>(null);
   const bannerInputRef = useRef<HTMLInputElement | null>(null);
 
+  const cidades = useMemo(() => {
+    const uf = vitrine?.estado || perfil?.estado || 'TO';
+    const lista = CIDADES_POR_ESTADO[uf] || [];
+    if (vitrine?.cidade && !lista.includes(vitrine.cidade)) return [vitrine.cidade, ...lista];
+    return lista;
+  }, [vitrine?.estado, vitrine?.cidade, perfil?.estado]);
+
   useEffect(() => {
     async function load() {
       const { data: userData } = await supabase.auth.getUser();
@@ -46,6 +54,10 @@ function MinhaVitrineContent() {
 
   function update<K extends keyof Vitrine>(key: K, value: Vitrine[K]) {
     setVitrine((prev) => prev ? { ...prev, [key]: value } : prev);
+  }
+
+  function trocarEstado(uf: string) {
+    setVitrine((prev) => prev ? { ...prev, estado: uf, cidade: '' } : prev);
   }
 
   async function solicitarVitrine() {
@@ -249,12 +261,18 @@ function MinhaVitrineContent() {
 
         <div className="form-row">
           <label className="field">
-            <span className="label">Cidade</span>
-            <input className="input" value={vitrine.cidade || ''} onChange={(e) => update('cidade', e.target.value)} />
+            <span className="label">Estado</span>
+            <select className="select" value={vitrine.estado || ''} onChange={(e) => trocarEstado(e.target.value)}>
+              <option value="">Selecione o estado</option>
+              {ESTADOS.map((uf) => <option key={uf} value={uf}>{uf}</option>)}
+            </select>
           </label>
           <label className="field">
-            <span className="label">Estado</span>
-            <input className="input" value={vitrine.estado || ''} onChange={(e) => update('estado', e.target.value.toUpperCase())} maxLength={2} />
+            <span className="label">Cidade</span>
+            <select className="select" value={vitrine.cidade || ''} onChange={(e) => update('cidade', e.target.value)} disabled={!vitrine.estado}>
+              <option value="">{vitrine.estado ? 'Selecione a cidade' : 'Escolha o estado primeiro'}</option>
+              {cidades.map((nomeCidade) => <option key={nomeCidade} value={nomeCidade}>{nomeCidade}</option>)}
+            </select>
           </label>
         </div>
 
