@@ -38,6 +38,27 @@ export type FotoAnuncio = {
   created_at?: string;
 };
 
+export type Vitrine = {
+  id: string;
+  usuario_id: string;
+  nome_vitrine: string;
+  slug: string;
+  descricao?: string | null;
+  foto_url?: string | null;
+  banner_url?: string | null;
+  cidade?: string | null;
+  estado?: string | null;
+  whatsapp?: string | null;
+  vitrine_ativa: boolean;
+  plano: string;
+  gratis_ate?: string | null;
+  destaque: boolean;
+  verificado: boolean;
+  total_visualizacoes: number;
+  created_at?: string;
+  updated_at?: string;
+};
+
 export type Anuncio = {
   id: string;
   usuario_id: string;
