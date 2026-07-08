@@ -40,6 +40,37 @@ const initialState: FormState = {
   nome_contato: ''
 };
 
+function limparDecimal(valor: string) {
+  return valor.replace(/[^\d,]/g, '').replace(/,+/g, ',');
+}
+
+function parseDecimal(valor: string): number | null {
+  const limpo = limparDecimal(valor).replace(',', '.');
+  if (!limpo) return null;
+  const numero = Number(limpo);
+  return Number.isFinite(numero) ? numero : null;
+}
+
+function formatarMoeda(valor: string | number | null | undefined) {
+  if (valor === null || valor === undefined || valor === '') return '';
+  const numero = typeof valor === 'number' ? valor : parseDecimal(String(valor));
+  if (numero === null) return '';
+  return numero.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+}
+
+async function comTempoLimite<T>(promise: PromiseLike<T>, ms: number, mensagem: string): Promise<T> {
+  let timer: ReturnType<typeof setTimeout>;
+  const timeout = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => reject(new Error(mensagem)), ms);
+  });
+
+  try {
+    return await Promise.race([promise, timeout]);
+  } finally {
+    clearTimeout(timer!);
+  }
+}
+
 export default function AnuncioForm({ anuncio }: { anuncio?: Anuncio }) {
   const router = useRouter();
   const [state, setState] = useState<FormState>(initialState);
@@ -47,6 +78,7 @@ export default function AnuncioForm({ anuncio }: { anuncio?: Anuncio }) {
   const [files, setFiles] = useState<FileList | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [savingStep, setSavingStep] = useState<string | null>(null);
 
   const cidades = useMemo(() => {
     const lista = CIDADES_POR_ESTADO[state.estado] || [];
@@ -69,9 +101,9 @@ export default function AnuncioForm({ anuncio }: { anuncio?: Anuncio }) {
       categoria_id: anuncio.categoria_id,
       titulo: anuncio.titulo,
       descricao: anuncio.descricao,
-      preco: anuncio.preco ? String(anuncio.preco) : '',
+      preco: anuncio.preco ? formatarMoeda(Number(anuncio.preco)) : '',
       preco_a_combinar: anuncio.preco_a_combinar,
-      quantidade: anuncio.quantidade ? String(anuncio.quantidade) : '',
+      quantidade: anuncio.quantidade ? String(anuncio.quantidade).replace('.', ',') : '',
       unidade: anuncio.unidade || 'unidade',
       cidade: anuncio.cidade,
       estado: anuncio.estado,
@@ -102,17 +134,28 @@ export default function AnuncioForm({ anuncio }: { anuncio?: Anuncio }) {
   async function submit(e: FormEvent) {
     e.preventDefault();
     setError(null);
+    setSavingStep(null);
     setLoading(true);
 
     try {
       const user = await getUsuarioLogado();
       if (!user) {
-        const voltarPara = encodeURIComponent('/anunciar');
-        throw new Error(`Sua sessão não está ativa neste navegador. Entre novamente para publicar o anúncio. Abra /login?next=${voltarPara}`);
+        throw new Error('Sua sessão não está ativa neste navegador. Entre novamente pelo botão Perfil e tente publicar de novo.');
       }
 
       if (!state.titulo || !state.descricao || !state.categoria_id || !state.estado || !state.cidade || !state.whatsapp || !state.nome_contato) {
         throw new Error('Preencha os campos obrigatórios.');
+      }
+
+      const precoNumero = state.preco_a_combinar || !state.preco ? null : parseDecimal(state.preco);
+      const quantidadeNumero = state.quantidade ? parseDecimal(state.quantidade) : null;
+
+      if (!state.preco_a_combinar && state.preco && precoNumero === null) {
+        throw new Error('Informe um preço válido. Exemplo: R$ 28,00.');
+      }
+
+      if (state.quantidade && quantidadeNumero === null) {
+        throw new Error('A quantidade deve conter somente números.');
       }
 
       const payload = {
@@ -122,9 +165,9 @@ export default function AnuncioForm({ anuncio }: { anuncio?: Anuncio }) {
         titulo: state.titulo.trim(),
         slug: anuncio?.slug || makeUniqueSlug(state.titulo),
         descricao: state.descricao.trim(),
-        preco: state.preco_a_combinar || !state.preco ? null : Number(String(state.preco).replace(',', '.')),
+        preco: precoNumero,
         preco_a_combinar: state.preco_a_combinar,
-        quantidade: state.quantidade ? Number(String(state.quantidade).replace(',', '.')) : null,
+        quantidade: quantidadeNumero,
         unidade: state.unidade,
         cidade: state.cidade.trim(),
         estado: state.estado,
@@ -137,11 +180,20 @@ export default function AnuncioForm({ anuncio }: { anuncio?: Anuncio }) {
 
       let anuncioId = anuncio?.id;
 
+      setSavingStep('Salvando anúncio...');
       if (anuncioId) {
-        const { error } = await supabase.from('anuncios').update(payload).eq('id', anuncioId);
+        const { error } = await comTempoLimite(
+          supabase.from('anuncios').update(payload).eq('id', anuncioId),
+          20000,
+          'Demorou demais para salvar. Verifique sua conexão e tente novamente.'
+        );
         if (error) throw error;
       } else {
-        const { data, error } = await supabase.from('anuncios').insert(payload).select('id').single();
+        const { data, error } = await comTempoLimite(
+          supabase.from('anuncios').insert(payload).select('id').single(),
+          20000,
+          'Demorou demais para salvar. Verifique sua conexão e tente novamente.'
+        );
         if (error) throw error;
         anuncioId = data.id;
       }
@@ -149,14 +201,28 @@ export default function AnuncioForm({ anuncio }: { anuncio?: Anuncio }) {
       if (files && files.length > 0 && anuncioId) {
         const list = Array.from(files).slice(0, 5);
         for (let i = 0; i < list.length; i++) {
-          const url = await uploadAnuncioFoto(list[i], anuncioId, i);
-          const { error: photoError } = await supabase.from('fotos_anuncios').insert({
-            anuncio_id: anuncioId,
-            url_foto: url,
-            ordem: i,
-            principal: i === 0
-          });
-          if (photoError) throw photoError;
+          try {
+            setSavingStep(`Enviando foto ${i + 1} de ${list.length}...`);
+            const url = await comTempoLimite(
+              uploadAnuncioFoto(list[i], anuncioId, i),
+              30000,
+              'A foto demorou demais para enviar.'
+            );
+            const { error: photoError } = await comTempoLimite(
+              supabase.from('fotos_anuncios').insert({
+                anuncio_id: anuncioId,
+                url_foto: url,
+                ordem: i,
+                principal: i === 0
+              }),
+              15000,
+              'Demorou demais para registrar a foto.'
+            );
+            if (photoError) throw photoError;
+          } catch (photoError) {
+            console.error('Falha ao enviar foto. O anúncio foi salvo sem esta foto.', photoError);
+            break;
+          }
         }
       }
 
@@ -164,7 +230,9 @@ export default function AnuncioForm({ anuncio }: { anuncio?: Anuncio }) {
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Erro ao salvar anúncio.';
       setError(message);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
     } finally {
+      setSavingStep(null);
       setLoading(false);
     }
   }
@@ -172,6 +240,7 @@ export default function AnuncioForm({ anuncio }: { anuncio?: Anuncio }) {
   return (
     <form className="form" onSubmit={submit}>
       {error && <div className="notice">{error}</div>}
+      {savingStep && <div className="notice">{savingStep}</div>}
       <div className="form-row">
         <label className="field">
           <span className="label">Tipo de anúncio *</span>
@@ -201,7 +270,15 @@ export default function AnuncioForm({ anuncio }: { anuncio?: Anuncio }) {
       <div className="form-row">
         <label className="field">
           <span className="label">Preço</span>
-          <input className="input" value={state.preco} disabled={state.preco_a_combinar} onChange={(e) => update('preco', e.target.value)} placeholder="Ex: 150,00" />
+          <input
+            className="input"
+            value={state.preco}
+            disabled={state.preco_a_combinar}
+            inputMode="decimal"
+            onChange={(e) => update('preco', limparDecimal(e.target.value))}
+            onBlur={() => update('preco', formatarMoeda(state.preco))}
+            placeholder="Ex: R$ 28,00"
+          />
         </label>
         <label className="field" style={{ justifyContent: 'end' }}>
           <span className="checkbox-row"><input type="checkbox" checked={state.preco_a_combinar} onChange={(e) => update('preco_a_combinar', e.target.checked)} /> Preço a combinar</span>
@@ -211,7 +288,13 @@ export default function AnuncioForm({ anuncio }: { anuncio?: Anuncio }) {
       <div className="form-row">
         <label className="field">
           <span className="label">Quantidade</span>
-          <input className="input" value={state.quantidade} onChange={(e) => update('quantidade', e.target.value)} placeholder="Ex: 10" />
+          <input
+            className="input"
+            value={state.quantidade}
+            inputMode="decimal"
+            onChange={(e) => update('quantidade', limparDecimal(e.target.value))}
+            placeholder="Ex: 10"
+          />
         </label>
         <label className="field">
           <span className="label">Unidade</span>
@@ -261,7 +344,7 @@ export default function AnuncioForm({ anuncio }: { anuncio?: Anuncio }) {
       </label>
 
       <button className="btn btn-primary btn-full" disabled={loading} type="submit">
-        {loading ? 'Salvando...' : anuncio ? 'Salvar alterações' : 'Enviar anúncio para aprovação'}
+        {loading ? (savingStep || 'Salvando...') : anuncio ? 'Salvar alterações' : 'Enviar anúncio para aprovação'}
       </button>
     </form>
   );
