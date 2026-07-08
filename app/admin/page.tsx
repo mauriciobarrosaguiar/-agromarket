@@ -2,11 +2,11 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { AlertTriangle, BadgeDollarSign, BellRing, Boxes, CheckCircle2, DatabaseBackup, LayoutDashboard, Megaphone, ShieldCheck, Store, Tags, Users } from 'lucide-react';
+import { AlertTriangle, BadgeDollarSign, BellRing, Boxes, CheckCircle2, DatabaseBackup, LayoutDashboard, Megaphone, MessageCircle, ShieldCheck, Store, Tags, Users } from 'lucide-react';
 import AuthGuard from '@/components/AuthGuard';
 import StatCard from '@/components/StatCard';
 import { supabase } from '@/lib/supabase';
-import type { Anuncio, Denuncia, DestaqueSolicitacao, Usuario, Vitrine } from '@/types';
+import type { Anuncio, AnuncioWhatsappClique, Denuncia, DestaqueSolicitacao, PatrocinadoHome, Usuario, Vitrine } from '@/types';
 
 function AdminContent() {
   const [anuncios, setAnuncios] = useState<Anuncio[]>([]);
@@ -14,21 +14,27 @@ function AdminContent() {
   const [vitrines, setVitrines] = useState<Vitrine[]>([]);
   const [denuncias, setDenuncias] = useState<Denuncia[]>([]);
   const [destaques, setDestaques] = useState<DestaqueSolicitacao[]>([]);
+  const [patrocinados, setPatrocinados] = useState<PatrocinadoHome[]>([]);
+  const [cliques, setCliques] = useState<AnuncioWhatsappClique[]>([]);
 
   useEffect(() => {
     async function load() {
-      const [{ data: ads }, { data: users }, { data: lojas }, { data: reports }, { data: highlights }] = await Promise.all([
+      const [{ data: ads }, { data: users }, { data: lojas }, { data: reports }, { data: highlights }, { data: banners }, { data: clicks }] = await Promise.all([
         supabase.from('anuncios').select('*'),
         supabase.from('usuarios').select('*'),
         supabase.from('vitrines').select('*'),
         supabase.from('denuncias').select('*'),
-        supabase.from('destaque_solicitacoes').select('*')
+        supabase.from('destaque_solicitacoes').select('*'),
+        supabase.from('patrocinados_home').select('*'),
+        supabase.from('anuncio_whatsapp_cliques').select('*').limit(1000)
       ]);
       setAnuncios((ads || []) as Anuncio[]);
       setUsuarios((users || []) as Usuario[]);
       setVitrines((lojas || []) as Vitrine[]);
       setDenuncias((reports || []) as Denuncia[]);
       setDestaques((highlights || []) as DestaqueSolicitacao[]);
+      setPatrocinados((banners || []) as PatrocinadoHome[]);
+      setCliques((clicks || []) as AnuncioWhatsappClique[]);
     }
     load();
   }, []);
@@ -37,6 +43,7 @@ function AdminContent() {
   const aprovados = anuncios.filter((a) => a.status === 'aprovado').length;
   const destaquesPendentes = destaques.filter((d) => d.status === 'pendente').length;
   const denunciasAbertas = denuncias.filter((d) => d.status === 'aberta').length;
+  const bannersAtivos = patrocinados.filter((p) => p.ativo).length;
   const atencao = pendentes + destaquesPendentes + denunciasAbertas;
 
   const grupos = [
@@ -52,10 +59,12 @@ function AdminContent() {
     },
     {
       titulo: 'Comercial e monetização',
-      descricao: 'Preços, planos e configuração de recebimento.',
+      descricao: 'Preços, planos, patrocinados e relatórios para clientes.',
       itens: [
         { href: '/admin/monetizacao', titulo: 'Planos e pagamentos', texto: 'Editar preços, Asaas, Efí e PIX.', icon: BadgeDollarSign, destaque: false },
-        { href: '/admin/vitrines', titulo: 'Vitrines', texto: `${vitrines.length} vitrine(s) cadastrada(s)`, icon: Store, destaque: false }
+        { href: '/admin/vitrines', titulo: 'Vitrines', texto: `${vitrines.length} vitrine(s) cadastrada(s)`, icon: Store, destaque: false },
+        { href: '/admin/patrocinados', titulo: 'Patrocinados da home', texto: `${bannersAtivos} banner(s) ativo(s) no carrossel`, icon: Megaphone, destaque: bannersAtivos > 0 },
+        { href: '/admin/whatsapp-cliques', titulo: 'Cliques no WhatsApp', texto: `${cliques.length} clique(s) registrados para relatório`, icon: MessageCircle, destaque: false }
       ]
     },
     {
@@ -75,9 +84,11 @@ function AdminContent() {
         <section className="card" style={{ background: 'linear-gradient(135deg, #052e16, #166534)', color: '#fff', marginBottom: 18 }}>
           <span className="badge" style={{ background: 'rgba(255,255,255,.18)', color: '#fff' }}><LayoutDashboard size={14} /> Central administrativa</span>
           <h1 style={{ color: '#fff', marginBottom: 8 }}>Admin AgroMarket</h1>
-          <p style={{ color: 'rgba(255,255,255,.84)', marginBottom: 18 }}>Controle operação, monetização, segurança, usuários, vitrines, pagamentos e backup em um só lugar.</p>
+          <p style={{ color: 'rgba(255,255,255,.84)', marginBottom: 18 }}>Controle operação, monetização, segurança, usuários, vitrines, pagamentos, patrocinados e relatórios em um só lugar.</p>
           <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
             <Link className="btn btn-primary" href="/admin/monetizacao"><BadgeDollarSign size={18} /> Planos e pagamentos</Link>
+            <Link className="btn btn-secondary" href="/admin/patrocinados"><Megaphone size={18} /> Patrocinados</Link>
+            <Link className="btn btn-secondary" href="/admin/whatsapp-cliques"><MessageCircle size={18} /> Relatório WhatsApp</Link>
             <Link className="btn btn-secondary" href="/admin/seguranca"><ShieldCheck size={18} /> Backup e segurança</Link>
             {atencao > 0 && <Link className="btn btn-secondary" href="/painel"><BellRing size={18} /> {atencao} pendência(s)</Link>}
           </div>
@@ -89,6 +100,8 @@ function AdminContent() {
           <StatCard label="Aprovados" value={aprovados} href="/admin/anuncios" />
           <StatCard label="Destaques pendentes" value={destaquesPendentes} href="/admin/destaques" />
           <StatCard label="Denúncias abertas" value={denunciasAbertas} href="/admin/denuncias" />
+          <StatCard label="Patrocinados" value={bannersAtivos} href="/admin/patrocinados" />
+          <StatCard label="Cliques WhatsApp" value={cliques.length} href="/admin/whatsapp-cliques" />
           <StatCard label="Usuários" value={usuarios.length} href="/admin/usuarios" />
           <StatCard label="Vitrines" value={vitrines.length} href="/admin/vitrines" />
         </div>
