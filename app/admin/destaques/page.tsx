@@ -9,8 +9,10 @@ import { supabase } from '@/lib/supabase';
 import { formatMoney } from '@/lib/whatsapp';
 import type { Anuncio, DestaqueSolicitacao, StatusDestaqueSolicitacao } from '@/types';
 
+type AnuncioResumo = Pick<Anuncio, 'id' | 'titulo' | 'slug' | 'status' | 'cidade' | 'estado' | 'preco' | 'preco_a_combinar' | 'destaque' | 'destaque_fim'>;
+
 type DestaqueLinha = DestaqueSolicitacao & {
-  anuncios?: Pick<Anuncio, 'id' | 'titulo' | 'slug' | 'status' | 'cidade' | 'estado' | 'preco' | 'preco_a_combinar' | 'destaque' | 'destaque_fim'> | null;
+  anuncios?: AnuncioResumo | null;
 };
 
 const STATUS_LABEL: Record<StatusDestaqueSolicitacao, string> = {
@@ -35,23 +37,46 @@ function AdminDestaquesContent() {
 
   async function load() {
     setLoading(true);
+    setMessage(null);
 
     let query = supabase
       .from('destaque_solicitacoes')
-      .select('*, anuncios(id, titulo, slug, status, cidade, estado, preco, preco_a_combinar, destaque, destaque_fim)')
+      .select('*')
       .order('created_at', { ascending: false });
 
     if (filtro !== 'todos') query = query.eq('status', filtro);
 
-    const { data, error } = await query;
+    const { data: pedidosData, error } = await query;
 
     if (error) {
       setMessage(error.message);
       setPedidos([]);
-    } else {
-      setPedidos((data || []) as DestaqueLinha[]);
+      setLoading(false);
+      return;
     }
 
+    const pedidosBase = (pedidosData || []) as DestaqueSolicitacao[];
+    const anuncioIds = Array.from(new Set(pedidosBase.map((pedido) => pedido.anuncio_id).filter(Boolean)));
+
+    let anunciosPorId: Record<string, AnuncioResumo> = {};
+
+    if (anuncioIds.length) {
+      const { data: anunciosData, error: anunciosError } = await supabase
+        .from('anuncios')
+        .select('id, titulo, slug, status, cidade, estado, preco, preco_a_combinar, destaque, destaque_fim')
+        .in('id', anuncioIds);
+
+      if (anunciosError) {
+        setMessage(anunciosError.message);
+      } else {
+        anunciosPorId = ((anunciosData || []) as AnuncioResumo[]).reduce<Record<string, AnuncioResumo>>((acc, ad) => {
+          acc[ad.id] = ad;
+          return acc;
+        }, {});
+      }
+    }
+
+    setPedidos(pedidosBase.map((pedido) => ({ ...pedido, anuncios: anunciosPorId[pedido.anuncio_id] || null })));
     setLoading(false);
   }
 
