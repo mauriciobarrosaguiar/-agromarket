@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { MapPin, Search, ShieldCheck, ShoppingBag, Star, Store } from 'lucide-react';
+import { MapPin, PlusCircle, Search, ShieldCheck, ShoppingBag, Star, Store } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import type { AvaliacaoVendedor, Vitrine } from '@/types';
 import EmptyState from '@/components/EmptyState';
@@ -86,20 +86,31 @@ export default function VitrinesPage() {
   return (
     <main className="page">
       <div className="container">
-        <section className="card" style={{ background: 'linear-gradient(135deg, #052e16, #166534)', color: '#fff', marginBottom: 18 }}>
-          <span className="badge" style={{ background: 'rgba(255,255,255,.18)', color: '#fff' }}><ShoppingBag size={14} /> Lojinhas AgroMarket</span>
-          <h1 style={{ color: '#fff', marginBottom: 8 }}>Vitrines de vendedores</h1>
-          <p style={{ color: 'rgba(255,255,255,.84)' }}>Encontre vendedores, chácaras, prestadores de serviço e lojas do agro em uma página pública.</p>
+        <section className="card" style={{ background: 'linear-gradient(135deg, #052e16, #166534)', color: '#fff', marginBottom: 18, position: 'relative', overflow: 'hidden' }}>
+          <div style={{ position: 'relative', zIndex: 1 }}>
+            <span className="badge" style={{ background: 'rgba(255,255,255,.18)', color: '#fff' }}><ShoppingBag size={14} /> Lojinhas AgroMarket</span>
+            <h1 style={{ color: '#fff', marginBottom: 8 }}>Vitrines de vendedores</h1>
+            <p style={{ color: 'rgba(255,255,255,.84)' }}>Encontre vendedores, chácaras, prestadores de serviço e lojas do agro em uma página pública.</p>
 
-          <div style={{ position: 'relative', marginTop: 14 }}>
-            <Search size={20} style={{ position: 'absolute', left: 16, top: '50%', transform: 'translateY(-50%)', color: '#5f6f5b' }} />
-            <input
-              className="input"
-              value={busca}
-              onChange={(e) => setBusca(e.target.value)}
-              placeholder="Buscar lojinha, cidade, produto ou vendedor..."
-              style={{ paddingLeft: 48 }}
-            />
+            <div style={{ display: 'grid', gap: 10, marginTop: 16 }}>
+              <Link className="btn btn-primary" href="/painel/vitrine" style={{ width: 'fit-content', background: '#fff', color: '#14532d' }}>
+                <PlusCircle size={18} /> Criar minha lojinha
+              </Link>
+              <p style={{ color: 'rgba(255,255,255,.78)', margin: 0, fontSize: 15 }}>
+                Para criar lojinha é obrigatório ter documento enviado e localização real validada no perfil.
+              </p>
+            </div>
+
+            <div style={{ position: 'relative', marginTop: 16 }}>
+              <Search size={20} style={{ position: 'absolute', left: 16, top: '50%', transform: 'translateY(-50%)', color: '#5f6f5b' }} />
+              <input
+                className="input"
+                value={busca}
+                onChange={(e) => setBusca(e.target.value)}
+                placeholder="Buscar lojinha, cidade, produto ou vendedor..."
+                style={{ paddingLeft: 48 }}
+              />
+            </div>
           </div>
         </section>
 
