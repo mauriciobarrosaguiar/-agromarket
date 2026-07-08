@@ -6,13 +6,25 @@ import { ChevronRight } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import type { PatrocinadoHome } from '@/types';
 
+const SITE_URL = 'https://agromarket-two.vercel.app';
+
 type Props = {
   itens: PatrocinadoHome[];
 };
 
-function destinoValido(url?: string | null) {
-  if (!url) return '#';
-  return url;
+function onlyNumbers(value?: string | null) {
+  return String(value || '').replace(/\D/g, '');
+}
+
+function destinoValido(item: PatrocinadoHome) {
+  const telefone = onlyNumbers(item.whatsapp_anunciante);
+  if (telefone) {
+    const texto = `Olá, vi o patrocinado no AgroMarket e tenho interesse: ${item.titulo}`;
+    return `https://wa.me/${telefone}?text=${encodeURIComponent(texto)}`;
+  }
+
+  if (item.link_url) return item.link_url;
+  return SITE_URL;
 }
 
 export default function PatrocinadoCarousel({ itens }: Props) {
@@ -67,7 +79,7 @@ export default function PatrocinadoCarousel({ itens }: Props) {
           style={{ display: 'flex', overflowX: 'auto', scrollSnapType: 'x mandatory', gap: 12, padding: '2px 2px 10px', scrollbarWidth: 'none' }}
         >
           {itens.map((item) => {
-            const href = destinoValido(item.link_url);
+            const href = destinoValido(item);
             const externo = href.startsWith('http');
             return (
               <a
