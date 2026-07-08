@@ -88,11 +88,6 @@ export default function AnuncioDetalheClient() {
     load();
   }, [params.slug]);
 
-  async function registrarClique() {
-    if (!anuncio) return;
-    await supabase.rpc('incrementar_clique_whatsapp', { anuncio_uuid: anuncio.id });
-  }
-
   async function enviarDenuncia(e: FormEvent) {
     e.preventDefault();
     if (!anuncio) return;
@@ -220,9 +215,7 @@ export default function AnuncioDetalheClient() {
             </div>
 
             <div style={{ display: 'grid', gap: 10, marginTop: 14 }}>
-              <div onClick={registrarClique}>
-                <WhatsAppButton phone={anuncio.whatsapp} title={anuncio.titulo} urlPath={`/anuncio/${anuncio.slug}`} full />
-              </div>
+              <WhatsAppButton phone={anuncio.whatsapp} title={anuncio.titulo} urlPath={`/anuncio/${anuncio.slug}`} anuncioId={anuncio.id} full />
               <ShareButton label="Compartilhar anúncio" title={anuncio.titulo} message={mensagemCompartilhar} path={`/anuncio/${anuncio.slug}`} full />
               <button className="btn btn-danger btn-full" onClick={() => setDenunciaAberta(true)}><Flag size={18} /> Denunciar anúncio</button>
             </div>
