@@ -1,7 +1,8 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { ChevronLeft, ChevronRight, ExternalLink, Megaphone } from 'lucide-react';
+import Link from 'next/link';
+import { ChevronRight } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import type { PatrocinadoHome } from '@/types';
 
@@ -40,29 +41,18 @@ export default function PatrocinadoCarousel({ itens }: Props) {
 
   if (!itens.length) return null;
 
-  function mover(delta: number) {
-    setIndex((atual) => (atual + delta + itens.length) % itens.length);
-  }
-
   async function registrarClique(item: PatrocinadoHome) {
     await supabase.rpc('incrementar_patrocinado_clique', { patrocinado_uuid: item.id });
   }
 
   return (
-    <section className="section">
+    <section className="section" style={{ marginTop: 14 }}>
       <div className="container">
-        <div className="section-head section-head-compact">
-          <div>
-            <span className="badge"><Megaphone size={14} /> Patrocinado</span>
-            <h2>Ofertas e parceiros do agro</h2>
-            <p>Espaço comercial para marcas, lojas e serviços divulgarem no AgroMarket.</p>
-          </div>
-          {itens.length > 1 && (
-            <div style={{ display: 'flex', gap: 8 }}>
-              <button className="btn btn-secondary" type="button" onClick={() => mover(-1)} aria-label="Patrocinado anterior"><ChevronLeft size={18} /></button>
-              <button className="btn btn-secondary" type="button" onClick={() => mover(1)} aria-label="Próximo patrocinado"><ChevronRight size={18} /></button>
-            </div>
-          )}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, marginBottom: 10 }}>
+          <h2 style={{ margin: 0, fontSize: 22, color: '#14532d' }}>Patrocinado</h2>
+          <Link href="/patrocinados" style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontWeight: 900, color: '#14532d' }}>
+            Ver todos <ChevronRight size={18} />
+          </Link>
         </div>
 
         <div
@@ -70,7 +60,7 @@ export default function PatrocinadoCarousel({ itens }: Props) {
           onScroll={() => {
             const el = containerRef.current;
             if (!el) return;
-            const largura = el.clientWidth;
+            const largura = el.clientWidth * 0.88;
             const proximoIndex = Math.round(el.scrollLeft / Math.max(largura, 1));
             if (proximoIndex !== index && proximoIndex >= 0 && proximoIndex < itens.length) setIndex(proximoIndex);
           }}
@@ -87,34 +77,27 @@ export default function PatrocinadoCarousel({ itens }: Props) {
                 rel={externo ? 'noreferrer' : undefined}
                 onClick={() => registrarClique(item)}
                 className="card"
-                style={{ minWidth: '100%', padding: 0, overflow: 'hidden', scrollSnapAlign: 'center', textDecoration: 'none' }}
+                style={{ minWidth: 'min(88%, 720px)', padding: 0, overflow: 'hidden', scrollSnapAlign: 'center', textDecoration: 'none', borderRadius: 18 }}
               >
-                <div style={{ minHeight: 250, background: `linear-gradient(90deg, rgba(5,46,22,.72), rgba(5,46,22,.18)), url(${item.imagem_url}) center/cover`, display: 'flex', alignItems: 'end', padding: 18, color: '#fff' }}>
-                  <div style={{ maxWidth: 720 }}>
-                    <span className="badge" style={{ background: 'rgba(255,255,255,.18)', color: '#fff' }}>Patrocinado</span>
-                    <h2 style={{ color: '#fff', margin: '10px 0 6px', fontSize: 'clamp(28px, 5vw, 46px)' }}>{item.titulo}</h2>
-                    {item.subtitulo && <p style={{ color: 'rgba(255,255,255,.9)', fontSize: 18, margin: 0 }}>{item.subtitulo}</p>}
-                    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 12 }}>
-                      {item.nome_anunciante && <span className="badge" style={{ background: '#fff', color: '#14532d' }}>{item.nome_anunciante}</span>}
-                      {(item.cidade || item.estado) && <span className="badge" style={{ background: '#fff', color: '#14532d' }}>{item.cidade || 'Cidade'} - {item.estado || 'UF'}</span>}
-                      {item.link_url && <span className="badge" style={{ background: '#fff', color: '#14532d' }}><ExternalLink size={14} /> Abrir</span>}
-                    </div>
-                  </div>
-                </div>
+                <img
+                  src={item.imagem_url}
+                  alt={item.titulo}
+                  style={{ width: '100%', aspectRatio: '16/9', objectFit: 'cover', background: '#e8efe2' }}
+                />
               </a>
             );
           })}
         </div>
 
         {itens.length > 1 && (
-          <div style={{ display: 'flex', justifyContent: 'center', gap: 7, marginTop: 8 }}>
+          <div style={{ display: 'flex', justifyContent: 'center', gap: 7, marginTop: 4 }}>
             {itens.map((item, i) => (
               <button
                 key={item.id}
                 type="button"
                 onClick={() => setIndex(i)}
                 aria-label={`Ir para patrocinado ${i + 1}`}
-                style={{ width: i === index ? 22 : 9, height: 9, borderRadius: 999, border: 0, background: i === index ? '#166534' : '#cbd5c0', transition: '.18s ease' }}
+                style={{ width: i === index ? 20 : 9, height: 9, borderRadius: 999, border: 0, background: i === index ? '#166534' : '#dce4d5', transition: '.18s ease' }}
               />
             ))}
           </div>
