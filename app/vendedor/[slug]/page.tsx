@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { Suspense } from 'react';
 import VendedorClient from './VendedorClient';
 import { cleanText, createSeoSupabaseClient, DEFAULT_IMAGE, getAbsoluteUrl, getSiteUrl, SITE_NAME } from '@/lib/seo';
 
@@ -63,5 +64,9 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 }
 
 export default function VendedorPage() {
-  return <VendedorClient />;
+  return (
+    <Suspense fallback={<main className="page"><div className="container"><div className="card">Carregando vitrine...</div></div></main>}>
+      <VendedorClient />
+    </Suspense>
+  );
 }
