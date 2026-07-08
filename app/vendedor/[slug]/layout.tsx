@@ -1,18 +1,21 @@
 import type { Metadata } from 'next';
 import { cleanText, createSeoSupabaseClient, DEFAULT_IMAGE, getAbsoluteUrl, getSiteUrl, SITE_NAME } from '@/lib/seo';
 
-type LayoutProps = {
-  children: React.ReactNode;
+type ParamsProps = {
   params: Promise<{ slug: string }>;
 };
 
-export async function generateMetadata({ params }: LayoutProps): Promise<Metadata> {
+type LayoutProps = ParamsProps & {
+  children: React.ReactNode;
+};
+
+export async function generateMetadata({ params }: ParamsProps): Promise<Metadata> {
   const { slug } = await params;
   const supabase = createSeoSupabaseClient();
 
   const { data } = await supabase
     .from('vitrines')
-    .select('nome_vitrine, descricao, cidade, estado, slug, foto_url, banner_url, vitrine_ativa, usuarios(nome)')
+    .select('nome_vitrine, descricao, cidade, estado, slug, foto_url, banner_url, vitrine_ativa')
     .eq('slug', slug)
     .eq('vitrine_ativa', true)
     .maybeSingle();
