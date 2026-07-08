@@ -328,6 +328,11 @@ export default function AnuncioForm({ anuncio }: { anuncio?: Anuncio }) {
     <form className="form" onSubmit={submit}>
       {error && <div className="notice">{error}</div>}
       {savingStep && <div className="notice">{savingStep}</div>}
+
+      <div className="notice">
+        Ao publicar, use fotos reais, informe dados verdadeiros e não anuncie itens proibidos ou em situação irregular. O AgroMarket apenas divulga o anúncio e não participa da negociação, pagamento ou entrega. <a href="/termos" style={{ fontWeight: 900 }}>Ver termos</a> · <a href="/seguranca" style={{ fontWeight: 900 }}>Ver segurança</a>
+      </div>
+
       <div className="form-row">
         <label className="field">
           <span className="label">Tipo de anúncio *</span>
