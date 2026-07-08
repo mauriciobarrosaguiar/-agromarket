@@ -3,11 +3,12 @@
 import { FormEvent, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
-import { ChevronLeft, ChevronRight, Flag, MapPin, Share2, Store, X } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Flag, MapPin, Store, X } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import type { Anuncio, Vitrine } from '@/types';
 import { formatMoney } from '@/lib/whatsapp';
 import WhatsAppButton from '@/components/WhatsAppButton';
+import ShareButton from '@/components/ShareButton';
 import EmptyState from '@/components/EmptyState';
 
 const MOTIVOS_DENUNCIA = [
@@ -65,17 +66,6 @@ export default function AnuncioDetalhePage() {
     load();
   }, [params.slug]);
 
-  async function compartilhar() {
-    if (!anuncio) return;
-    const url = window.location.href;
-    if (navigator.share) {
-      await navigator.share({ title: anuncio.titulo, text: anuncio.descricao, url });
-    } else {
-      await navigator.clipboard.writeText(url);
-      alert('Link copiado.');
-    }
-  }
-
   async function registrarClique() {
     if (!anuncio) return;
     await supabase.rpc('incrementar_clique_whatsapp', { anuncio_uuid: anuncio.id });
@@ -115,6 +105,10 @@ export default function AnuncioDetalhePage() {
 
   const fotos = [...(anuncio.fotos_anuncios || [])].sort((a, b) => (a.ordem || 0) - (b.ordem || 0));
   const fotoAberta = fotoAbertaIndex !== null ? fotos[fotoAbertaIndex]?.url_foto : null;
+  const precoTexto = formatMoney(anuncio.preco, anuncio.preco_a_combinar);
+  const localTexto = `${anuncio.bairro ? `${anuncio.bairro} - ` : ''}${anuncio.cidade} - ${anuncio.estado}`;
+  const descricaoCurta = anuncio.descricao.length > 140 ? `${anuncio.descricao.slice(0, 140)}...` : anuncio.descricao;
+  const mensagemCompartilhar = `🌱 AgroMarket\n\n📢 ${anuncio.titulo}\n💰 ${precoTexto}\n📍 ${localTexto}\n\n${descricaoCurta}\n\nVeja o anúncio:`;
 
   function abrirFotoSelecionada() {
     if (!selectedFoto || !fotos.length) return;
@@ -174,8 +168,8 @@ export default function AnuncioDetalhePage() {
           <section className="card">
             <span className="badge">{anuncio.categorias?.nome || anuncio.tipo_anuncio}</span>
             <h1 style={{ marginBottom: 8 }}>{anuncio.titulo}</h1>
-            <div className="price" style={{ fontSize: 34 }}>{formatMoney(anuncio.preco, anuncio.preco_a_combinar)}</div>
-            <p className="muted" style={{ display: 'flex', gap: 6, alignItems: 'center' }}><MapPin size={18} /> {anuncio.bairro ? `${anuncio.bairro} - ` : ''}{anuncio.cidade} - {anuncio.estado}</p>
+            <div className="price" style={{ fontSize: 34 }}>{precoTexto}</div>
+            <p className="muted" style={{ display: 'flex', gap: 6, alignItems: 'center' }}><MapPin size={18} /> {localTexto}</p>
             <p style={{ whiteSpace: 'pre-wrap', lineHeight: 1.55 }}>{anuncio.descricao}</p>
 
             {vitrine && (
@@ -204,7 +198,7 @@ export default function AnuncioDetalhePage() {
               <div onClick={registrarClique}>
                 <WhatsAppButton phone={anuncio.whatsapp} title={anuncio.titulo} full />
               </div>
-              <button className="btn btn-secondary btn-full" onClick={compartilhar}><Share2 size={18} /> Compartilhar anúncio</button>
+              <ShareButton label="Compartilhar anúncio" title={anuncio.titulo} message={mensagemCompartilhar} path={`/anuncio/${anuncio.slug}`} full />
               <button className="btn btn-danger btn-full" onClick={() => setDenunciaAberta(true)}><Flag size={18} /> Denunciar anúncio</button>
             </div>
           </section>
