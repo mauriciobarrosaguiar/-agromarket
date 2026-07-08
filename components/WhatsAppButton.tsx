@@ -12,6 +12,8 @@ type WhatsAppButtonProps = {
   full?: boolean;
   label?: string;
   urlPath?: string;
+  anuncioId?: string;
+  origem?: string;
 };
 
 function montarUrl(path?: string) {
@@ -21,7 +23,7 @@ function montarUrl(path?: string) {
   return `https://agromarket-two.vercel.app${path}`;
 }
 
-export default function WhatsAppButton({ phone, title, full = false, label = 'Chamar no WhatsApp', urlPath }: WhatsAppButtonProps) {
+export default function WhatsAppButton({ phone, title, full = false, label = 'Chamar no WhatsApp', urlPath, anuncioId, origem = 'anuncio' }: WhatsAppButtonProps) {
   const [open, setOpen] = useState(false);
   const [isLogged, setIsLogged] = useState<boolean | null>(null);
   const anuncioUrl = useMemo(() => montarUrl(urlPath), [urlPath]);
@@ -34,6 +36,17 @@ export default function WhatsAppButton({ phone, title, full = false, label = 'Ch
     });
     return () => sub.subscription.unsubscribe();
   }, []);
+
+  async function continuarWhatsApp() {
+    if (anuncioId) {
+      await supabase.rpc('registrar_clique_whatsapp_anuncio', {
+        anuncio_uuid: anuncioId,
+        origem_text: origem,
+        user_agent_text: typeof navigator !== 'undefined' ? navigator.userAgent : null
+      });
+    }
+    setOpen(false);
+  }
 
   return (
     <>
@@ -86,7 +99,7 @@ export default function WhatsAppButton({ phone, title, full = false, label = 'Ch
                 </ul>
 
                 <div style={{ display: 'grid', gap: 10 }}>
-                  <a className="btn btn-whatsapp btn-full" href={whatsLink} target="_blank" rel="noreferrer" onClick={() => setOpen(false)}>
+                  <a className="btn btn-whatsapp btn-full" href={whatsLink} target="_blank" rel="noreferrer" onClick={continuarWhatsApp}>
                     <MessageCircle size={18} /> Continuar para o WhatsApp
                   </a>
                   <Link className="btn btn-secondary btn-full" href="/seguranca" onClick={() => setOpen(false)}>Ver dicas de segurança</Link>
