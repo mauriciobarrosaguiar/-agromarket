@@ -1,7 +1,8 @@
 'use client';
 
+import Link from 'next/link';
 import { FormEvent, useEffect, useMemo, useRef, useState } from 'react';
-import { Camera, FileText, MapPin, X } from 'lucide-react';
+import { Camera, FileText, KeyRound, MapPin, X } from 'lucide-react';
 import AuthGuard from '@/components/AuthGuard';
 import { supabase } from '@/lib/supabase';
 import { CIDADES_POR_ESTADO, ESTADOS } from '@/lib/constants';
@@ -9,6 +10,18 @@ import { uploadPerfilArquivo } from '@/lib/upload';
 import type { Usuario } from '@/types';
 
 const MAX_ACCURACY_METERS = 150;
+
+function onlyNumbers(value: string) {
+  return value.replace(/\D/g, '');
+}
+
+function formatCpf(value: string) {
+  const cpf = onlyNumbers(value).slice(0, 11);
+  return cpf
+    .replace(/(\d{3})(\d)/, '$1.$2')
+    .replace(/(\d{3})(\d)/, '$1.$2')
+    .replace(/(\d{3})(\d{1,2})$/, '$1-$2');
+}
 
 function PerfilContent() {
   const [perfil, setPerfil] = useState<Usuario | null>(null);
@@ -168,6 +181,7 @@ function PerfilContent() {
     setMessage(null);
 
     try {
+      const cpfLimpo = onlyNumbers(perfil.cpf || '');
       let selfieUrl = perfil.selfie_url || perfil.foto_url || null;
       let documentoUrl = perfil.documento_url || null;
 
@@ -177,6 +191,18 @@ function PerfilContent() {
 
       if (documentoFile) {
         documentoUrl = await uploadPerfilArquivo(documentoFile, perfil.id, 'documento');
+      }
+
+      if (!perfil.nome || !perfil.whatsapp || !perfil.estado || !perfil.cidade) {
+        throw new Error('Preencha nome, WhatsApp, estado e cidade.');
+      }
+
+      if (!cpfLimpo || cpfLimpo.length !== 11) {
+        throw new Error('Informe um CPF válido com 11 números.');
+      }
+
+      if (!perfil.data_nascimento || !perfil.documento_numero || !perfil.documento_orgao_emissor || !perfil.documento_uf) {
+        throw new Error('Preencha os dados do documento.');
       }
 
       if (!selfieUrl) {
@@ -196,6 +222,13 @@ function PerfilContent() {
         whatsapp: perfil.whatsapp,
         cidade: perfil.cidade,
         estado: perfil.estado,
+        cpf: cpfLimpo,
+        data_nascimento: perfil.data_nascimento,
+        documento_tipo: perfil.documento_tipo || 'cpf_rg',
+        documento_numero: perfil.documento_numero,
+        documento_orgao_emissor: perfil.documento_orgao_emissor,
+        documento_uf: perfil.documento_uf,
+        cadastro_completo: true,
         foto_url: selfieUrl,
         selfie_url: selfieUrl,
         documento_url: documentoUrl,
@@ -209,10 +242,10 @@ function PerfilContent() {
 
       if (error) throw error;
 
-      setPerfil({ ...perfil, foto_url: selfieUrl, selfie_url: selfieUrl, documento_url: documentoUrl, localizacao_validada: true });
+      setPerfil({ ...perfil, cpf: cpfLimpo, foto_url: selfieUrl, selfie_url: selfieUrl, documento_url: documentoUrl, cadastro_completo: true, localizacao_validada: true });
       setSelfieFile(null);
       setDocumentoFile(null);
-      setMessage('Perfil salvo com selfie tirada na hora e localização real validadas.');
+      setMessage('Perfil salvo com cadastro completo, selfie tirada na hora e localização real validada.');
     } catch (err) {
       setMessage(err instanceof Error ? err.message : 'Erro ao salvar perfil.');
     } finally {
@@ -230,8 +263,10 @@ function PerfilContent() {
       {message && <div className="notice">{message}</div>}
 
       <div className="notice">
-        Para anunciar com mais segurança, o perfil precisa ter <strong>selfie tirada na hora</strong> e <strong>localização real validada por GPS</strong>. Documento é opcional e não aparece publicamente.
+        Para anunciar com mais segurança, o perfil precisa ter <strong>selfie tirada na hora</strong>, <strong>CPF/dados do documento</strong> e <strong>localização real validada por GPS</strong>. O documento enviado é opcional e não aparece publicamente.
       </div>
+
+      <Link href="/painel/senha" className="btn btn-secondary btn-full"><KeyRound size={18} /> Trocar senha</Link>
 
       <div className="card" style={{ background: '#f8faf4' }}>
         <h2 style={{ marginTop: 0 }}>Selfie do divulgador *</h2>
@@ -265,18 +300,35 @@ function PerfilContent() {
         )}
       </div>
 
-      <label className="field"><span className="label">Nome</span><input className="input" value={perfil.nome} onChange={(e) => setPerfil({ ...perfil, nome: e.target.value })} /></label>
-      <label className="field"><span className="label">WhatsApp</span><input className="input" value={perfil.whatsapp || ''} onChange={(e) => setPerfil({ ...perfil, whatsapp: e.target.value })} /></label>
+      <label className="field"><span className="label">Nome completo *</span><input className="input" value={perfil.nome} onChange={(e) => setPerfil({ ...perfil, nome: e.target.value })} /></label>
+      <label className="field"><span className="label">WhatsApp *</span><input className="input" value={perfil.whatsapp || ''} onChange={(e) => setPerfil({ ...perfil, whatsapp: e.target.value })} /></label>
+
+      <div className="card" style={{ background: '#f8faf4' }}>
+        <h2 style={{ marginTop: 0 }}>Dados do documento *</h2>
+        <p className="muted">Usado para segurança e recuperação da conta. Não aparece publicamente.</p>
+        <label className="field"><span className="label">CPF *</span><input className="input" value={formatCpf(perfil.cpf || '')} onChange={(e) => setPerfil({ ...perfil, cpf: formatCpf(e.target.value) })} inputMode="numeric" /></label>
+        <label className="field"><span className="label">Data de nascimento *</span><input className="input" type="date" value={perfil.data_nascimento || ''} onChange={(e) => setPerfil({ ...perfil, data_nascimento: e.target.value })} /></label>
+        <div className="form-row">
+          <label className="field"><span className="label">RG / Documento *</span><input className="input" value={perfil.documento_numero || ''} onChange={(e) => setPerfil({ ...perfil, documento_numero: e.target.value })} /></label>
+          <label className="field"><span className="label">Órgão emissor *</span><input className="input" value={perfil.documento_orgao_emissor || ''} onChange={(e) => setPerfil({ ...perfil, documento_orgao_emissor: e.target.value })} placeholder="Ex: SSP" /></label>
+        </div>
+        <label className="field">
+          <span className="label">UF do documento *</span>
+          <select className="select" value={perfil.documento_uf || 'TO'} onChange={(e) => setPerfil({ ...perfil, documento_uf: e.target.value })}>
+            {ESTADOS.map((uf) => <option key={uf} value={uf}>{uf}</option>)}
+          </select>
+        </label>
+      </div>
 
       <div className="form-row">
         <label className="field">
-          <span className="label">Estado</span>
+          <span className="label">Estado *</span>
           <select className="select" value={perfil.estado || 'TO'} onChange={(e) => setPerfil({ ...perfil, estado: e.target.value, cidade: '' })}>
             {ESTADOS.map((uf) => <option key={uf} value={uf}>{uf}</option>)}
           </select>
         </label>
         <label className="field">
-          <span className="label">Cidade</span>
+          <span className="label">Cidade *</span>
           <select className="select" value={perfil.cidade || ''} onChange={(e) => setPerfil({ ...perfil, cidade: e.target.value })}>
             <option value="">Selecione a cidade</option>
             {cidades.map((nomeCidade) => <option key={nomeCidade} value={nomeCidade}>{nomeCidade}</option>)}
@@ -298,8 +350,8 @@ function PerfilContent() {
       </div>
 
       <div className="card" style={{ background: '#f8faf4' }}>
-        <h2 style={{ marginTop: 0 }}>Documento do divulgador</h2>
-        <p className="muted">Opcional neste momento. Não aparece publicamente no anúncio.</p>
+        <h2 style={{ marginTop: 0 }}>Arquivo do documento</h2>
+        <p className="muted">Opcional neste momento. Não aparece publicamente no anúncio e fica em área privada.</p>
         <label className="field">
           <span className="label"><FileText size={16} /> Documento opcional</span>
           <input className="input" type="file" accept="image/png,image/jpeg,image/webp,application/pdf" onChange={(e) => setDocumentoFile(e.target.files?.[0] || null)} />
@@ -315,5 +367,5 @@ function PerfilContent() {
 }
 
 export default function PerfilPage() {
-  return <AuthGuard><main className="page"><div className="container" style={{ maxWidth: 680 }}><h1>Meu perfil</h1><PerfilContent /></div></main></AuthGuard>;
+  return <AuthGuard><main className="page"><div className="container" style={{ maxWidth: 720 }}><h1>Meu perfil</h1><PerfilContent /></div></main></AuthGuard>;
 }
