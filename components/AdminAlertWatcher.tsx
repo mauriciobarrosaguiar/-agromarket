@@ -73,7 +73,7 @@ function notificarSistema(texto: string) {
 
   notification.onclick = () => {
     window.focus();
-    window.location.href = '/admin';
+    window.location.href = '/painel';
   };
 }
 
@@ -199,14 +199,18 @@ export default function AdminAlertWatcher() {
       )}
 
       {enabled && total > 0 && (
-        <Link
-          href="/admin"
+        <div
           className="card"
-          style={{ position: 'fixed', right: 12, bottom: 92, zIndex: 840, padding: 12, maxWidth: 300, textDecoration: 'none', boxShadow: '0 18px 45px rgba(0,0,0,.16)' }}
+          style={{ position: 'fixed', right: 12, bottom: 92, zIndex: 840, padding: 12, maxWidth: 320, boxShadow: '0 18px 45px rgba(0,0,0,.16)' }}
         >
           <strong style={{ display: 'flex', gap: 8, alignItems: 'center' }}><BellRing size={18} /> {total} pendência(s)</strong>
-          <p className="muted" style={{ margin: '4px 0 0' }}>{resumoPendencias(counts)}</p>
-        </Link>
+          <p className="muted" style={{ margin: '4px 0 10px' }}>{resumoPendencias(counts)}</p>
+          <div style={{ display: 'grid', gap: 8 }}>
+            {counts.anuncios > 0 && <Link className="btn btn-primary btn-full" href="/admin/pendentes">Aprovar anúncios ({counts.anuncios})</Link>}
+            {counts.destaques > 0 && <Link className="btn btn-primary btn-full" href="/admin/destaques">Aprovar destaques ({counts.destaques})</Link>}
+            {counts.denuncias > 0 && <Link className="btn btn-primary btn-full" href="/admin/denuncias">Ver denúncias ({counts.denuncias})</Link>}
+          </div>
+        </div>
       )}
 
       {enabled && total === 0 && (
