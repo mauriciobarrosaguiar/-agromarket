@@ -2,6 +2,7 @@ export type TipoUsuario = 'admin' | 'anunciante' | 'comprador';
 export type StatusUsuario = 'ativo' | 'pendente' | 'bloqueado';
 export type TipoAnuncio = 'produto' | 'animal' | 'servico' | 'emprego' | 'maquina' | 'equipamento';
 export type StatusAnuncio = 'pendente' | 'aprovado' | 'recusado' | 'pausado' | 'vendido' | 'expirado' | 'bloqueado';
+export type StatusDenuncia = 'aberta' | 'em_analise' | 'resolvida' | 'ignorada';
 
 export type Usuario = {
   id: string;
@@ -94,4 +95,17 @@ export type Anuncio = {
   updated_at?: string;
   categorias?: Categoria | null;
   fotos_anuncios?: FotoAnuncio[];
+};
+
+export type Denuncia = {
+  id: string;
+  anuncio_id: string;
+  denunciante_id?: string | null;
+  motivo: string;
+  descricao?: string | null;
+  contato?: string | null;
+  status: StatusDenuncia;
+  acao_admin?: string | null;
+  created_at?: string;
+  updated_at?: string;
 };
