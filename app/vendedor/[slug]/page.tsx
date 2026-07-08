@@ -50,15 +50,18 @@ export default function VendedorPage() {
 
   const numero = (vitrine.whatsapp || '').replace(/\D/g, '');
   const whatsapp = numero ? `https://wa.me/${numero}?text=${encodeURIComponent(`Olá, vi sua vitrine no AgroMarket: ${vitrine.nome_vitrine}`)}` : null;
+  const logoFit = vitrine.logo_object_fit || 'cover';
+  const logoPosition = vitrine.logo_object_position || 'center';
+  const bannerPosition = vitrine.banner_object_position || 'center';
 
   return (
     <main className="page">
       <div className="container">
         <section className="card" style={{ padding: 0, overflow: 'hidden' }}>
-          <div style={{ minHeight: 160, background: vitrine.banner_url ? `url(${vitrine.banner_url}) center/cover` : 'linear-gradient(135deg, #052e16, #166534)', display: 'flex', alignItems: 'end', padding: 18 }}>
+          <div style={{ minHeight: 160, background: vitrine.banner_url ? `url(${vitrine.banner_url}) ${bannerPosition}/cover` : 'linear-gradient(135deg, #052e16, #166534)', display: 'flex', alignItems: 'end', padding: 18 }}>
             <div style={{ display: 'flex', gap: 14, alignItems: 'center', color: '#fff' }}>
               <div style={{ width: 78, height: 78, borderRadius: 24, background: '#fff', color: '#14532d', display: 'grid', placeItems: 'center', overflow: 'hidden', fontWeight: 900, fontSize: 24 }}>
-                {vitrine.foto_url ? <img src={vitrine.foto_url} alt={vitrine.nome_vitrine} style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <Store size={34} />}
+                {vitrine.foto_url ? <img src={vitrine.foto_url} alt={vitrine.nome_vitrine} style={{ width: '100%', height: '100%', objectFit: logoFit as any, objectPosition: logoPosition }} /> : <Store size={34} />}
               </div>
               <div>
                 <h1 style={{ margin: 0, color: '#fff' }}>{vitrine.nome_vitrine}</h1>
