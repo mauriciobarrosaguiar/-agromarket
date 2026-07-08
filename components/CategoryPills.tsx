@@ -3,17 +3,11 @@ import type { Categoria } from '@/types';
 
 export default function CategoryPills({ categorias }: { categorias: Categoria[] }) {
   return (
-    <div className="grid grid-4">
+    <div className="category-scroll">
       {categorias.map((cat) => (
-        <Link key={cat.id} href={`/categoria/${cat.slug}`} className="card category-card">
-          <div>
-            <div className="category-icon">{cat.icone || '🌱'}</div>
-          </div>
-          <div style={{ flex: 1 }}>
-            <strong>{cat.nome}</strong>
-            <p className="muted" style={{ margin: '5px 0 0' }}>{cat.tipo}</p>
-          </div>
-          <span>›</span>
+        <Link key={cat.id} href={`/categoria/${cat.slug}`} className="category-chip">
+          <span className="category-chip-icon">{cat.icone || cat.nome.slice(0, 2).toUpperCase()}</span>
+          <span>{cat.nome}</span>
         </Link>
       ))}
     </div>
