@@ -32,16 +32,22 @@ export default function PatrocinadoCarousel({ itens }: Props) {
   const [vistos, setVistos] = useState<Record<string, boolean>>({});
   const containerRef = useRef<HTMLDivElement | null>(null);
   const scrollTimerRef = useRef<number | null>(null);
+  const programmaticScrollRef = useRef(false);
 
   const irPara = useCallback((novoIndex: number, behavior: ScrollBehavior = 'smooth') => {
     const el = containerRef.current;
     const child = el?.children[novoIndex] as HTMLElement | undefined;
     if (!el || !child) return;
 
+    programmaticScrollRef.current = true;
     el.scrollTo({
       left: child.offsetLeft - el.offsetLeft,
       behavior
     });
+
+    window.setTimeout(() => {
+      programmaticScrollRef.current = false;
+    }, 750);
   }, []);
 
   useEffect(() => {
@@ -72,7 +78,7 @@ export default function PatrocinadoCarousel({ itens }: Props) {
 
   function atualizarIndexPeloScroll() {
     const el = containerRef.current;
-    if (!el) return;
+    if (!el || programmaticScrollRef.current) return;
 
     if (scrollTimerRef.current) window.clearTimeout(scrollTimerRef.current);
 
