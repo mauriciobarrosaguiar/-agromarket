@@ -24,7 +24,7 @@ function AdminAnunciosContent() {
   const [message, setMessage] = useState<string | null>(null);
 
   async function load() {
-    const { data } = await supabase.from('anuncios').select('*, categorias(*)').order('created_at', { ascending: false });
+    const { data } = await supabase.from('anuncios').select('*, categorias(*), subcategorias(*)').order('created_at', { ascending: false });
     setAnuncios((data || []) as Anuncio[]);
   }
 
@@ -93,6 +93,7 @@ function AdminAnunciosContent() {
                   <h2 style={{ margin: '10px 0 4px', lineHeight: 1.1 }}>{ad.titulo}</h2>
                   <strong className="price">{formatMoney(ad.preco, ad.preco_a_combinar)}</strong>
                   <p className="muted" style={{ margin: '6px 0 0' }}>{ad.cidade} - {ad.estado}</p>
+                  <p className="muted" style={{ margin: '6px 0 0' }}>{ad.categorias?.nome || 'Sem categoria'}{ad.subcategorias?.nome ? ` • ${ad.subcategorias.nome}` : ''}</p>
                 </div>
                 {ad.destaque && <span className="badge"><Sparkles size={14} /> Destaque</span>}
               </div>
