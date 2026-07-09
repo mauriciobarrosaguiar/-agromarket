@@ -2,7 +2,7 @@
 
 import { ChangeEvent, FormEvent, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { CheckCircle2, Megaphone, Save, Trash2, XCircle } from 'lucide-react';
+import { CheckCircle2, CreditCard, Megaphone, Save, Trash2, XCircle } from 'lucide-react';
 import AuthGuard from '@/components/AuthGuard';
 import EmptyState from '@/components/EmptyState';
 import { supabase } from '@/lib/supabase';
@@ -62,7 +62,8 @@ function toForm(item: PatrocinadoHome): FormState {
 }
 
 function statusLabel(item: PatrocinadoHome) {
-  if (item.status === 'pendente') return 'Pendente de aprovação';
+  if (item.status === 'pendente_pagamento') return 'Aguardando pagamento';
+  if (item.status === 'pendente') return 'Pagamento confirmado, aguardando aprovação';
   if (item.status === 'recusado') return 'Recusado';
   if (!item.ativo) return 'Pausado';
   return 'Aprovado/ativo';
@@ -75,6 +76,7 @@ function AdminPatrocinadosContent() {
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
 
+  const aguardandoPagamento = useMemo(() => itens.filter((item) => item.status === 'pendente_pagamento').length, [itens]);
   const pendentes = useMemo(() => itens.filter((item) => item.status === 'pendente').length, [itens]);
   const ativos = useMemo(() => itens.filter((item) => item.status === 'aprovado' && item.ativo).length, [itens]);
   const totalViews = useMemo(() => itens.reduce((acc, item) => acc + (item.visualizacoes || 0), 0), [itens]);
@@ -171,7 +173,22 @@ function AdminPatrocinadosContent() {
 
     if (error) setMessage(error.message);
     else {
-      setMessage('Banner aprovado e publicado na home.');
+      setMessage('Pagamento confirmado. Banner aprovado e publicado na home.');
+      await load();
+    }
+  }
+
+  async function marcarPagamentoConfirmado(item: PatrocinadoHome) {
+    const { data: userData } = await supabase.auth.getUser();
+    const { error } = await supabase.from('patrocinados_home').update({
+      status: 'pendente',
+      admin_id: userData.user?.id || null,
+      updated_at: new Date().toISOString()
+    }).eq('id', item.id);
+
+    if (error) setMessage(error.message);
+    else {
+      setMessage('Pagamento marcado como confirmado. Agora você pode aprovar o banner.');
       await load();
     }
   }
@@ -218,7 +235,7 @@ function AdminPatrocinadosContent() {
           <div>
             <span className="badge"><Megaphone size={14} /> Espaço patrocinado</span>
             <h1>Patrocinados da Home</h1>
-            <p>Cadastre banners e aprove solicitações feitas pelos assinantes de vitrine.</p>
+            <p>Cadastre banners, confirme pagamento e aprove solicitações feitas pelos assinantes de vitrine.</p>
           </div>
           <Link className="btn btn-secondary" href="/admin">Voltar admin</Link>
         </div>
@@ -228,7 +245,8 @@ function AdminPatrocinadosContent() {
         <div className="stats-grid" style={{ marginBottom: 18 }}>
           <div className="mini-card"><strong>{itens.length}</strong><br /><span className="muted">banners</span></div>
           <div className="mini-card"><strong>{ativos}</strong><br /><span className="muted">ativos</span></div>
-          <div className="mini-card"><strong>{pendentes}</strong><br /><span className="muted">pendentes</span></div>
+          <div className="mini-card"><strong>{aguardandoPagamento}</strong><br /><span className="muted">aguardando pagamento</span></div>
+          <div className="mini-card"><strong>{pendentes}</strong><br /><span className="muted">para aprovar</span></div>
           <div className="mini-card"><strong>{totalViews.toLocaleString('pt-BR')}</strong><br /><span className="muted">visualizações</span></div>
           <div className="mini-card"><strong>{totalCliques.toLocaleString('pt-BR')}</strong><br /><span className="muted">cliques</span></div>
         </div>
@@ -253,7 +271,7 @@ function AdminPatrocinadosContent() {
             </div>
             <div className="form-row">
               <label className="field"><span className="label">Ordem</span><input className="input" inputMode="numeric" value={form.ordem} onChange={(e) => set('ordem', Number(e.target.value) || 0)} /></label>
-              <label className="field"><span className="label">Status</span><select className="select" value={form.status} onChange={(e) => set('status', e.target.value)}><option value="aprovado">Aprovado</option><option value="pendente">Pendente</option><option value="recusado">Recusado</option></select></label>
+              <label className="field"><span className="label">Status</span><select className="select" value={form.status} onChange={(e) => set('status', e.target.value)}><option value="pendente_pagamento">Aguardando pagamento</option><option value="pendente">Aguardando aprovação</option><option value="aprovado">Aprovado</option><option value="recusado">Recusado</option></select></label>
             </div>
             <label className="checkbox-row"><input type="checkbox" checked={form.ativo} onChange={(e) => set('ativo', e.target.checked)} /> Banner ativo na home</label>
             <div className="card" style={{ background: '#f8faf4' }}>
@@ -274,7 +292,7 @@ function AdminPatrocinadosContent() {
             {!itens.length ? <EmptyState title="Nenhum patrocinado cadastrado" description="Cadastre o primeiro banner para aparecer na home." /> : (
               <div style={{ display: 'grid', gap: 12 }}>
                 {itens.map((item) => (
-                  <article className="card" key={item.id} style={{ padding: 0, overflow: 'hidden', border: item.status === 'pendente' ? '2px solid rgba(202, 138, 4, .45)' : undefined }}>
+                  <article className="card" key={item.id} style={{ padding: 0, overflow: 'hidden', border: ['pendente_pagamento', 'pendente'].includes(String(item.status)) ? '2px solid rgba(202, 138, 4, .45)' : undefined }}>
                     <img src={item.imagem_url} alt={item.titulo} style={{ width: '100%', height: 130, objectFit: 'cover' }} />
                     <div style={{ padding: 12 }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap' }}>
@@ -287,8 +305,10 @@ function AdminPatrocinadosContent() {
                       <p className="muted">{item.visualizacoes || 0} views • {item.cliques || 0} cliques</p>
                       {item.motivo_recusa && <div className="notice">Recusa: {item.motivo_recusa}</div>}
                       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                        {item.status === 'pendente_pagamento' && <button className="btn btn-primary" type="button" onClick={() => aprovar(item)}><CreditCard size={16} /> Confirmar pagamento e aprovar</button>}
+                        {item.status === 'pendente_pagamento' && <button className="btn btn-secondary" type="button" onClick={() => marcarPagamentoConfirmado(item)}>Só marcar pago</button>}
                         {item.status === 'pendente' && <button className="btn btn-primary" type="button" onClick={() => aprovar(item)}><CheckCircle2 size={16} /> Aprovar</button>}
-                        {item.status === 'pendente' && <button className="btn btn-danger" type="button" onClick={() => recusar(item)}><XCircle size={16} /> Recusar</button>}
+                        {['pendente_pagamento', 'pendente'].includes(String(item.status)) && <button className="btn btn-danger" type="button" onClick={() => recusar(item)}><XCircle size={16} /> Recusar</button>}
                         <button className="btn btn-secondary" type="button" onClick={() => setForm(toForm(item))}>Editar</button>
                         {item.status === 'aprovado' && <button className="btn btn-secondary" type="button" onClick={() => alternar(item)}>{item.ativo ? 'Pausar' : 'Ativar'}</button>}
                         <button className="btn btn-danger" type="button" onClick={() => excluir(item.id)}><Trash2 size={16} /> Excluir</button>
