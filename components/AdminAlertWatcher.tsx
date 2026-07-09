@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import { BellRing, Volume2, X } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { supabase } from '@/lib/supabase';
@@ -84,6 +85,7 @@ function notificarSistema(texto: string) {
 }
 
 export default function AdminAlertWatcher() {
+  const pathname = usePathname();
   const [isAdmin, setIsAdmin] = useState(false);
   const [enabled, setEnabled] = useState(false);
   const [counts, setCounts] = useState<PendingCounts>({ anuncios: 0, destaques: 0, patrocinados: 0, documentos: 0, denuncias: 0 });
@@ -194,6 +196,9 @@ export default function AdminAlertWatcher() {
   if (!isAdmin || loading) return null;
 
   const total = totalPendencias(counts);
+  const mostrarControles = pathname.startsWith('/admin') || pathname.startsWith('/painel');
+
+  if (!mostrarControles) return null;
 
   return (
     <>
