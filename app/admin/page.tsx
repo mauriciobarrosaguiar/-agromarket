@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { AlertTriangle, BadgeDollarSign, BellRing, Boxes, CheckCircle2, DatabaseBackup, LayoutDashboard, Megaphone, MessageCircle, ShieldCheck, Store, Tags, Users } from 'lucide-react';
+import { AlertTriangle, BadgeDollarSign, BellRing, CheckCircle2, DatabaseBackup, LayoutDashboard, Megaphone, MessageCircle, ShieldCheck, Store, Tags, Users } from 'lucide-react';
 import AuthGuard from '@/components/AuthGuard';
 import StatCard from '@/components/StatCard';
 import { supabase } from '@/lib/supabase';
@@ -42,9 +42,10 @@ function AdminContent() {
   const pendentes = anuncios.filter((a) => a.status === 'pendente').length;
   const aprovados = anuncios.filter((a) => a.status === 'aprovado').length;
   const destaquesPendentes = destaques.filter((d) => d.status === 'pendente').length;
+  const patrocinadosPendentes = patrocinados.filter((p) => p.status === 'pendente').length;
   const denunciasAbertas = denuncias.filter((d) => d.status === 'aberta').length;
-  const bannersAtivos = patrocinados.filter((p) => p.ativo).length;
-  const atencao = pendentes + destaquesPendentes + denunciasAbertas;
+  const bannersAtivos = patrocinados.filter((p) => p.ativo && p.status === 'aprovado').length;
+  const atencao = pendentes + destaquesPendentes + patrocinadosPendentes + denunciasAbertas;
 
   const grupos = [
     {
@@ -61,9 +62,9 @@ function AdminContent() {
       titulo: 'Comercial e monetização',
       descricao: 'Preços, planos, patrocinados e relatórios para clientes.',
       itens: [
-        { href: '/admin/monetizacao', titulo: 'Planos e pagamentos', texto: 'Editar preços, Asaas, Efí e PIX.', icon: BadgeDollarSign, destaque: false },
+        { href: '/admin/monetizacao', titulo: 'Planos e pagamentos', texto: 'Editar preços, Asaas, Efí e gateways.', icon: BadgeDollarSign, destaque: false },
         { href: '/admin/vitrines', titulo: 'Vitrines', texto: `${vitrines.length} vitrine(s) cadastrada(s)`, icon: Store, destaque: false },
-        { href: '/admin/patrocinados', titulo: 'Patrocinados da home', texto: `${bannersAtivos} banner(s) ativo(s) no carrossel`, icon: Megaphone, destaque: bannersAtivos > 0 },
+        { href: '/admin/patrocinados', titulo: 'Patrocinados da home', texto: `${patrocinadosPendentes} pendente(s) • ${bannersAtivos} ativo(s)`, icon: Megaphone, destaque: patrocinadosPendentes > 0 },
         { href: '/admin/whatsapp-cliques', titulo: 'Cliques no WhatsApp', texto: `${cliques.length} clique(s) registrados para relatório`, icon: MessageCircle, destaque: false }
       ]
     },
@@ -73,7 +74,7 @@ function AdminContent() {
       itens: [
         { href: '/admin/usuarios', titulo: 'Usuários', texto: `${usuarios.length} usuário(s) cadastrado(s)`, icon: Users, destaque: false },
         { href: '/admin/categorias', titulo: 'Categorias', texto: 'Editar categorias do marketplace.', icon: Tags, destaque: false },
-        { href: '/admin/seguranca', titulo: 'Backup e segurança', texto: 'Checklist, documentos privados e backup manual.', icon: DatabaseBackup, destaque: false }
+        { href: '/admin/seguranca', titulo: 'Backup e segurança', texto: 'Checklist, documentos privados e backup.', icon: DatabaseBackup, destaque: false }
       ]
     }
   ];
@@ -99,8 +100,9 @@ function AdminContent() {
           <StatCard label="Pendentes" value={pendentes} href="/admin/pendentes" />
           <StatCard label="Aprovados" value={aprovados} href="/admin/anuncios" />
           <StatCard label="Destaques pendentes" value={destaquesPendentes} href="/admin/destaques" />
+          <StatCard label="Patrocinados pendentes" value={patrocinadosPendentes} href="/admin/patrocinados" />
           <StatCard label="Denúncias abertas" value={denunciasAbertas} href="/admin/denuncias" />
-          <StatCard label="Patrocinados" value={bannersAtivos} href="/admin/patrocinados" />
+          <StatCard label="Patrocinados ativos" value={bannersAtivos} href="/admin/patrocinados" />
           <StatCard label="Cliques WhatsApp" value={cliques.length} href="/admin/whatsapp-cliques" />
           <StatCard label="Usuários" value={usuarios.length} href="/admin/usuarios" />
           <StatCard label="Vitrines" value={vitrines.length} href="/admin/vitrines" />
