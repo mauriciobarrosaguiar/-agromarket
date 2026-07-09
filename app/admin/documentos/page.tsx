@@ -2,23 +2,30 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { AlertTriangle, CheckCircle2, FileText, ShieldCheck, XCircle } from 'lucide-react';
+import { AlertTriangle, Camera, CheckCircle2, FileText, ShieldCheck, XCircle } from 'lucide-react';
 import AuthGuard from '@/components/AuthGuard';
 import EmptyState from '@/components/EmptyState';
 import { supabase } from '@/lib/supabase';
 import type { Usuario } from '@/types';
 
-function statusLabel(status?: string | null) {
-  if (status === 'aprovado') return 'Aprovado';
-  if (status === 'pendente') return 'Pendente de análise';
-  if (status === 'recusado') return 'Recusado';
-  return 'Não enviado';
+function statusDocumentoLabel(status?: string | null) {
+  if (status === 'aprovado') return 'Documento aprovado';
+  if (status === 'pendente') return 'Documento pendente';
+  if (status === 'recusado') return 'Documento recusado';
+  return 'Documento não enviado';
+}
+
+function statusSelfieLabel(status?: string | null) {
+  if (status === 'aprovada') return 'Selfie aprovada';
+  if (status === 'pendente') return 'Selfie pendente';
+  if (status === 'recusada') return 'Selfie recusada';
+  return 'Selfie não enviada';
 }
 
 function statusColor(status?: string | null) {
-  if (status === 'aprovado') return '#166534';
+  if (status === 'aprovado' || status === 'aprovada') return '#166534';
   if (status === 'pendente') return '#9a3412';
-  if (status === 'recusado') return '#991b1b';
+  if (status === 'recusado' || status === 'recusada') return '#991b1b';
   return '#64748b';
 }
 
@@ -28,17 +35,16 @@ function DocumentosContent() {
   const [message, setMessage] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const pendentes = useMemo(() => usuarios.filter((u) => u.documento_status === 'pendente'), [usuarios]);
-  const aprovados = useMemo(() => usuarios.filter((u) => u.documento_status === 'aprovado'), [usuarios]);
-  const recusados = useMemo(() => usuarios.filter((u) => u.documento_status === 'recusado'), [usuarios]);
+  const docsPendentes = useMemo(() => usuarios.filter((u) => u.documento_status === 'pendente'), [usuarios]);
+  const selfiesPendentes = useMemo(() => usuarios.filter((u) => u.selfie_status === 'pendente'), [usuarios]);
+  const verificacoesOk = useMemo(() => usuarios.filter((u) => u.documento_status === 'aprovado' && u.selfie_status === 'aprovada'), [usuarios]);
 
   async function load() {
     setLoading(true);
     const { data, error } = await supabase
       .from('usuarios')
       .select('*')
-      .not('documento_url', 'is', null)
-      .order('documento_status', { ascending: false })
+      .or('documento_url.not.is.null,selfie_url.not.is.null,foto_url.not.is.null')
       .order('updated_at', { ascending: false });
 
     if (error) {
@@ -91,7 +97,7 @@ function DocumentosContent() {
 
     if (error) setMessage(error.message);
     else {
-      setMessage('Documento aprovado. O usuário já pode criar/renovar lojinha, desde que a localização esteja validada.');
+      setMessage('Documento aprovado. A lojinha ainda depende da selfie aprovada e GPS validado.');
       await load();
     }
   }
@@ -114,14 +120,56 @@ function DocumentosContent() {
     }
   }
 
+  async function aprovarSelfie(usuario: Usuario) {
+    if (!usuario.selfie_url && !usuario.foto_url) {
+      setMessage('Este usuário ainda não tirou selfie/foto.');
+      return;
+    }
+
+    if (!confirm(`Aprovar selfie de ${usuario.nome}?`)) return;
+
+    const { data: userData } = await supabase.auth.getUser();
+    const { error } = await supabase.from('usuarios').update({
+      selfie_status: 'aprovada',
+      selfie_motivo_recusa: null,
+      selfie_verificada_em: new Date().toISOString(),
+      selfie_verificada_por: userData.user?.id || null,
+      updated_at: new Date().toISOString()
+    }).eq('id', usuario.id);
+
+    if (error) setMessage(error.message);
+    else {
+      setMessage('Selfie aprovada. Para liberar lojinha, documento também precisa estar aprovado.');
+      await load();
+    }
+  }
+
+  async function recusarSelfie(usuario: Usuario) {
+    const motivo = prompt('Informe o motivo da recusa da selfie:', 'Selfie/foto inválida, sem rosto visível ou não confere com o responsável.') || 'Selfie recusada pelo administrador.';
+    const { data: userData } = await supabase.auth.getUser();
+    const { error } = await supabase.from('usuarios').update({
+      selfie_status: 'recusada',
+      selfie_motivo_recusa: motivo,
+      selfie_verificada_em: new Date().toISOString(),
+      selfie_verificada_por: userData.user?.id || null,
+      updated_at: new Date().toISOString()
+    }).eq('id', usuario.id);
+
+    if (error) setMessage(error.message);
+    else {
+      setMessage('Selfie recusada. O usuário precisará tirar nova selfie.');
+      await load();
+    }
+  }
+
   return (
     <main className="page">
       <div className="container">
         <div className="section-head">
           <div>
             <span className="badge"><ShieldCheck size={14} /> Segurança</span>
-            <h1>Aprovar documentos</h1>
-            <p>Confira manualmente documentos enviados. Enviar arquivo não libera lojinha automaticamente.</p>
+            <h1>Aprovar verificações</h1>
+            <p>Confira manualmente documento e selfie. Enviar arquivo não libera lojinha automaticamente.</p>
           </div>
           <Link className="btn btn-secondary" href="/admin">Voltar admin</Link>
         </div>
@@ -129,22 +177,23 @@ function DocumentosContent() {
         {message && <div className="notice" style={{ marginBottom: 14 }}>{message}</div>}
 
         <div className="notice" style={{ marginBottom: 14 }}>
-          <strong>Regra:</strong> foto qualquer deve ser recusada. Só aprove se o documento estiver legível e bater com CPF, nome e dados informados no perfil.
+          <strong>Regra:</strong> aprove somente quando o documento estiver legível e a selfie mostrar o responsável. Foto qualquer deve ser recusada.
         </div>
 
         <div className="stats-grid" style={{ marginBottom: 16 }}>
-          <div className="mini-card"><strong>{pendentes.length}</strong><br /><span className="muted">pendentes</span></div>
-          <div className="mini-card"><strong>{aprovados.length}</strong><br /><span className="muted">aprovados</span></div>
-          <div className="mini-card"><strong>{recusados.length}</strong><br /><span className="muted">recusados</span></div>
+          <div className="mini-card"><strong>{docsPendentes.length}</strong><br /><span className="muted">docs pendentes</span></div>
+          <div className="mini-card"><strong>{selfiesPendentes.length}</strong><br /><span className="muted">selfies pendentes</span></div>
+          <div className="mini-card"><strong>{verificacoesOk.length}</strong><br /><span className="muted">verificações ok</span></div>
         </div>
 
-        {loading ? <div className="card">Carregando documentos...</div> : !usuarios.length ? (
-          <EmptyState title="Nenhum documento enviado" description="Quando um usuário enviar documento, ele aparecerá aqui para análise." />
+        {loading ? <div className="card">Carregando verificações...</div> : !usuarios.length ? (
+          <EmptyState title="Nenhuma verificação enviada" description="Quando um usuário enviar documento ou selfie, aparecerá aqui para análise." />
         ) : (
           <div className="grid grid-2">
             {usuarios.map((u) => {
-              const status = u.documento_status || 'nao_enviado';
-              const pendente = status === 'pendente';
+              const docStatus = u.documento_status || 'nao_enviado';
+              const selfieStatus = u.selfie_status || 'nao_enviada';
+              const pendente = docStatus === 'pendente' || selfieStatus === 'pendente';
               return (
                 <article className="card" key={u.id} style={{ border: pendente ? '2px solid rgba(202,138,4,.45)' : undefined }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'start', flexWrap: 'wrap' }}>
@@ -152,7 +201,10 @@ function DocumentosContent() {
                       <strong style={{ fontSize: 22 }}>{u.nome}</strong>
                       <p className="muted" style={{ margin: '4px 0 0' }}>{u.email}<br />{u.whatsapp}</p>
                     </div>
-                    <span className="badge" style={{ color: statusColor(status) }}><FileText size={14} /> {statusLabel(status)}</span>
+                    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                      <span className="badge" style={{ color: statusColor(docStatus) }}><FileText size={14} /> {statusDocumentoLabel(docStatus)}</span>
+                      <span className="badge" style={{ color: statusColor(selfieStatus) }}><Camera size={14} /> {statusSelfieLabel(selfieStatus)}</span>
+                    </div>
                   </div>
 
                   <div style={{ display: 'grid', gap: 8, marginTop: 14 }}>
@@ -162,24 +214,35 @@ function DocumentosContent() {
                   </div>
 
                   {u.selfie_url || u.foto_url ? (
-                    <div style={{ display: 'flex', gap: 12, alignItems: 'center', marginTop: 14 }}>
-                      <img src={u.selfie_url || u.foto_url || ''} alt="Selfie" style={{ width: 74, height: 74, borderRadius: '50%', objectFit: 'cover', border: '1px solid #dfe8d9' }} />
-                      <span className="muted">Selfie/foto do responsável</span>
+                    <div className="card" style={{ background: '#f8faf4', marginTop: 14 }}>
+                      <strong>Selfie/foto do responsável</strong>
+                      <div style={{ display: 'flex', gap: 12, alignItems: 'center', marginTop: 10 }}>
+                        <img src={u.selfie_url || u.foto_url || ''} alt="Selfie" style={{ width: 96, height: 96, borderRadius: '50%', objectFit: 'cover', border: '1px solid #dfe8d9' }} />
+                        <div style={{ display: 'grid', gap: 8, flex: 1 }}>
+                          <button className="btn btn-primary btn-full" type="button" onClick={() => aprovarSelfie(u)}><CheckCircle2 size={16} /> Aprovar selfie</button>
+                          <button className="btn btn-danger btn-full" type="button" onClick={() => recusarSelfie(u)}><XCircle size={16} /> Recusar selfie</button>
+                        </div>
+                      </div>
+                      {u.selfie_motivo_recusa && <div className="notice" style={{ marginTop: 10 }}>Recusa da selfie: {u.selfie_motivo_recusa}</div>}
                     </div>
                   ) : (
                     <div className="notice" style={{ marginTop: 14 }}>Selfie ainda não enviada.</div>
                   )}
 
-                  {u.documento_motivo_recusa && <div className="notice" style={{ marginTop: 14 }}>Última recusa: {u.documento_motivo_recusa}</div>}
-
-                  <div style={{ display: 'grid', gap: 10, marginTop: 14 }}>
-                    {docUrls[u.id] ? (
-                      <a className="btn btn-secondary btn-full" href={docUrls[u.id]} target="_blank" rel="noreferrer"><FileText size={16} /> Ver documento privado</a>
-                    ) : (
-                      <div className="notice"><AlertTriangle size={16} /> Documento enviado, mas não consegui gerar link privado.</div>
-                    )}
-                    <button className="btn btn-primary btn-full" type="button" onClick={() => aprovarDocumento(u)}><CheckCircle2 size={16} /> Aprovar documento</button>
-                    <button className="btn btn-danger btn-full" type="button" onClick={() => recusarDocumento(u)}><XCircle size={16} /> Recusar documento</button>
+                  <div className="card" style={{ background: '#fff', marginTop: 14 }}>
+                    <strong>Documento</strong>
+                    {u.documento_motivo_recusa && <div className="notice" style={{ marginTop: 10 }}>Recusa do documento: {u.documento_motivo_recusa}</div>}
+                    <div style={{ display: 'grid', gap: 10, marginTop: 12 }}>
+                      {docUrls[u.id] ? (
+                        <a className="btn btn-secondary btn-full" href={docUrls[u.id]} target="_blank" rel="noreferrer"><FileText size={16} /> Ver documento privado</a>
+                      ) : u.documento_url ? (
+                        <div className="notice"><AlertTriangle size={16} /> Documento enviado, mas não consegui gerar link privado.</div>
+                      ) : (
+                        <div className="notice">Documento ainda não enviado.</div>
+                      )}
+                      <button className="btn btn-primary btn-full" type="button" onClick={() => aprovarDocumento(u)}><CheckCircle2 size={16} /> Aprovar documento</button>
+                      <button className="btn btn-danger btn-full" type="button" onClick={() => recusarDocumento(u)}><XCircle size={16} /> Recusar documento</button>
+                    </div>
                   </div>
                 </article>
               );
