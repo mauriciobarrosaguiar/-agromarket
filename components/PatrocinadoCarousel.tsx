@@ -1,8 +1,8 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
-import { ChevronRight } from 'lucide-react';
+import { ChevronRight, PlusCircle } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import type { PatrocinadoHome } from '@/types';
 
@@ -31,30 +31,68 @@ export default function PatrocinadoCarousel({ itens }: Props) {
   const [index, setIndex] = useState(0);
   const [vistos, setVistos] = useState<Record<string, boolean>>({});
   const containerRef = useRef<HTMLDivElement | null>(null);
+  const scrollTimerRef = useRef<number | null>(null);
+
+  const irPara = useCallback((novoIndex: number, behavior: ScrollBehavior = 'smooth') => {
+    const el = containerRef.current;
+    const child = el?.children[novoIndex] as HTMLElement | undefined;
+    if (!el || !child) return;
+
+    el.scrollTo({
+      left: child.offsetLeft - el.offsetLeft,
+      behavior
+    });
+  }, []);
 
   useEffect(() => {
-    if (itens.length <= 1) return;
-    const timer = window.setInterval(() => {
-      setIndex((atual) => (atual + 1) % itens.length);
-    }, 5000);
-    return () => window.clearInterval(timer);
-  }, [itens.length]);
-
-  useEffect(() => {
-    const el = containerRef.current?.children[index] as HTMLElement | undefined;
-    el?.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
-
+    if (!itens.length) return;
     const item = itens[index];
+
+    irPara(index);
+
     if (item && !vistos[item.id]) {
       setVistos((prev) => ({ ...prev, [item.id]: true }));
       supabase.rpc('incrementar_patrocinado_visualizacao', { patrocinado_uuid: item.id }).then(() => null);
     }
-  }, [index, itens, vistos]);
+  }, [index, itens, irPara, vistos]);
+
+  useEffect(() => {
+    if (itens.length <= 1) return;
+
+    const timer = window.setInterval(() => {
+      setIndex((atual) => (atual + 1) % itens.length);
+    }, 3500);
+
+    return () => window.clearInterval(timer);
+  }, [itens.length]);
 
   if (!itens.length) return null;
 
   async function registrarClique(item: PatrocinadoHome) {
     await supabase.rpc('incrementar_patrocinado_clique', { patrocinado_uuid: item.id });
+  }
+
+  function atualizarIndexPeloScroll() {
+    const el = containerRef.current;
+    if (!el) return;
+
+    if (scrollTimerRef.current) window.clearTimeout(scrollTimerRef.current);
+
+    scrollTimerRef.current = window.setTimeout(() => {
+      const children = Array.from(el.children) as HTMLElement[];
+      let menorDistancia = Number.POSITIVE_INFINITY;
+      let novoIndex = index;
+
+      children.forEach((child, i) => {
+        const distancia = Math.abs(el.scrollLeft - (child.offsetLeft - el.offsetLeft));
+        if (distancia < menorDistancia) {
+          menorDistancia = distancia;
+          novoIndex = i;
+        }
+      });
+
+      if (novoIndex !== index) setIndex(novoIndex);
+    }, 120);
   }
 
   return (
@@ -69,14 +107,8 @@ export default function PatrocinadoCarousel({ itens }: Props) {
 
         <div
           ref={containerRef}
-          onScroll={() => {
-            const el = containerRef.current;
-            if (!el) return;
-            const largura = el.clientWidth * 0.88;
-            const proximoIndex = Math.round(el.scrollLeft / Math.max(largura, 1));
-            if (proximoIndex !== index && proximoIndex >= 0 && proximoIndex < itens.length) setIndex(proximoIndex);
-          }}
-          style={{ display: 'flex', overflowX: 'auto', scrollSnapType: 'x mandatory', gap: 12, padding: '2px 2px 10px', scrollbarWidth: 'none' }}
+          onScroll={atualizarIndexPeloScroll}
+          style={{ display: 'flex', overflowX: 'auto', scrollSnapType: 'x mandatory', gap: 12, padding: '2px 2px 10px', scrollbarWidth: 'none', WebkitOverflowScrolling: 'touch' }}
         >
           {itens.map((item) => {
             const href = destinoValido(item);
@@ -114,6 +146,10 @@ export default function PatrocinadoCarousel({ itens }: Props) {
             ))}
           </div>
         )}
+
+        <Link className="btn btn-secondary btn-full" href="/painel/patrocinado" style={{ marginTop: 12 }}>
+          <PlusCircle size={18} /> Criar patrocinado
+        </Link>
       </div>
     </section>
   );
