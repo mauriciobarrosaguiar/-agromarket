@@ -2,7 +2,7 @@
 
 import { ChangeEvent, FormEvent, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { CheckCircle2, ImagePlus, Megaphone, Save, Trash2, XCircle } from 'lucide-react';
+import { CheckCircle2, Megaphone, Save, Trash2, XCircle } from 'lucide-react';
 import AuthGuard from '@/components/AuthGuard';
 import EmptyState from '@/components/EmptyState';
 import { supabase } from '@/lib/supabase';
@@ -61,10 +61,6 @@ function toForm(item: PatrocinadoHome): FormState {
   };
 }
 
-function moneyLike(value: number) {
-  return value.toLocaleString('pt-BR');
-}
-
 function statusLabel(item: PatrocinadoHome) {
   if (item.status === 'pendente') return 'Pendente de aprovação';
   if (item.status === 'recusado') return 'Recusado';
@@ -79,14 +75,15 @@ function AdminPatrocinadosContent() {
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
 
+  const pendentes = useMemo(() => itens.filter((item) => item.status === 'pendente').length, [itens]);
+  const ativos = useMemo(() => itens.filter((item) => item.status === 'aprovado' && item.ativo).length, [itens]);
   const totalViews = useMemo(() => itens.reduce((acc, item) => acc + (item.visualizacoes || 0), 0), [itens]);
   const totalCliques = useMemo(() => itens.reduce((acc, item) => acc + (item.cliques || 0), 0), [itens]);
-  const pendentes = useMemo(() => itens.filter((item) => item.status === 'pendente').length, [itens]);
 
   async function load() {
     const { data } = await supabase
       .from('patrocinados_home')
-      .select('*, usuarios(nome, email, whatsapp), vitrines(nome_vitrine, slug)')
+      .select('*, usuarios!patrocinados_home_usuario_id_fkey(nome, email, whatsapp), vitrines!patrocinados_home_vitrine_id_fkey(nome_vitrine, slug)')
       .order('status')
       .order('ordem')
       .order('created_at', { ascending: false });
@@ -230,92 +227,42 @@ function AdminPatrocinadosContent() {
 
         <div className="stats-grid" style={{ marginBottom: 18 }}>
           <div className="mini-card"><strong>{itens.length}</strong><br /><span className="muted">banners</span></div>
-          <div className="mini-card"><strong>{itens.filter((item) => item.ativo && item.status === 'aprovado').length}</strong><br /><span className="muted">ativos</span></div>
+          <div className="mini-card"><strong>{ativos}</strong><br /><span className="muted">ativos</span></div>
           <div className="mini-card"><strong>{pendentes}</strong><br /><span className="muted">pendentes</span></div>
-          <div className="mini-card"><strong>{moneyLike(totalViews)}</strong><br /><span className="muted">visualizações</span></div>
-          <div className="mini-card"><strong>{moneyLike(totalCliques)}</strong><br /><span className="muted">cliques</span></div>
+          <div className="mini-card"><strong>{totalViews.toLocaleString('pt-BR')}</strong><br /><span className="muted">visualizações</span></div>
+          <div className="mini-card"><strong>{totalCliques.toLocaleString('pt-BR')}</strong><br /><span className="muted">cliques</span></div>
         </div>
 
         <div className="grid grid-2">
           <form className="card form" onSubmit={salvar}>
             <h2>{form.id ? 'Editar patrocinado' : 'Novo patrocinado'}</h2>
-
-            <label className="field">
-              <span className="label">Título *</span>
-              <input className="input" value={form.titulo} onChange={(e) => set('titulo', e.target.value)} placeholder="Ex: Ração em promoção" />
-            </label>
-
-            <label className="field">
-              <span className="label">Subtítulo</span>
-              <textarea className="textarea" value={form.subtitulo} onChange={(e) => set('subtitulo', e.target.value)} placeholder="Texto curto para controle interno e página Ver todos." />
-            </label>
-
+            <label className="field"><span className="label">Título *</span><input className="input" value={form.titulo} onChange={(e) => set('titulo', e.target.value)} placeholder="Ex: Ração em promoção" /></label>
+            <label className="field"><span className="label">Subtítulo</span><textarea className="textarea" value={form.subtitulo} onChange={(e) => set('subtitulo', e.target.value)} placeholder="Texto curto para controle interno e página Ver todos." /></label>
             <div className="form-row">
-              <label className="field">
-                <span className="label">Nome do anunciante</span>
-                <input className="input" value={form.nome_anunciante} onChange={(e) => set('nome_anunciante', e.target.value)} placeholder="Ex: Agropecuária X" />
-              </label>
-              <label className="field">
-                <span className="label">WhatsApp do anunciante</span>
-                <input className="input" value={form.whatsapp_anunciante} onChange={(e) => set('whatsapp_anunciante', e.target.value)} placeholder="5563999999999" />
-              </label>
+              <label className="field"><span className="label">Nome do anunciante</span><input className="input" value={form.nome_anunciante} onChange={(e) => set('nome_anunciante', e.target.value)} placeholder="Ex: Agropecuária X" /></label>
+              <label className="field"><span className="label">WhatsApp do anunciante</span><input className="input" value={form.whatsapp_anunciante} onChange={(e) => set('whatsapp_anunciante', e.target.value)} placeholder="5563999999999" /></label>
             </div>
-
-            <label className="field">
-              <span className="label">Link alternativo</span>
-              <input className="input" value={form.link_url} onChange={(e) => set('link_url', e.target.value)} placeholder="Opcional. Se tiver WhatsApp, o clique abre o WhatsApp." />
-            </label>
-
+            <label className="field"><span className="label">Link alternativo</span><input className="input" value={form.link_url} onChange={(e) => set('link_url', e.target.value)} placeholder="Opcional. Se tiver WhatsApp, o clique abre o WhatsApp." /></label>
             <div className="form-row">
-              <label className="field">
-                <span className="label">Cidade</span>
-                <input className="input" value={form.cidade} onChange={(e) => set('cidade', e.target.value)} placeholder="Palmas" />
-              </label>
-              <label className="field">
-                <span className="label">Estado</span>
-                <input className="input" value={form.estado} onChange={(e) => set('estado', e.target.value.toUpperCase())} maxLength={2} />
-              </label>
+              <label className="field"><span className="label">Cidade</span><input className="input" value={form.cidade} onChange={(e) => set('cidade', e.target.value)} placeholder="Palmas" /></label>
+              <label className="field"><span className="label">Estado</span><input className="input" value={form.estado} onChange={(e) => set('estado', e.target.value.toUpperCase())} maxLength={2} /></label>
             </div>
-
             <div className="form-row">
-              <label className="field">
-                <span className="label">Início</span>
-                <input className="input" type="date" value={form.inicio_em} onChange={(e) => set('inicio_em', e.target.value)} />
-              </label>
-              <label className="field">
-                <span className="label">Fim</span>
-                <input className="input" type="date" value={form.fim_em} onChange={(e) => set('fim_em', e.target.value)} />
-              </label>
+              <label className="field"><span className="label">Início</span><input className="input" type="date" value={form.inicio_em} onChange={(e) => set('inicio_em', e.target.value)} /></label>
+              <label className="field"><span className="label">Fim</span><input className="input" type="date" value={form.fim_em} onChange={(e) => set('fim_em', e.target.value)} /></label>
             </div>
-
             <div className="form-row">
-              <label className="field">
-                <span className="label">Ordem</span>
-                <input className="input" inputMode="numeric" value={form.ordem} onChange={(e) => set('ordem', Number(e.target.value) || 0)} />
-              </label>
-              <label className="field">
-                <span className="label">Status</span>
-                <select className="select" value={form.status} onChange={(e) => set('status', e.target.value)}>
-                  <option value="aprovado">Aprovado</option>
-                  <option value="pendente">Pendente</option>
-                  <option value="recusado">Recusado</option>
-                </select>
-              </label>
+              <label className="field"><span className="label">Ordem</span><input className="input" inputMode="numeric" value={form.ordem} onChange={(e) => set('ordem', Number(e.target.value) || 0)} /></label>
+              <label className="field"><span className="label">Status</span><select className="select" value={form.status} onChange={(e) => set('status', e.target.value)}><option value="aprovado">Aprovado</option><option value="pendente">Pendente</option><option value="recusado">Recusado</option></select></label>
             </div>
-
             <label className="checkbox-row"><input type="checkbox" checked={form.ativo} onChange={(e) => set('ativo', e.target.checked)} /> Banner ativo na home</label>
-
             <div className="card" style={{ background: '#f8faf4' }}>
               <span className="label">Imagem do banner *</span>
               <p className="muted">Recomendado: 1080 x 520 px ou 16:9. A home mostra a imagem limpa, sem textos por cima.</p>
               <input type="file" accept="image/png,image/jpeg,image/webp" onChange={selecionarImagem} />
-              <label className="field" style={{ marginTop: 12 }}>
-                <span className="label">Ou cole URL da imagem</span>
-                <input className="input" value={form.imagem_url} onChange={(e) => set('imagem_url', e.target.value)} placeholder="https://..." />
-              </label>
+              <label className="field" style={{ marginTop: 12 }}><span className="label">Ou cole URL da imagem</span><input className="input" value={form.imagem_url} onChange={(e) => set('imagem_url', e.target.value)} placeholder="https://..." /></label>
               {form.imagem_url && <img src={form.imagem_url} alt="Prévia" style={{ width: '100%', maxHeight: 180, objectFit: 'cover', borderRadius: 18, marginTop: 12 }} />}
             </div>
-
             <div style={{ display: 'grid', gap: 10 }}>
               <button className="btn btn-primary btn-full" type="submit" disabled={saving || uploading}><Save size={18} /> {saving ? 'Salvando...' : uploading ? 'Enviando imagem...' : 'Salvar patrocinado'}</button>
               {form.id && <button className="btn btn-secondary btn-full" type="button" onClick={() => setForm(vazio)}>Novo patrocinado</button>}
