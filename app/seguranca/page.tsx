@@ -10,7 +10,7 @@ export default function SegurancaPage() {
           <p className="muted">Cuidados rápidos para comprar, vender e negociar pelo WhatsApp.</p>
 
           <div className="notice">
-            O AgroMarket não recebe valores, não intermedia pagamentos e não garante a entrega. A negociação é direta entre comprador e vendedor.
+            O AgroMarket não recebe valores dos produtos anunciados, não intermedia frete, entrega ou garantia. Pagamentos de vitrine, destaque e patrocinado são serviços da plataforma; a negociação dos produtos é direta entre comprador e vendedor.
           </div>
 
           <div className="grid grid-2 section">
@@ -58,6 +58,11 @@ export default function SegurancaPage() {
           </section>
 
           <section className="card" style={{ background: '#fff', marginTop: 16 }}>
+            <h2>Pix da vitrine</h2>
+            <p>O Pix da vitrine é pagamento do serviço AgroMarket. Depois que o Asaas confirma o pagamento, a lojinha pode ser liberada automaticamente. Isso não significa garantia sobre produtos anunciados na vitrine.</p>
+          </section>
+
+          <section className="card" style={{ background: '#fff', marginTop: 16 }}>
             <h2>Viu algo errado?</h2>
             <p>Abra o anúncio e toque em <strong>Denunciar anúncio</strong>. O administrador poderá pausar, bloquear ou remover o anúncio.</p>
           </section>
@@ -65,7 +70,8 @@ export default function SegurancaPage() {
           <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 24 }}>
             <Link className="btn btn-primary" href="/anuncios">Buscar anúncios</Link>
             <Link className="btn btn-secondary" href="/termos">Ver termos de uso</Link>
-            <Link className="btn btn-secondary" href="/">Voltar ao início</Link>
+            <Link className="btn btn-secondary" href="/privacidade">Privacidade</Link>
+            <Link className="btn btn-secondary" href="/contato">Suporte</Link>
           </div>
         </section>
       </div>
