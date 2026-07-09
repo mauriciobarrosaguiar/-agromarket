@@ -20,7 +20,7 @@ function PendentesContent() {
   async function load() {
     const { data } = await supabase
       .from('anuncios')
-      .select('*, categorias(*), fotos_anuncios(*)')
+      .select('*, categorias(*), subcategorias(*), fotos_anuncios(*)')
       .eq('status', 'pendente')
       .order('created_at', { ascending: false });
 
@@ -111,7 +111,7 @@ function PendentesContent() {
 
                 <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'flex-start' }}>
                   <div>
-                    <span className="badge">{ad.categorias?.nome || ad.tipo_anuncio}</span>
+                    <span className="badge">{ad.categorias?.nome || ad.tipo_anuncio}{ad.subcategorias?.nome ? ` • ${ad.subcategorias.nome}` : ''}</span>
                     <h2 style={{ margin: '10px 0 4px' }}>{ad.titulo}</h2>
                     <p className="muted">{ad.bairro ? `${ad.bairro} - ` : ''}{ad.cidade} - {ad.estado}</p>
                   </div>
