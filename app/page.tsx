@@ -77,7 +77,7 @@ export default function HomePage() {
         supabase.from('categorias').select('*').eq('ativo', true).order('ordem').limit(8),
         supabase
           .from('anuncios')
-          .select('*, categorias(*), fotos_anuncios(*)')
+          .select('*, categorias(*), subcategorias(*), fotos_anuncios(*)')
           .eq('status', 'aprovado')
           .order('destaque', { ascending: false })
           .order('created_at', { ascending: false })
@@ -151,7 +151,7 @@ export default function HomePage() {
                     <Link
                       key={cat.id}
                       className="badge"
-                      href={`/anuncios?categoria=${cat.slug}`}
+                      href={`/anuncios?categoria=${cat.id}`}
                       style={{ flex: '0 0 auto', background: 'rgba(255,255,255,.18)', color: '#fff', border: '1px solid rgba(255,255,255,.25)' }}
                     >
                       {cat.nome}
