@@ -74,6 +74,7 @@ export default function HomePage() {
           .from('patrocinados_home')
           .select('*')
           .eq('ativo', true)
+          .eq('status', 'aprovado')
           .or(`inicio_em.is.null,inicio_em.lte.${hoje}`)
           .or(`fim_em.is.null,fim_em.gte.${hoje}`)
           .order('ordem')
@@ -188,10 +189,10 @@ export default function HomePage() {
         <div className="container">
           <div className="card" style={{ background: 'linear-gradient(135deg, #052e16, #166534)', color: '#fff' }}>
             <h2 style={{ color: '#fff' }}>Tem algo para vender no agro?</h2>
-            <p style={{ color: 'rgba(255,255,255,.84)' }}>Anuncie grátis no lançamento, compartilhe nos grupos e receba interessados direto no WhatsApp.</p>
+            <p style={{ color: 'rgba(255,255,255,.84)' }}>Anuncie grátis, compartilhe nos grupos e receba interessados direto no WhatsApp.</p>
             <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
               <Link className="btn btn-primary" href="/anunciar"><PlusCircle size={18} /> Criar anúncio agora</Link>
-              <Link className="btn btn-secondary" href="/planos">Ver planos de destaque</Link>
+              <Link className="btn btn-secondary" href="/planos">Ver planos</Link>
               <Link className="btn btn-secondary" href="/regras">Ver regras</Link>
             </div>
           </div>
