@@ -26,9 +26,9 @@ export default function SearchBar({ compact = false }: { compact?: boolean }) {
         className="search-input"
         value={q}
         onChange={(e) => setQ(e.target.value)}
-        placeholder="Buscar leitão, ovos férteis, roçagem, caseiro..."
+        placeholder="Buscar leitão, ovos férteis, roçagem..."
       />
-      <button className="btn btn-primary" type="submit"><Search size={18} /> Buscar</button>
+      <button className="btn btn-primary search-button" type="submit"><Search size={18} /> Buscar</button>
     </form>
   );
 }
