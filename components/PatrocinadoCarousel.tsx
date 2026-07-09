@@ -31,9 +31,20 @@ export default function PatrocinadoCarousel({ itens }: Props) {
   const [index, setIndex] = useState(0);
   const [pausado, setPausado] = useState(false);
   const [vistos, setVistos] = useState<Record<string, boolean>>({});
+  const [isMobile, setIsMobile] = useState(false);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const scrollTimerRef = useRef<number | null>(null);
   const programmaticScrollRef = useRef(false);
+
+  useEffect(() => {
+    function check() {
+      setIsMobile(window.innerWidth <= 860);
+    }
+
+    check();
+    window.addEventListener('resize', check);
+    return () => window.removeEventListener('resize', check);
+  }, []);
 
   const irPara = useCallback((novoIndex: number, behavior: ScrollBehavior = 'smooth') => {
     const el = containerRef.current;
@@ -75,7 +86,7 @@ export default function PatrocinadoCarousel({ itens }: Props) {
 
     const timer = window.setInterval(() => {
       setIndex((atual) => (atual + 1) % itens.length);
-    }, 8500);
+    }, 9000);
 
     return () => window.clearInterval(timer);
   }, [itens.length, pausado]);
@@ -107,8 +118,11 @@ export default function PatrocinadoCarousel({ itens }: Props) {
     }, 160);
   }
 
+  const alturaBanner = isMobile ? 168 : 300;
+  const raioBanner = isMobile ? 16 : 18;
+
   return (
-    <section className="section" style={{ marginTop: 14 }}>
+    <section className="section" style={{ marginTop: isMobile ? 10 : 14 }}>
       <div className="container">
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, marginBottom: 10 }}>
           <h2 style={{ margin: 0, fontSize: 22, color: '#14532d' }}>Patrocinado</h2>
@@ -142,12 +156,12 @@ export default function PatrocinadoCarousel({ itens }: Props) {
                       rel={externo ? 'noreferrer' : undefined}
                       onClick={() => registrarClique(item)}
                       className="card"
-                      style={{ flex: '0 0 100%', width: '100%', padding: 0, overflow: 'hidden', scrollSnapAlign: 'start', textDecoration: 'none', borderRadius: 18 }}
+                      style={{ flex: '0 0 100%', width: '100%', height: alturaBanner, padding: 0, overflow: 'hidden', scrollSnapAlign: 'start', textDecoration: 'none', borderRadius: raioBanner }}
                     >
                       <img
                         src={item.imagem_url}
                         alt={item.titulo}
-                        style={{ width: '100%', height: 'clamp(160px, 31vw, 360px)', objectFit: 'cover', objectPosition: 'center', background: '#e8efe2', display: 'block' }}
+                        style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'center', background: '#e8efe2', display: 'block' }}
                       />
                     </a>
                   );
