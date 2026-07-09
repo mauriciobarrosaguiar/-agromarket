@@ -62,6 +62,18 @@ export type Categoria = {
   updated_at?: string;
 };
 
+export type Subcategoria = {
+  id: string;
+  categoria_id: string;
+  nome: string;
+  slug: string;
+  ordem: number;
+  ativo: boolean;
+  created_at?: string;
+  updated_at?: string;
+  categorias?: Categoria | null;
+};
+
 export type FotoAnuncio = {
   id: string;
   anuncio_id: string;
@@ -104,6 +116,7 @@ export type Anuncio = {
   id: string;
   usuario_id: string;
   categoria_id: string;
+  subcategoria_id?: string | null;
   tipo_anuncio: TipoAnuncio;
   titulo: string;
   slug: string;
@@ -133,6 +146,7 @@ export type Anuncio = {
   created_at?: string;
   updated_at?: string;
   categorias?: Categoria | null;
+  subcategorias?: Subcategoria | null;
   fotos_anuncios?: FotoAnuncio[];
 };
 
