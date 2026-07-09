@@ -10,13 +10,13 @@ export default function TermosPage() {
           <p className="muted">Regras simples para usar o AgroMarket com responsabilidade.</p>
 
           <div className="notice">
-            O AgroMarket é uma plataforma de divulgação. Não somos parte da negociação, não recebemos pagamento em nome do vendedor e não garantimos entrega, qualidade, procedência ou documentação dos produtos anunciados.
+            O AgroMarket é uma plataforma de divulgação. Não somos parte da negociação entre comprador e vendedor e não garantimos entrega, qualidade, procedência ou documentação dos produtos anunciados.
           </div>
 
           <div className="form" style={{ marginTop: 18 }}>
             <section>
               <h2>1. O que é o AgroMarket</h2>
-              <p>O AgroMarket ajuda pessoas e empresas a divulgarem produtos agro, animais, serviços rurais, máquinas, equipamentos e oportunidades. A negociação acontece diretamente entre comprador e vendedor, normalmente pelo WhatsApp.</p>
+              <p>O AgroMarket ajuda pessoas e empresas a divulgarem produtos agro, animais, serviços rurais, máquinas, equipamentos, vitrines e oportunidades. A negociação de produtos anunciados acontece diretamente entre comprador e vendedor, normalmente pelo WhatsApp.</p>
             </section>
 
             <section>
@@ -26,7 +26,7 @@ export default function TermosPage() {
 
             <section>
               <h2>3. Responsabilidade do comprador</h2>
-              <p>O comprador deve conferir todas as informações antes de fechar negócio, negociar com cautela, verificar produto/animal/serviço e evitar pagamentos antecipados a desconhecidos.</p>
+              <p>O comprador deve conferir todas as informações antes de fechar negócio, negociar com cautela, verificar produto, animal ou serviço e evitar pagamentos antecipados a desconhecidos.</p>
             </section>
 
             <section>
@@ -40,30 +40,46 @@ export default function TermosPage() {
             </section>
 
             <section>
-              <h2>6. Moderação</h2>
-              <p>Podemos recusar, pausar, bloquear ou excluir anúncios e usuários quando houver denúncia, suspeita de fraude, descumprimento das regras ou risco para compradores e vendedores.</p>
+              <h2>6. Verificação de perfil</h2>
+              <p>Para aumentar a segurança, o AgroMarket pode exigir CPF, documento, selfie/foto e localização real por GPS para publicar anúncios, criar vitrine, contratar patrocinados ou liberar recursos comerciais.</p>
             </section>
 
             <section>
-              <h2>7. Pagamentos e entregas</h2>
-              <p>O AgroMarket não intermedia pagamentos, frete, entrega, garantia, devolução ou troca. Qualquer acordo deve ser feito diretamente entre as partes.</p>
+              <h2>7. Moderação</h2>
+              <p>Podemos recusar, pausar, bloquear ou excluir anúncios, vitrines e usuários quando houver denúncia, suspeita de fraude, descumprimento das regras ou risco para compradores e vendedores.</p>
             </section>
 
             <section>
-              <h2>8. Denúncias</h2>
+              <h2>8. Pagamentos da plataforma</h2>
+              <p>O AgroMarket pode cobrar por serviços próprios, como mensalidade de vitrine, destaques e banners patrocinados. Esses pagamentos podem ser processados por gateway de pagamento, como Asaas. O AgroMarket não intermedia pagamentos dos produtos anunciados entre comprador e vendedor.</p>
+            </section>
+
+            <section>
+              <h2>9. Pagamentos e entregas dos produtos</h2>
+              <p>Frete, entrega, garantia, devolução, troca e pagamento de produtos anunciados são combinados diretamente entre comprador e vendedor. O AgroMarket não se responsabiliza por acordos feitos fora da plataforma.</p>
+            </section>
+
+            <section>
+              <h2>10. Privacidade</h2>
+              <p>Ao usar o AgroMarket, você concorda com a coleta e tratamento de dados necessários para cadastro, segurança, publicação de anúncios, vitrines, pagamentos da plataforma, denúncias e prevenção de fraude.</p>
+            </section>
+
+            <section>
+              <h2>11. Denúncias</h2>
               <p>Qualquer pessoa pode denunciar um anúncio. A denúncia será analisada pelo administrador, que poderá pausar ou bloquear o anúncio e, se necessário, bloquear o usuário.</p>
             </section>
 
             <section>
-              <h2>9. Aceite</h2>
-              <p>Ao criar conta, publicar anúncio, entrar em contato com vendedor ou navegar no AgroMarket, você declara estar de acordo com estes termos.</p>
+              <h2>12. Aceite</h2>
+              <p>Ao criar conta, publicar anúncio, criar vitrine, gerar pagamento, entrar em contato com vendedor ou navegar no AgroMarket, você declara estar de acordo com estes termos.</p>
             </section>
           </div>
 
           <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 24 }}>
             <Link className="btn btn-primary" href="/anunciar">Criar anúncio</Link>
+            <Link className="btn btn-secondary" href="/privacidade">Privacidade</Link>
             <Link className="btn btn-secondary" href="/seguranca">Ver dicas de segurança</Link>
-            <Link className="btn btn-secondary" href="/">Voltar ao início</Link>
+            <Link className="btn btn-secondary" href="/contato">Suporte</Link>
           </div>
         </section>
       </div>
