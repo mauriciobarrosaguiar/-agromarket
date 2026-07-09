@@ -58,6 +58,21 @@ export default function PlanosPage() {
           </section>
 
           <section className="section">
+            <h2>Regras para lojinha</h2>
+            <div className="card" style={{ background: '#fff7ed', border: '1px solid #fed7aa' }}>
+              <h3 style={{ marginTop: 0 }}>Documento precisa ser aprovado</h3>
+              <p className="muted">Enviar arquivo não libera a lojinha automaticamente. O documento fica em análise e o administrador precisa aprovar manualmente.</p>
+              <ul style={{ paddingLeft: 20, lineHeight: 1.7 }}>
+                <li>Selfie/foto do responsável.</li>
+                <li>CPF e dados do documento preenchidos.</li>
+                <li>Arquivo do documento enviado para conferência.</li>
+                <li>Documento aprovado pelo administrador.</li>
+                <li>Localização real validada por GPS preciso.</li>
+              </ul>
+            </div>
+          </section>
+
+          <section className="section">
             <h2>Destaque do anúncio</h2>
             {loading ? <div className="card">Carregando planos...</div> : (
               <div className="grid grid-3">
@@ -100,7 +115,7 @@ export default function PlanosPage() {
               <li>Vendedor cria anúncio, vitrine ou solicitação de destaque.</li>
               <li>O sistema registra a solicitação no painel.</li>
               <li>Pagamento segue o gateway configurado pelo AgroMarket.</li>
-              <li>Admin aprova o benefício no painel.</li>
+              <li>Admin aprova documento, pagamento e benefício quando necessário.</li>
               <li>O anúncio, vitrine ou banner passa a aparecer pelo período contratado.</li>
             </ol>
           </section>
