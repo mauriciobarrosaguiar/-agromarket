@@ -93,7 +93,7 @@ export default function AdminAlertWatcher() {
     const [{ count: anuncios }, { count: destaques }, { count: patrocinados }, { count: denuncias }] = await Promise.all([
       supabase.from('anuncios').select('id', { count: 'exact', head: true }).eq('status', 'pendente'),
       supabase.from('destaque_solicitacoes').select('id', { count: 'exact', head: true }).eq('status', 'pendente'),
-      supabase.from('patrocinados_home').select('id', { count: 'exact', head: true }).eq('status', 'pendente'),
+      supabase.from('patrocinados_home').select('id', { count: 'exact', head: true }).in('status', ['pendente_pagamento', 'pendente']),
       supabase.from('denuncias').select('id', { count: 'exact', head: true }).eq('status', 'aberta')
     ]);
 
@@ -213,7 +213,7 @@ export default function AdminAlertWatcher() {
           <div style={{ display: 'grid', gap: 8 }}>
             {counts.anuncios > 0 && <Link className="btn btn-primary btn-full" href="/admin/pendentes">Aprovar anúncios ({counts.anuncios})</Link>}
             {counts.destaques > 0 && <Link className="btn btn-primary btn-full" href="/admin/destaques">Aprovar destaques ({counts.destaques})</Link>}
-            {counts.patrocinados > 0 && <Link className="btn btn-primary btn-full" href="/admin/patrocinados">Aprovar patrocinados ({counts.patrocinados})</Link>}
+            {counts.patrocinados > 0 && <Link className="btn btn-primary btn-full" href="/admin/patrocinados">Ver patrocinados ({counts.patrocinados})</Link>}
             {counts.denuncias > 0 && <Link className="btn btn-primary btn-full" href="/admin/denuncias">Ver denúncias ({counts.denuncias})</Link>}
           </div>
         </div>
