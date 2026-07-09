@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { ChevronLeft, ExternalLink, MessageCircle } from 'lucide-react';
+import { ChevronLeft, ExternalLink, MessageCircle, PlusCircle } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import type { PatrocinadoHome } from '@/types';
 import EmptyState from '@/components/EmptyState';
@@ -59,6 +59,11 @@ export default function PatrocinadosPage() {
             <h1>Patrocinados</h1>
             <p>Ofertas, parceiros e marcas em destaque no AgroMarket.</p>
           </div>
+          <Link className="btn btn-primary" href="/painel/patrocinado"><PlusCircle size={18} /> Criar patrocinado</Link>
+        </div>
+
+        <div className="notice" style={{ marginBottom: 16 }}>
+          Para aparecer aqui e na página inicial, o vendedor solicita o banner, realiza o pagamento pelo gateway configurado e o patrocinado fica liberado após confirmação/aprovação.
         </div>
 
         {loading ? <div className="card">Carregando patrocinados...</div> : itens.length ? (
