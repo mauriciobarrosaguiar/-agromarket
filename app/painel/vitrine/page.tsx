@@ -89,6 +89,15 @@ function documentoStatusTexto(status?: string | null) {
   return 'Documento não enviado';
 }
 
+function erroTexto(err: unknown, fallback: string) {
+  if (err instanceof Error && err.message) return err.message;
+  if (err && typeof err === 'object' && 'message' in err) {
+    const msg = String((err as { message?: unknown }).message || '');
+    if (msg) return msg;
+  }
+  return fallback;
+}
+
 function MinhaVitrineContent() {
   const [perfil, setPerfil] = useState<Usuario | null>(null);
   const [vitrine, setVitrine] = useState<Vitrine | null>(null);
@@ -124,6 +133,22 @@ function MinhaVitrineContent() {
     setPagamentos((data || []) as VitrinePagamento[]);
   }
 
+  async function carregarVitrine(vitrineId?: string) {
+    const { data: userData } = await supabase.auth.getUser();
+    const userId = userData.user?.id;
+    if (!userId) return null;
+
+    const query = supabase.from('vitrines').select('*');
+    const { data } = vitrineId
+      ? await query.eq('id', vitrineId).maybeSingle()
+      : await query.eq('usuario_id', userId).maybeSingle();
+
+    const vitrineAtual = (data || null) as Vitrine | null;
+    setVitrine(vitrineAtual);
+    if (vitrineAtual) await carregarPagamentos(vitrineAtual.id);
+    return vitrineAtual;
+  }
+
   async function load() {
     setLoading(true);
     const { data: userData } = await supabase.auth.getUser();
@@ -140,12 +165,7 @@ function MinhaVitrineContent() {
     const usuario = perfilData as Usuario;
     setPerfil(usuario);
     setPlanos((planosData || []) as MonetizacaoPlano[]);
-
-    const { data: vitrineData } = await supabase.from('vitrines').select('*').eq('usuario_id', userData.user.id).maybeSingle();
-    const vitrineAtual = (vitrineData || null) as Vitrine | null;
-    setVitrine(vitrineAtual);
-
-    if (vitrineAtual) await carregarPagamentos(vitrineAtual.id);
+    await carregarVitrine();
     setLoading(false);
   }
 
@@ -185,34 +205,15 @@ function MinhaVitrineContent() {
     setMessage(null);
 
     try {
-      const baseSlug = `${slugify(perfil.nome || 'vendedor')}-${perfil.id.slice(0, 6)}`;
-      const nova = {
-        usuario_id: perfil.id,
-        nome_vitrine: perfil.nome || 'Minha vitrine',
-        slug: baseSlug,
-        descricao: 'Vitrine de produtos e serviços no AgroMarket.',
-        cidade: perfil.cidade || '',
-        estado: perfil.estado || 'TO',
-        whatsapp: perfil.whatsapp || '',
-        vitrine_ativa: false,
-        plano: 'vitrine_mensal',
-        plano_id: planoMensal.id,
-        assinatura_status: 'pendente_pagamento',
-        gratis_ate: null,
-        logo_object_fit: 'cover',
-        logo_object_position: 'center',
-        banner_object_position: 'center'
-      };
-
-      const { data, error } = await supabase.from('vitrines').insert(nova).select('*').single();
+      const { data: vitrineId, error } = await supabase.rpc('criar_vitrine_usuario', { plano_uuid: planoMensal.id });
       if (error) throw error;
 
-      const vitrineCriada = data as Vitrine;
-      setVitrine(vitrineCriada);
-      await criarPagamento(vitrineCriada, planoMensal);
-      setMessage('Lojinha criada em modo rascunho. Após a confirmação do pagamento pelo gateway, ela poderá ser liberada.');
+      const vitrineCriada = await carregarVitrine(String(vitrineId || ''));
+      if (!vitrineCriada) throw new Error('A lojinha foi criada, mas não consegui carregá-la. Atualize a página.');
+
+      setMessage('Lojinha criada. Ela ficará pública após confirmação da mensalidade ou liberação pelo administrador.');
     } catch (err) {
-      setMessage(err instanceof Error ? err.message : 'Erro ao solicitar vitrine.');
+      setMessage(erroTexto(err, 'Erro ao solicitar vitrine.'));
     }
 
     setSaving(false);
@@ -238,7 +239,7 @@ function MinhaVitrineContent() {
         setMessage('Mensalidade solicitada. Após a confirmação do pagamento, sua lojinha será liberada ou renovada.');
       }
     } catch (err) {
-      setMessage(err instanceof Error ? err.message : 'Erro ao solicitar mensalidade.');
+      setMessage(erroTexto(err, 'Erro ao solicitar mensalidade.'));
     }
 
     setSaving(false);
@@ -265,7 +266,7 @@ function MinhaVitrineContent() {
       setVitrine(data as Vitrine);
       setMessage(tipo === 'logo' ? 'Logo atualizada.' : 'Banner atualizado.');
     } catch (err) {
-      setMessage(err instanceof Error ? err.message : 'Erro ao enviar imagem.');
+      setMessage(erroTexto(err, 'Erro ao enviar imagem.'));
     } finally {
       setUploading(null);
       e.target.value = '';
