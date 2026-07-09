@@ -1,11 +1,11 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { FormEvent, useEffect, useState } from 'react';
 import Link from 'next/link';
-import { BadgeCheck, MapPin, Megaphone, PlusCircle, ShieldCheck, Sparkles, Store } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { BadgeCheck, MapPin, PlusCircle, Search, ShieldCheck, Sparkles, Store } from 'lucide-react';
 import { supabase, hasSupabaseEnv } from '@/lib/supabase';
 import type { Anuncio, Categoria, PatrocinadoHome } from '@/types';
-import SearchBar from '@/components/SearchBar';
 import AnuncioCard from '@/components/AnuncioCard';
 import EmptyState from '@/components/EmptyState';
 import PatrocinadoCarousel from '@/components/PatrocinadoCarousel';
@@ -41,11 +41,24 @@ function ordenarPorProximidade(lista: AnuncioComDistancia[], coords: Coordenadas
 }
 
 export default function HomePage() {
+  const router = useRouter();
   const [categorias, setCategorias] = useState<Categoria[]>([]);
   const [anuncios, setAnuncios] = useState<AnuncioComDistancia[]>([]);
   const [patrocinados, setPatrocinados] = useState<PatrocinadoHome[]>([]);
   const [coords, setCoords] = useState<Coordenadas | null>(null);
   const [loading, setLoading] = useState(true);
+  const [busca, setBusca] = useState('');
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    function check() {
+      setIsMobile(window.innerWidth <= 860);
+    }
+
+    check();
+    window.addEventListener('resize', check);
+    return () => window.removeEventListener('resize', check);
+  }, []);
 
   useEffect(() => {
     if (!navigator.geolocation) return;
@@ -88,35 +101,69 @@ export default function HomePage() {
     load();
   }, [coords]);
 
+  function buscar(e: FormEvent) {
+    e.preventDefault();
+    const params = new URLSearchParams();
+    if (busca.trim()) params.set('q', busca.trim());
+    router.push(`/anuncios?${params.toString()}`);
+  }
+
   return (
     <main className="page">
       <PatrocinadoCarousel itens={patrocinados} />
 
-      <section className="hero home-hero" style={{ paddingTop: 12, paddingBottom: 8 }}>
+      <section className="hero home-hero" style={{ paddingTop: 10, paddingBottom: 8 }}>
         <div className="container">
           {!hasSupabaseEnv && <div className="notice" style={{ marginBottom: 14 }}>Configure o Supabase no arquivo .env.local para carregar dados reais.</div>}
-          <div className="hero-card home-hero-card">
-            <div className="home-hero-content">
+          <div
+            className="hero-card"
+            style={{
+              padding: isMobile ? 16 : 26,
+              borderRadius: isMobile ? 22 : 24,
+              maxWidth: '100%',
+              overflow: 'hidden'
+            }}
+          >
+            <div style={{ minWidth: 0 }}>
               <span className="badge"><Sparkles size={15} /> Anuncie Grátis</span>
-              <h1>Compre e venda no agro perto de você.</h1>
-              <p>Produtos rurais, animais, máquinas, serviços e oportunidades em um só lugar, com negociação direta pelo WhatsApp.</p>
+              <h1 style={{ fontSize: isMobile ? '34px' : 'clamp(38px, 5vw, 58px)', lineHeight: isMobile ? 1.04 : 1, letterSpacing: '-0.05em', margin: '10px 0' }}>
+                Compre e venda no agro perto de você.
+              </h1>
+              <p style={{ fontSize: isMobile ? 16 : 18, lineHeight: 1.28, margin: '0 0 14px', maxWidth: 720 }}>
+                Produtos rurais, animais, máquinas, serviços e oportunidades em um só lugar, com negociação direta pelo WhatsApp.
+              </p>
 
-              <SearchBar compact />
+              <form onSubmit={buscar} style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'minmax(0, 1fr) auto', gap: 10, width: '100%', maxWidth: 820 }}>
+                <input
+                  value={busca}
+                  onChange={(e) => setBusca(e.target.value)}
+                  placeholder="Buscar leitão, ovos férteis, ração..."
+                  style={{ width: '100%', minWidth: 0, border: 0, borderRadius: 16, padding: '15px 16px', outline: 'none' }}
+                />
+                <button className="btn btn-primary" type="submit" style={{ width: isMobile ? '100%' : 'auto' }}>
+                  <Search size={18} /> Buscar
+                </button>
+              </form>
 
               {categorias.length > 0 && (
-                <div className="home-category-links">
+                <div style={{ display: 'flex', gap: 8, flexWrap: isMobile ? 'nowrap' : 'wrap', overflowX: isMobile ? 'auto' : 'visible', maxWidth: '100%', marginTop: 12, paddingBottom: isMobile ? 4 : 0 }}>
                   {categorias.slice(0, 5).map((cat) => (
-                    <Link key={cat.id} className="badge" href={`/anuncios?categoria=${cat.slug}`}>
+                    <Link
+                      key={cat.id}
+                      className="badge"
+                      href={`/anuncios?categoria=${cat.slug}`}
+                      style={{ flex: '0 0 auto', background: 'rgba(255,255,255,.18)', color: '#fff', border: '1px solid rgba(255,255,255,.25)' }}
+                    >
                       {cat.nome}
                     </Link>
                   ))}
                 </div>
               )}
 
-              <div className="home-cta-row">
-                <Link className="btn btn-primary" href="/anunciar"><PlusCircle size={18} /> Quero anunciar</Link>
-                <Link className="btn btn-secondary" href="/anuncios"><MapPin size={18} /> Ver perto de mim</Link>
-                <Link className="btn btn-secondary" href="/vitrines"><Store size={18} /> Ver lojinhas</Link>
+              <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, max-content)', gap: 10, marginTop: 14, maxWidth: '100%' }}>
+                <Link className="btn btn-primary" href="/anunciar" style={{ width: isMobile ? '100%' : 'auto' }}><PlusCircle size={18} /> Quero anunciar</Link>
+                <Link className="btn btn-secondary" href="/anuncios" style={{ width: isMobile ? '100%' : 'auto' }}><MapPin size={18} /> Ver perto de mim</Link>
+                <Link className="btn btn-secondary" href="/vitrines" style={{ width: isMobile ? '100%' : 'auto' }}><Store size={18} /> Ver lojinhas</Link>
               </div>
             </div>
           </div>
