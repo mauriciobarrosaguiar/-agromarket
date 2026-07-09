@@ -6,6 +6,8 @@ import WhatsAppButton from '@/components/WhatsAppButton';
 
 export default function AnuncioCard({ anuncio }: { anuncio: Anuncio }) {
   const foto = anuncio.fotos_anuncios?.find((f) => f.principal)?.url_foto || anuncio.fotos_anuncios?.[0]?.url_foto;
+  const categoria = anuncio.categorias?.nome || anuncio.tipo_anuncio;
+  const subcategoria = anuncio.subcategorias?.nome;
 
   return (
     <article className="card ad-card">
@@ -15,7 +17,7 @@ export default function AnuncioCard({ anuncio }: { anuncio: Anuncio }) {
 
       <div className="ad-body">
         <div className="ad-topline">
-          <span className="ad-category">{anuncio.categorias?.nome || anuncio.tipo_anuncio}</span>
+          <span className="ad-category">{subcategoria ? `${categoria} • ${subcategoria}` : categoria}</span>
           {anuncio.destaque && <span className="badge">Destaque</span>}
         </div>
 
