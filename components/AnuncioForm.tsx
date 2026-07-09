@@ -7,13 +7,14 @@ import { supabase } from '@/lib/supabase';
 import { makeUniqueSlug } from '@/lib/slug';
 import { uploadAnuncioFoto } from '@/lib/upload';
 import { CIDADES_POR_ESTADO, ESTADOS, TIPOS_ANUNCIO, UNIDADES } from '@/lib/constants';
-import type { Categoria, Anuncio, TipoAnuncio, Usuario } from '@/types';
+import type { Categoria, Anuncio, Subcategoria, TipoAnuncio, Usuario } from '@/types';
 
 const MAX_ACCURACY_METERS = 150;
 
 type FormState = {
   tipo_anuncio: TipoAnuncio;
   categoria_id: string;
+  subcategoria_id: string;
   titulo: string;
   descricao: string;
   preco: string;
@@ -35,6 +36,7 @@ type FormState = {
 const initialState: FormState = {
   tipo_anuncio: 'produto',
   categoria_id: '',
+  subcategoria_id: '',
   titulo: '',
   descricao: '',
   preco: '',
@@ -94,6 +96,7 @@ export default function AnuncioForm({ anuncio }: { anuncio?: Anuncio }) {
   const router = useRouter();
   const [state, setState] = useState<FormState>(initialState);
   const [categorias, setCategorias] = useState<Categoria[]>([]);
+  const [subcategorias, setSubcategorias] = useState<Subcategoria[]>([]);
   const [files, setFiles] = useState<FileList | null>(null);
   const [loading, setLoading] = useState(false);
   const [geoLoading, setGeoLoading] = useState(false);
@@ -106,10 +109,19 @@ export default function AnuncioForm({ anuncio }: { anuncio?: Anuncio }) {
     return lista;
   }, [state.estado, state.cidade]);
 
+  const subcategoriasDaCategoria = useMemo(
+    () => subcategorias.filter((sub) => sub.categoria_id === state.categoria_id),
+    [subcategorias, state.categoria_id]
+  );
+
   useEffect(() => {
     async function load() {
-      const { data } = await supabase.from('categorias').select('*').eq('ativo', true).order('ordem');
-      setCategorias((data || []) as Categoria[]);
+      const [{ data: cats }, { data: subs }] = await Promise.all([
+        supabase.from('categorias').select('*').eq('ativo', true).order('ordem'),
+        supabase.from('subcategorias').select('*').eq('ativo', true).order('ordem')
+      ]);
+      setCategorias((cats || []) as Categoria[]);
+      setSubcategorias((subs || []) as Subcategoria[]);
     }
     load();
   }, []);
@@ -141,6 +153,7 @@ export default function AnuncioForm({ anuncio }: { anuncio?: Anuncio }) {
     setState({
       tipo_anuncio: anuncio.tipo_anuncio,
       categoria_id: anuncio.categoria_id,
+      subcategoria_id: anuncio.subcategoria_id || '',
       titulo: anuncio.titulo,
       descricao: anuncio.descricao,
       preco: anuncio.preco ? formatarMoeda(Number(anuncio.preco)) : '',
@@ -162,6 +175,16 @@ export default function AnuncioForm({ anuncio }: { anuncio?: Anuncio }) {
 
   function update<K extends keyof FormState>(key: K, value: FormState[K]) {
     setState((prev) => ({ ...prev, [key]: value }));
+  }
+
+  function updateCategoria(categoriaId: string) {
+    const cat = categorias.find((item) => item.id === categoriaId);
+    setState((prev) => ({
+      ...prev,
+      categoria_id: categoriaId,
+      subcategoria_id: '',
+      tipo_anuncio: (cat?.tipo || prev.tipo_anuncio) as TipoAnuncio
+    }));
   }
 
   function updateEstado(uf: string) {
@@ -249,6 +272,10 @@ export default function AnuncioForm({ anuncio }: { anuncio?: Anuncio }) {
         throw new Error('Preencha os campos obrigatórios.');
       }
 
+      if (!state.subcategoria_id && subcategoriasDaCategoria.length > 0) {
+        throw new Error('Selecione uma subcategoria para organizar melhor o anúncio.');
+      }
+
       if (!anuncio && (!files || files.length === 0)) {
         throw new Error('Adicione pelo menos uma foto. Não permitimos anúncio sem imagem.');
       }
@@ -278,6 +305,7 @@ export default function AnuncioForm({ anuncio }: { anuncio?: Anuncio }) {
       const payload = {
         usuario_id: user.id,
         categoria_id: state.categoria_id,
+        subcategoria_id: state.subcategoria_id || null,
         tipo_anuncio: state.tipo_anuncio,
         titulo: state.titulo.trim(),
         slug: anuncio?.slug || makeUniqueSlug(state.titulo),
@@ -376,19 +404,28 @@ export default function AnuncioForm({ anuncio }: { anuncio?: Anuncio }) {
 
       <div className="form-row">
         <label className="field">
-          <span className="label">Tipo de anúncio *</span>
-          <select className="select" value={state.tipo_anuncio} onChange={(e) => update('tipo_anuncio', e.target.value as TipoAnuncio)}>
-            {TIPOS_ANUNCIO.map((tipo) => <option key={tipo.value} value={tipo.value}>{tipo.label}</option>)}
-          </select>
-        </label>
-        <label className="field">
           <span className="label">Categoria *</span>
-          <select className="select" value={state.categoria_id} onChange={(e) => update('categoria_id', e.target.value)}>
+          <select className="select" value={state.categoria_id} onChange={(e) => updateCategoria(e.target.value)}>
             <option value="">Selecione</option>
             {categorias.map((cat) => <option key={cat.id} value={cat.id}>{cat.nome}</option>)}
           </select>
         </label>
+        <label className="field">
+          <span className="label">Subcategoria *</span>
+          <select className="select" value={state.subcategoria_id} onChange={(e) => update('subcategoria_id', e.target.value)} disabled={!state.categoria_id}>
+            <option value="">{state.categoria_id ? 'Selecione' : 'Escolha a categoria primeiro'}</option>
+            {subcategoriasDaCategoria.map((sub) => <option key={sub.id} value={sub.id}>{sub.nome}</option>)}
+          </select>
+        </label>
       </div>
+
+      <label className="field">
+        <span className="label">Tipo de anúncio *</span>
+        <select className="select" value={state.tipo_anuncio} onChange={(e) => update('tipo_anuncio', e.target.value as TipoAnuncio)}>
+          {TIPOS_ANUNCIO.map((tipo) => <option key={tipo.value} value={tipo.value}>{tipo.label}</option>)}
+        </select>
+        <span className="muted">O tipo é preenchido pela categoria, mas você pode ajustar se necessário.</span>
+      </label>
 
       <label className="field">
         <span className="label">Título *</span>
