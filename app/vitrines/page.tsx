@@ -108,10 +108,12 @@ export default function VitrinesPage() {
               <span className="badge" style={{ background: 'rgba(255,255,255,.18)', color: '#fff' }}><ShoppingBag size={14} /> Lojinhas AgroMarket</span>
             </div>
 
-            <h1 style={{ color: '#fff', marginBottom: 8 }}>Vitrines de vendedores</h1>
-            <p style={{ color: 'rgba(255,255,255,.88)' }}>Encontre vendedores, chácaras, prestadores de serviço e lojas do agro em uma página pública.</p>
-            <p style={{ color: 'rgba(255,255,255,.82)', margin: '12px 0 0', fontSize: 15 }}>
-              Para criar lojinha é obrigatório ter documento enviado e localização real validada no perfil.
+            <h1 style={{ color: '#fff', marginBottom: 8 }}>Lojinhas do agro em um só lugar</h1>
+            <p style={{ color: 'rgba(255,255,255,.9)', fontSize: 18, maxWidth: 760 }}>
+              Compre direto de chácaras, produtores, prestadores de serviço e lojas rurais. Veja produtos, avaliações e fale com o vendedor pelo WhatsApp.
+            </p>
+            <p style={{ color: 'rgba(255,255,255,.78)', margin: '10px 0 0', fontSize: 15 }}>
+              Quer vender melhor? Crie sua lojinha verificada e organize todos os seus anúncios em uma página própria.
             </p>
 
             <div style={{ position: 'relative', marginTop: 16 }}>
