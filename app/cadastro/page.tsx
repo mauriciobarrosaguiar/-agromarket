@@ -1,10 +1,12 @@
 'use client';
 
 import Link from 'next/link';
-import { FormEvent, useMemo, useState } from 'react';
+import { FormEvent, useMemo, useRef, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { getAuthRedirectUrl } from '@/lib/site-url';
 import { CIDADES_POR_ESTADO, ESTADOS } from '@/lib/constants';
+
+type MessageType = 'success' | 'error' | 'info';
 
 function onlyNumbers(value: string) {
   return value.replace(/\D/g, '');
@@ -32,6 +34,8 @@ export default function CadastroPage() {
   const [estado, setEstado] = useState('TO');
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+  const [messageType, setMessageType] = useState<MessageType>('info');
+  const messageRef = useRef<HTMLDivElement | null>(null);
 
   const cidades = useMemo(() => CIDADES_POR_ESTADO[estado] || [], [estado]);
 
@@ -40,27 +44,35 @@ export default function CadastroPage() {
     setCidade('');
   }
 
+  function showMessage(texto: string, tipo: MessageType) {
+    setMessage(texto);
+    setMessageType(tipo);
+    window.setTimeout(() => messageRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 80);
+  }
+
   async function submit(e: FormEvent) {
     e.preventDefault();
+    if (loading) return;
+
     setLoading(true);
     setMessage(null);
 
     const cpfLimpo = onlyNumbers(cpf);
 
     if (!nome || !email || !senha || !whatsapp || !cpfLimpo || !dataNascimento || !documentoNumero || !documentoOrgao || !documentoUf || !estado || !cidade) {
-      setMessage('Preencha todos os campos obrigatórios.');
+      showMessage('Preencha todos os campos obrigatórios.', 'error');
       setLoading(false);
       return;
     }
 
     if (cpfLimpo.length !== 11) {
-      setMessage('Informe um CPF válido com 11 números.');
+      showMessage('Informe um CPF válido com 11 números.', 'error');
       setLoading(false);
       return;
     }
 
     if (senha.length < 6) {
-      setMessage('A senha precisa ter pelo menos 6 caracteres.');
+      showMessage('A senha precisa ter pelo menos 6 caracteres.', 'error');
       setLoading(false);
       return;
     }
@@ -74,7 +86,7 @@ export default function CadastroPage() {
     });
 
     if (error || !data.user) {
-      setMessage(error?.message || 'Erro ao cadastrar.');
+      showMessage(error?.message || 'Erro ao cadastrar.', 'error');
       setLoading(false);
       return;
     }
@@ -98,13 +110,19 @@ export default function CadastroPage() {
     });
 
     if (profileError) {
-      setMessage(profileError.message.includes('duplicate') ? 'Esse CPF já está cadastrado.' : profileError.message);
+      showMessage(profileError.message.includes('duplicate') ? 'Esse CPF já está cadastrado.' : profileError.message, 'error');
     } else {
-      setMessage('Cadastro criado. Enviamos a confirmação para seu e-mail. Depois de confirmar, faça login.');
+      showMessage('Cadastro criado com sucesso. Enviamos a confirmação para seu e-mail. Depois de confirmar, faça login.', 'success');
     }
 
     setLoading(false);
   }
+
+  const feedback = message ? (
+    <div ref={messageRef} className={`notice notice-${messageType} action-feedback`} role={messageType === 'error' ? 'alert' : 'status'}>
+      {message}
+    </div>
+  ) : null;
 
   return (
     <main className="page">
@@ -112,7 +130,7 @@ export default function CadastroPage() {
         <div className="card">
           <h1>Criar conta</h1>
           <p className="muted">Cadastro completo para divulgar produtos, serviços e oportunidades com mais segurança.</p>
-          {message && <div className="notice">{message}</div>}
+          {feedback}
           <form className="form" onSubmit={submit}>
             <label className="field"><span className="label">Nome completo *</span><input className="input" value={nome} onChange={(e) => setNome(e.target.value)} /></label>
             <label className="field"><span className="label">E-mail *</span><input className="input" type="email" value={email} onChange={(e) => setEmail(e.target.value)} /></label>
@@ -157,7 +175,11 @@ export default function CadastroPage() {
               </label>
             </div>
 
-            <button className="btn btn-primary btn-full" disabled={loading}>{loading ? 'Criando...' : 'Criar conta'}</button>
+            {message && <div className={`notice notice-${messageType}`}>{message}</div>}
+
+            <button className="btn btn-primary btn-full" disabled={loading} aria-busy={loading}>
+              {loading ? 'Criando conta e enviando e-mail...' : 'Criar conta'}
+            </button>
           </form>
           <p className="muted">Já tem conta? <Link href="/login"><strong>Entrar</strong></Link></p>
         </div>
