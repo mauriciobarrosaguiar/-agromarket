@@ -3,15 +3,15 @@
 import { FormEvent, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useParams, useSearchParams } from 'next/navigation';
-import { Lock, MapPin, MessageCircle, Search, ShieldCheck, ShoppingBag, Star, Store } from 'lucide-react';
+import { Lock, MapPin, MessageCircle, Search, ShieldCheck, ShoppingBag, Star, Store, Megaphone } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
-import type { Anuncio, AvaliacaoVendedor, FotoAnuncio, Vitrine } from '@/types';
+import type { Anuncio, AvaliacaoVendedor, Vitrine } from '@/types';
 import EmptyState from '@/components/EmptyState';
 import ShareButton from '@/components/ShareButton';
 import RatingStars from '@/components/RatingStars';
-import { formatMoney } from '@/lib/whatsapp';
+import AnuncioCard from '@/components/AnuncioCard';
 
-type AnuncioLoja = Anuncio & { fotos_anuncios?: FotoAnuncio[] };
+type AnuncioLoja = Anuncio;
 
 function resumoAvaliacoes(avaliacoes: AvaliacaoVendedor[]) {
   const validas = avaliacoes.filter((item) => item.status === 'aprovada');
@@ -34,11 +34,6 @@ function vitrineLiberada(vitrine: Vitrine) {
   }
 
   return false;
-}
-
-function capa(ad: AnuncioLoja) {
-  const fotos = [...(ad.fotos_anuncios || [])].sort((a, b) => (a.ordem || 0) - (b.ordem || 0));
-  return fotos.find((foto) => foto.principal)?.url_foto || fotos[0]?.url_foto || null;
 }
 
 export default function VendedorClient() {
@@ -220,16 +215,37 @@ export default function VendedorClient() {
               <ShareButton label="Compartilhar lojinha" title={vitrine.nome_vitrine} message={mensagemVitrine} path={`/vendedor/${vitrine.slug}`} />
               {vendedorEhDono && <Link className="btn btn-secondary" href={`/vendedor/${vitrine.slug}?visao=visitante`}>Ver como visitante</Link>}
               {vendedorEhDono && <Link className="btn btn-secondary" href="/painel/vitrine">Editar vitrine</Link>}
+              {vendedorEhDono && <Link className="btn btn-primary" href="/painel/patrocinado"><Megaphone size={18} /> Contratar patrocinado</Link>}
             </div>
           </div>
         </section>
 
         <section className="section">
           <div className="card" style={{ background: '#f8faf4' }}>
-            <div className="section-head section-head-compact" style={{ marginBottom: 12 }}><div><h2 style={{ marginTop: 0 }}>Produtos da lojinha</h2><p>Busque dentro dos anúncios deste vendedor.</p></div></div>
-            <div className="field" style={{ marginBottom: 12 }}><span className="label">Pesquisar na lojinha</span><div style={{ position: 'relative' }}><Search size={18} style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: '#66715d' }} /><input className="input" value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="Buscar produto, animal ou serviço..." style={{ paddingLeft: 44 }} /></div></div>
-            {categoriasLoja.length > 1 && <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 14 }}><button className={categoriaAtiva === 'todos' ? 'btn btn-primary' : 'btn btn-secondary'} onClick={() => setCategoriaAtiva('todos')}>Todos</button>{categoriasLoja.map((cat) => <button key={cat} className={categoriaAtiva === cat ? 'btn btn-primary' : 'btn btn-secondary'} onClick={() => setCategoriaAtiva(cat)}>{cat}</button>)}</div>}
-            {anunciosFiltrados.length ? <div className="grid grid-3">{anunciosFiltrados.map((ad) => { const foto = capa(ad); return <Link href={`/anuncio/${ad.slug}`} className="card" key={ad.id} style={{ padding: 0, overflow: 'hidden', textDecoration: 'none' }}><div style={{ height: 160, background: '#dfe8d3', display: 'grid', placeItems: 'center' }}>{foto ? <img src={foto} alt={ad.titulo} style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <Store size={30} />}</div><div style={{ padding: 12 }}><strong>{ad.titulo}</strong><div className="price">{formatMoney(ad.preco, ad.preco_a_combinar)}</div><p className="muted">{ad.cidade} - {ad.estado}</p></div></Link>; })}</div> : <EmptyState title="Nenhum anúncio encontrado" description="Tente outro termo de busca dentro da lojinha." />}
+            <div className="section-head section-head-compact" style={{ marginBottom: 12 }}>
+              <div>
+                <h2 style={{ marginTop: 0 }}>Produtos da lojinha</h2>
+                <p>Busque dentro dos anúncios deste vendedor.</p>
+              </div>
+            </div>
+            <div className="field" style={{ marginBottom: 12 }}>
+              <span className="label">Pesquisar na lojinha</span>
+              <div style={{ position: 'relative' }}>
+                <Search size={18} style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: '#66715d' }} />
+                <input className="input" value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="Buscar produto, animal ou serviço..." style={{ paddingLeft: 44 }} />
+              </div>
+            </div>
+            {categoriasLoja.length > 1 && (
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 14 }}>
+                <button className={categoriaAtiva === 'todos' ? 'btn btn-primary' : 'btn btn-secondary'} onClick={() => setCategoriaAtiva('todos')}>Todos</button>
+                {categoriasLoja.map((cat) => <button key={cat} className={categoriaAtiva === cat ? 'btn btn-primary' : 'btn btn-secondary'} onClick={() => setCategoriaAtiva(cat)}>{cat}</button>)}
+              </div>
+            )}
+            {anunciosFiltrados.length ? (
+              <div className="grid grid-4">
+                {anunciosFiltrados.map((ad) => <AnuncioCard key={ad.id} anuncio={ad} />)}
+              </div>
+            ) : <EmptyState title="Nenhum anúncio encontrado" description="Tente outro termo de busca dentro da lojinha." />}
           </div>
         </section>
 
