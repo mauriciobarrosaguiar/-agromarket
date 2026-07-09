@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
-import { ChevronRight, PlusCircle } from 'lucide-react';
+import { ChevronRight } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import type { PatrocinadoHome } from '@/types';
 
@@ -159,10 +159,6 @@ export default function PatrocinadoCarousel({ itens }: Props) {
             <p className="muted" style={{ marginBottom: 0 }}>Contrate um banner para aparecer no topo da página inicial.</p>
           </div>
         )}
-
-        <Link className="btn btn-secondary btn-full" href="/painel/patrocinado" style={{ marginTop: 12 }}>
-          <PlusCircle size={18} /> Criar patrocinado
-        </Link>
       </div>
     </section>
   );
