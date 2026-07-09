@@ -10,7 +10,7 @@ export default function RegrasPage() {
           <p className="muted">Estas regras ajudam a manter o marketplace seguro, organizado e confiável para compradores e vendedores.</p>
 
           <div className="notice">
-            Todo anúncio pode ser aprovado, reprovado, pausado ou bloqueado pelo administrador. O AgroMarket apenas divulga os anúncios e não participa da negociação.
+            Todo anúncio pode ser aprovado, reprovado, pausado ou bloqueado pelo administrador. O AgroMarket apenas divulga os anúncios e não participa da negociação de compra e venda entre usuários.
           </div>
 
           <div className="grid grid-2 section">
@@ -20,6 +20,7 @@ export default function RegrasPage() {
                 <li>Foto real do produto, animal, serviço ou máquina.</li>
                 <li>Título claro e sem informação enganosa.</li>
                 <li>Preço correto ou marcado como a combinar.</li>
+                <li>Categoria e subcategoria corretas.</li>
                 <li>Cidade, estado e bairro quando possível.</li>
                 <li>Quantidade, peso, unidade ou medida quando necessário.</li>
                 <li>WhatsApp válido e nome do responsável.</li>
@@ -29,9 +30,10 @@ export default function RegrasPage() {
             <div className="card" style={{ background: '#f8faf4' }}>
               <h2>Perfil do divulgador</h2>
               <ul style={{ paddingLeft: 20, lineHeight: 1.7 }}>
-                <li>Foto/selfie do divulgador é obrigatória.</li>
-                <li>Localização real por GPS é obrigatória.</li>
-                <li>Documento é opcional neste momento.</li>
+                <li>Selfie/foto do responsável é obrigatória.</li>
+                <li>CPF e dados do documento podem ser exigidos para segurança.</li>
+                <li>Documento precisa ser enviado e aprovado para vitrine.</li>
+                <li>Localização real por GPS é obrigatória para publicar e criar vitrine.</li>
                 <li>Documento não aparece publicamente.</li>
                 <li>Perfil com informação falsa pode ser bloqueado.</li>
               </ul>
@@ -39,6 +41,24 @@ export default function RegrasPage() {
           </div>
 
           <section className="card" style={{ background: '#fff' }}>
+            <h2>Itens proibidos</h2>
+            <div className="grid grid-2">
+              <ul style={{ paddingLeft: 20, lineHeight: 1.7 }}>
+                <li>Produto furtado, adulterado, falsificado ou de origem duvidosa.</li>
+                <li>Produto proibido por lei ou que exija autorização não apresentada.</li>
+                <li>Agrotóxicos, medicamentos veterinários ou químicos sem regularidade.</li>
+                <li>Armas, munições, armadilhas ilegais ou itens perigosos.</li>
+              </ul>
+              <ul style={{ paddingLeft: 20, lineHeight: 1.7 }}>
+                <li>Animais silvestres, caça, maus-tratos ou comércio irregular.</li>
+                <li>Documentos, notas, certificados ou registros falsos.</li>
+                <li>Golpes, pirâmides, apostas ou promessas enganosas.</li>
+                <li>Conteúdo ofensivo, sexual, discriminatório ou violento.</li>
+              </ul>
+            </div>
+          </section>
+
+          <section className="card" style={{ background: '#fff', marginTop: 16 }}>
             <h2>Animais</h2>
             <ul style={{ paddingLeft: 20, lineHeight: 1.7 }}>
               <li>Não anuncie animal doente, debilitado ou em condição de maus-tratos.</li>
@@ -55,6 +75,15 @@ export default function RegrasPage() {
               <li>Não anuncie produto proibido por lei, adulterado, furtado ou de origem duvidosa.</li>
               <li>Informe defeitos, avarias, ano/modelo e condições de uso quando houver.</li>
               <li>Serviços devem ter descrição clara, região de atendimento e forma de contato.</li>
+            </ul>
+          </section>
+
+          <section className="card" style={{ background: '#fff', marginTop: 16 }}>
+            <h2>Vitrines, destaques e patrocinados</h2>
+            <ul style={{ paddingLeft: 20, lineHeight: 1.7 }}>
+              <li>A vitrine só fica pública após pagamento confirmado ou liberação do administrador.</li>
+              <li>Destaques e banners patrocinados podem passar por aprovação antes de aparecerem.</li>
+              <li>O administrador pode pausar vitrine, destaque ou patrocinado se houver denúncia ou irregularidade.</li>
             </ul>
           </section>
 
@@ -78,8 +107,9 @@ export default function RegrasPage() {
 
           <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 24 }}>
             <Link className="btn btn-primary" href="/anunciar">Criar anúncio</Link>
-            <Link className="btn btn-secondary" href="/planos">Ver planos</Link>
             <Link className="btn btn-secondary" href="/termos">Termos de uso</Link>
+            <Link className="btn btn-secondary" href="/privacidade">Privacidade</Link>
+            <Link className="btn btn-secondary" href="/contato">Suporte</Link>
           </div>
         </section>
       </div>
