@@ -42,7 +42,9 @@ function AdminContent() {
   const pendentes = anuncios.filter((a) => a.status === 'pendente').length;
   const aprovados = anuncios.filter((a) => a.status === 'aprovado').length;
   const destaquesPendentes = destaques.filter((d) => d.status === 'pendente').length;
-  const patrocinadosPendentes = patrocinados.filter((p) => p.status === 'pendente').length;
+  const patrocinadosPagamento = patrocinados.filter((p) => p.status === 'pendente_pagamento').length;
+  const patrocinadosAprovar = patrocinados.filter((p) => p.status === 'pendente').length;
+  const patrocinadosPendentes = patrocinadosPagamento + patrocinadosAprovar;
   const denunciasAbertas = denuncias.filter((d) => d.status === 'aberta').length;
   const bannersAtivos = patrocinados.filter((p) => p.ativo && p.status === 'aprovado').length;
   const atencao = pendentes + destaquesPendentes + patrocinadosPendentes + denunciasAbertas;
@@ -64,7 +66,7 @@ function AdminContent() {
       itens: [
         { href: '/admin/monetizacao', titulo: 'Planos e pagamentos', texto: 'Editar preços, Asaas, Efí e gateways.', icon: BadgeDollarSign, destaque: false },
         { href: '/admin/vitrines', titulo: 'Vitrines', texto: `${vitrines.length} vitrine(s) cadastrada(s)`, icon: Store, destaque: false },
-        { href: '/admin/patrocinados', titulo: 'Patrocinados da home', texto: `${patrocinadosPendentes} pendente(s) • ${bannersAtivos} ativo(s)`, icon: Megaphone, destaque: patrocinadosPendentes > 0 },
+        { href: '/admin/patrocinados', titulo: 'Patrocinados da home', texto: `${patrocinadosPagamento} aguardando pagamento • ${patrocinadosAprovar} para aprovar • ${bannersAtivos} ativo(s)`, icon: Megaphone, destaque: patrocinadosPendentes > 0 },
         { href: '/admin/whatsapp-cliques', titulo: 'Cliques no WhatsApp', texto: `${cliques.length} clique(s) registrados para relatório`, icon: MessageCircle, destaque: false }
       ]
     },
@@ -100,7 +102,8 @@ function AdminContent() {
           <StatCard label="Pendentes" value={pendentes} href="/admin/pendentes" />
           <StatCard label="Aprovados" value={aprovados} href="/admin/anuncios" />
           <StatCard label="Destaques pendentes" value={destaquesPendentes} href="/admin/destaques" />
-          <StatCard label="Patrocinados pendentes" value={patrocinadosPendentes} href="/admin/patrocinados" />
+          <StatCard label="Patrocinados aguardando pagamento" value={patrocinadosPagamento} href="/admin/patrocinados" />
+          <StatCard label="Patrocinados para aprovar" value={patrocinadosAprovar} href="/admin/patrocinados" />
           <StatCard label="Denúncias abertas" value={denunciasAbertas} href="/admin/denuncias" />
           <StatCard label="Patrocinados ativos" value={bannersAtivos} href="/admin/patrocinados" />
           <StatCard label="Cliques WhatsApp" value={cliques.length} href="/admin/whatsapp-cliques" />
