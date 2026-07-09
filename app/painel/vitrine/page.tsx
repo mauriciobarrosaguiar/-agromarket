@@ -63,6 +63,7 @@ function requisitosPerfil(perfil: Usuario | null) {
   const cpfOk = onlyNumbers(perfil.cpf).length === 11;
   const docDadosOk = Boolean(perfil.documento_numero && perfil.documento_orgao_emissor && perfil.documento_uf);
   const docArquivoOk = Boolean(perfil.documento_url);
+  const docAprovadoOk = Boolean(perfil.documento_url && perfil.documento_status === 'aprovado');
   const selfieOk = Boolean(perfil.selfie_url || perfil.foto_url);
   const gpsOk = Boolean(
     perfil.localizacao_validada &&
@@ -76,8 +77,16 @@ function requisitosPerfil(perfil: Usuario | null) {
     { label: 'CPF válido no perfil', ok: cpfOk },
     { label: 'Dados do documento preenchidos', ok: docDadosOk },
     { label: 'Arquivo do documento enviado', ok: docArquivoOk },
+    { label: 'Documento aprovado pelo administrador', ok: docAprovadoOk },
     { label: 'Localização real validada por GPS preciso', ok: gpsOk }
   ];
+}
+
+function documentoStatusTexto(status?: string | null) {
+  if (status === 'aprovado') return 'Documento aprovado';
+  if (status === 'pendente') return 'Documento em análise';
+  if (status === 'recusado') return 'Documento recusado';
+  return 'Documento não enviado';
 }
 
 function MinhaVitrineContent() {
@@ -168,7 +177,7 @@ function MinhaVitrineContent() {
   async function solicitarVitrine() {
     if (!perfil || !planoMensal) return;
     if (!perfilVerificadoParaVitrine) {
-      setMessage('Para criar lojinha, complete a verificação do perfil com documento enviado e localização real por GPS.');
+      setMessage('Para criar lojinha, o documento precisa estar aprovado pelo administrador e a localização precisa estar validada por GPS preciso.');
       return;
     }
 
@@ -212,7 +221,7 @@ function MinhaVitrineContent() {
   async function solicitarPagamentoMensal() {
     if (!vitrine || !planoMensal) return;
     if (!perfilVerificadoParaVitrine) {
-      setMessage('Antes de solicitar mensalidade, complete a verificação do perfil com documento enviado e GPS preciso.');
+      setMessage('Antes de solicitar mensalidade, o documento precisa estar aprovado pelo administrador e o GPS precisa estar validado.');
       return;
     }
 
@@ -256,8 +265,7 @@ function MinhaVitrineContent() {
       setVitrine(data as Vitrine);
       setMessage(tipo === 'logo' ? 'Logo atualizada.' : 'Banner atualizado.');
     } catch (err) {
-      const texto = err instanceof Error ? err.message : 'Erro ao enviar imagem.';
-      setMessage(texto);
+      setMessage(err instanceof Error ? err.message : 'Erro ao enviar imagem.');
     } finally {
       setUploading(null);
       e.target.value = '';
@@ -303,8 +311,9 @@ function MinhaVitrineContent() {
   const checklist = (
     <div className="card" style={{ background: perfilVerificadoParaVitrine ? '#f0fdf4' : '#fff7ed', border: perfilVerificadoParaVitrine ? '1px solid #bbf7d0' : '1px solid #fed7aa' }}>
       <span className="badge">{perfilVerificadoParaVitrine ? <CheckCircle2 size={14} /> : <AlertTriangle size={14} />} Verificação obrigatória</span>
-      <h3 style={{ marginBottom: 8 }}>Documento e localização da lojinha</h3>
-      <p className="muted">Para criar ou renovar lojinha, o responsável precisa estar verificado com documento enviado e GPS real preciso.</p>
+      <h3 style={{ marginBottom: 8 }}>Documento aprovado e localização da lojinha</h3>
+      <p className="muted">Enviar uma foto qualquer não libera a lojinha. O documento fica em análise e precisa ser aprovado manualmente pelo administrador.</p>
+      <p className="muted">Status atual: <strong>{documentoStatusTexto(perfil?.documento_status)}</strong></p>
       <div style={{ display: 'grid', gap: 8 }}>
         {requisitos.map((item) => (
           <div key={item.label} style={{ display: 'flex', gap: 8, alignItems: 'center', color: item.ok ? '#166534' : '#9a3412', fontWeight: 800 }}>
@@ -450,6 +459,7 @@ function MinhaVitrineContent() {
           <span className="badge">Plano: Vitrine mensal</span>
           <span className="badge">Status: {statusLabel(vitrine.assinatura_status)}</span>
           <span className="badge">Vencimento: {dataBR(vitrine.gratis_ate || vitrine.assinatura_vencimento)}</span>
+          <span className="badge">Documento: {documentoStatusTexto(perfil?.documento_status)}</span>
           <span className="badge">Verificação: {perfilVerificadoParaVitrine ? 'Perfil verificado' : 'Pendente'}</span>
         </div>
         <div className="card" style={{ background: '#f8faf4', padding: 0, overflow: 'hidden' }}>
