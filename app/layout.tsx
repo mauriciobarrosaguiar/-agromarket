@@ -6,6 +6,7 @@ import MobileBottomNav from '@/components/MobileBottomNav';
 import InstallAppButton from '@/components/InstallAppButton';
 import AdminAlertWatcher from '@/components/AdminAlertWatcher';
 import DocumentoStatusTextFixer from '@/components/DocumentoStatusTextFixer';
+import SupportButton from '@/components/SupportButton';
 
 export const metadata: Metadata = {
   title: 'AgroMarket - Produtos, serviços e empregos no Agro',
@@ -36,8 +37,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             <p>Divulgação de produtos agro, animais, serviços rurais, máquinas e empregos.</p>
             <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap', marginTop: 10, fontWeight: 800 }}>
               <Link href="/termos">Termos de uso</Link>
+              <Link href="/privacidade">Privacidade</Link>
               <Link href="/regras">Regras</Link>
               <Link href="/seguranca">Segurança</Link>
+              <Link href="/contato">Contato</Link>
               <Link href="/planos">Planos</Link>
               <Link href="/anuncios">Anúncios</Link>
             </div>
@@ -48,6 +51,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         </footer>
         <InstallAppButton />
         <MobileBottomNav />
+        <SupportButton />
         <AdminAlertWatcher />
         <DocumentoStatusTextFixer />
       </body>
