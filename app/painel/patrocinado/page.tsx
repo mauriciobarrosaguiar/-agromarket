@@ -2,7 +2,7 @@
 
 import { ChangeEvent, FormEvent, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { AlertTriangle, ImagePlus, Megaphone, Send, ShieldCheck } from 'lucide-react';
+import { AlertTriangle, BadgeDollarSign, Megaphone, Send, ShieldCheck } from 'lucide-react';
 import AuthGuard from '@/components/AuthGuard';
 import EmptyState from '@/components/EmptyState';
 import { supabase } from '@/lib/supabase';
@@ -46,8 +46,9 @@ function vitrineLiberada(vitrine: Vitrine | null) {
 }
 
 function statusLabel(status?: string | null) {
-  if (status === 'pendente') return 'Aguardando aprovação';
-  if (status === 'aprovado') return 'Aprovado';
+  if (status === 'pendente_pagamento') return 'Aguardando pagamento';
+  if (status === 'pendente') return 'Pagamento confirmado, aguardando aprovação';
+  if (status === 'aprovado') return 'Aprovado e publicado';
   if (status === 'recusado') return 'Recusado';
   return 'Em análise';
 }
@@ -123,7 +124,7 @@ function PainelPatrocinadoContent() {
     try {
       const url = await uploadPatrocinadoImagem(file, vitrine.id);
       set('imagem_url', url);
-      setMessage('Imagem enviada. Agora envie a solicitação para aprovação.');
+      setMessage('Imagem enviada. Agora envie a solicitação e conclua o pagamento.');
     } catch (err) {
       setMessage(err instanceof Error ? err.message : 'Erro ao enviar imagem.');
     }
@@ -162,14 +163,14 @@ function PainelPatrocinadoContent() {
       estado: vitrine.estado || perfil.estado || null,
       ordem: 0,
       ativo: false,
-      status: 'pendente',
+      status: 'pendente_pagamento',
       inicio_em: form.inicio_em || null,
       fim_em: form.fim_em || null
     });
 
     if (error) setMessage(error.message);
     else {
-      setMessage('Solicitação enviada. O banner ficará publicado após aprovação do administrador.');
+      setMessage('Solicitação enviada. Após a confirmação do pagamento, o banner será aprovado/liberado para aparecer na home.');
       setForm({ ...vazio, titulo: vitrine.nome_vitrine, subtitulo: vitrine.descricao || '', whatsapp_anunciante: vitrine.whatsapp || perfil.whatsapp || '', link_url: `/vendedor/${vitrine.slug}` });
       await load();
     }
@@ -198,6 +199,10 @@ function PainelPatrocinadoContent() {
           <h2 style={{ marginBottom: 6 }}>{podeSolicitar ? 'Lojinha liberada' : 'Lojinha ainda não liberada'}</h2>
           <p className="muted">Somente assinantes de vitrine ou lojinhas liberadas pelo administrador podem solicitar banner patrocinado.</p>
           {!podeSolicitar && <Link className="btn btn-primary btn-full" href="/painel/vitrine">Gerenciar mensalidade da lojinha</Link>}
+        </div>
+
+        <div className="notice">
+          <strong>Fluxo:</strong> você envia a arte, conclui o pagamento pelo gateway configurado e o banner entra para liberação. Depois de aprovado, ele aparece no carrossel da página inicial.
         </div>
 
         <label className="field">
@@ -244,7 +249,7 @@ function PainelPatrocinadoContent() {
         </div>
 
         <button className="btn btn-primary btn-full" type="submit" disabled={saving || uploading || !podeSolicitar}>
-          <Send size={18} /> {saving ? 'Enviando...' : uploading ? 'Enviando imagem...' : 'Solicitar banner patrocinado'}
+          <BadgeDollarSign size={18} /> {saving ? 'Enviando...' : uploading ? 'Enviando imagem...' : 'Solicitar banner e pagamento'}
         </button>
       </form>
 
@@ -279,7 +284,7 @@ export default function PainelPatrocinadoPage() {
             <div>
               <span className="badge"><Megaphone size={14} /> Patrocinado</span>
               <h1>Contratar banner patrocinado</h1>
-              <p>Assinantes de vitrine podem solicitar banner para aparecer na página inicial. O banner entra em aprovação.</p>
+              <p>Assinantes de vitrine podem solicitar banner para aparecer na página inicial. Ele só fica público após pagamento confirmado e liberação.</p>
             </div>
             <Link className="btn btn-secondary" href="/painel/vitrine">Voltar à vitrine</Link>
           </div>
