@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { BadgeCheck, MapPin, Megaphone, PlusCircle, Search, ShieldCheck, Sparkles, Store } from 'lucide-react';
+import { BadgeCheck, MapPin, Megaphone, PlusCircle, ShieldCheck, Sparkles, Store } from 'lucide-react';
 import { supabase, hasSupabaseEnv } from '@/lib/supabase';
 import type { Anuncio, Categoria, PatrocinadoHome } from '@/types';
 import SearchBar from '@/components/SearchBar';
@@ -92,45 +92,28 @@ export default function HomePage() {
     <main className="page">
       <PatrocinadoCarousel itens={patrocinados} />
 
-      <section className="hero" style={{ paddingTop: 12, paddingBottom: 8 }}>
+      <section className="hero home-hero" style={{ paddingTop: 12, paddingBottom: 8 }}>
         <div className="container">
           {!hasSupabaseEnv && <div className="notice" style={{ marginBottom: 14 }}>Configure o Supabase no arquivo .env.local para carregar dados reais.</div>}
-          <div
-            className="hero-card"
-            style={{
-              padding: 'clamp(18px, 3vw, 30px)',
-              borderRadius: 24,
-              display: 'grid',
-              gap: 16,
-              alignItems: 'center'
-            }}
-          >
-            <div style={{ maxWidth: 980 }}>
+          <div className="hero-card home-hero-card">
+            <div className="home-hero-content">
               <span className="badge"><Sparkles size={15} /> Anuncie Grátis</span>
-              <h1 style={{ fontSize: 'clamp(32px, 5vw, 58px)', lineHeight: 1, margin: '10px 0' }}>Compre e venda no agro perto de você.</h1>
-              <p style={{ marginBottom: 16, maxWidth: 720 }}>Produtos rurais, animais, máquinas, serviços e oportunidades em um só lugar, com negociação direta pelo WhatsApp.</p>
+              <h1>Compre e venda no agro perto de você.</h1>
+              <p>Produtos rurais, animais, máquinas, serviços e oportunidades em um só lugar, com negociação direta pelo WhatsApp.</p>
 
-              <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) auto', gap: 10, alignItems: 'center' }}>
-                <SearchBar />
-                <Link className="btn btn-primary" href="/anuncios"><Search size={18} /> Buscar</Link>
-              </div>
+              <SearchBar compact />
 
               {categorias.length > 0 && (
-                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 12 }}>
-                  {categorias.slice(0, 6).map((cat) => (
-                    <Link
-                      key={cat.id}
-                      className="badge"
-                      href={`/anuncios?categoria=${cat.slug}`}
-                      style={{ background: 'rgba(255,255,255,.18)', color: '#fff', borderColor: 'rgba(255,255,255,.25)', textDecoration: 'none' }}
-                    >
+                <div className="home-category-links">
+                  {categorias.slice(0, 5).map((cat) => (
+                    <Link key={cat.id} className="badge" href={`/anuncios?categoria=${cat.slug}`}>
                       {cat.nome}
                     </Link>
                   ))}
                 </div>
               )}
 
-              <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 14 }}>
+              <div className="home-cta-row">
                 <Link className="btn btn-primary" href="/anunciar"><PlusCircle size={18} /> Quero anunciar</Link>
                 <Link className="btn btn-secondary" href="/anuncios"><MapPin size={18} /> Ver perto de mim</Link>
                 <Link className="btn btn-secondary" href="/vitrines"><Store size={18} /> Ver lojinhas</Link>
