@@ -9,13 +9,14 @@ type PendingCounts = {
   anuncios: number;
   destaques: number;
   patrocinados: number;
+  documentos: number;
   denuncias: number;
 };
 
 const STORAGE_KEY = 'agromarket_admin_alerts_enabled';
 
 function totalPendencias(counts: PendingCounts) {
-  return counts.anuncios + counts.destaques + counts.patrocinados + counts.denuncias;
+  return counts.anuncios + counts.destaques + counts.patrocinados + counts.documentos + counts.denuncias;
 }
 
 function resumoPendencias(counts: PendingCounts) {
@@ -23,6 +24,7 @@ function resumoPendencias(counts: PendingCounts) {
   if (counts.anuncios) partes.push(`${counts.anuncios} anúncio(s)`);
   if (counts.destaques) partes.push(`${counts.destaques} destaque(s)`);
   if (counts.patrocinados) partes.push(`${counts.patrocinados} patrocinado(s)`);
+  if (counts.documentos) partes.push(`${counts.documentos} documento(s)`);
   if (counts.denuncias) partes.push(`${counts.denuncias} denúncia(s)`);
   return partes.length ? partes.join(', ') : 'Nenhuma pendência';
 }
@@ -32,6 +34,7 @@ function mensagemNovidades(atual: PendingCounts, anterior: PendingCounts) {
   if (atual.anuncios > anterior.anuncios) partes.push(`${atual.anuncios - anterior.anuncios} novo(s) anúncio(s) para aprovar`);
   if (atual.destaques > anterior.destaques) partes.push(`${atual.destaques - anterior.destaques} nova(s) solicitação(ões) de destaque`);
   if (atual.patrocinados > anterior.patrocinados) partes.push(`${atual.patrocinados - anterior.patrocinados} novo(s) banner(s) patrocinado(s)`);
+  if (atual.documentos > anterior.documentos) partes.push(`${atual.documentos - anterior.documentos} novo(s) documento(s) para conferir`);
   if (atual.denuncias > anterior.denuncias) partes.push(`${atual.denuncias - anterior.denuncias} nova(s) denúncia(s)`);
   return partes.join(' • ');
 }
@@ -83,17 +86,18 @@ function notificarSistema(texto: string) {
 export default function AdminAlertWatcher() {
   const [isAdmin, setIsAdmin] = useState(false);
   const [enabled, setEnabled] = useState(false);
-  const [counts, setCounts] = useState<PendingCounts>({ anuncios: 0, destaques: 0, patrocinados: 0, denuncias: 0 });
+  const [counts, setCounts] = useState<PendingCounts>({ anuncios: 0, destaques: 0, patrocinados: 0, documentos: 0, denuncias: 0 });
   const [toast, setToast] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const lastCountsRef = useRef<PendingCounts | null>(null);
   const initializedRef = useRef(false);
 
   const fetchCounts = useCallback(async (silencioso = false) => {
-    const [{ count: anuncios }, { count: destaques }, { count: patrocinados }, { count: denuncias }] = await Promise.all([
+    const [{ count: anuncios }, { count: destaques }, { count: patrocinados }, { count: documentos }, { count: denuncias }] = await Promise.all([
       supabase.from('anuncios').select('id', { count: 'exact', head: true }).eq('status', 'pendente'),
       supabase.from('destaque_solicitacoes').select('id', { count: 'exact', head: true }).eq('status', 'pendente'),
       supabase.from('patrocinados_home').select('id', { count: 'exact', head: true }).in('status', ['pendente_pagamento', 'pendente']),
+      supabase.from('usuarios').select('id', { count: 'exact', head: true }).eq('documento_status', 'pendente'),
       supabase.from('denuncias').select('id', { count: 'exact', head: true }).eq('status', 'aberta')
     ]);
 
@@ -101,6 +105,7 @@ export default function AdminAlertWatcher() {
       anuncios: anuncios || 0,
       destaques: destaques || 0,
       patrocinados: patrocinados || 0,
+      documentos: documentos || 0,
       denuncias: denuncias || 0
     };
 
@@ -214,6 +219,7 @@ export default function AdminAlertWatcher() {
             {counts.anuncios > 0 && <Link className="btn btn-primary btn-full" href="/admin/pendentes">Aprovar anúncios ({counts.anuncios})</Link>}
             {counts.destaques > 0 && <Link className="btn btn-primary btn-full" href="/admin/destaques">Aprovar destaques ({counts.destaques})</Link>}
             {counts.patrocinados > 0 && <Link className="btn btn-primary btn-full" href="/admin/patrocinados">Ver patrocinados ({counts.patrocinados})</Link>}
+            {counts.documentos > 0 && <Link className="btn btn-primary btn-full" href="/admin/usuarios">Ver documentos ({counts.documentos})</Link>}
             {counts.denuncias > 0 && <Link className="btn btn-primary btn-full" href="/admin/denuncias">Ver denúncias ({counts.denuncias})</Link>}
           </div>
         </div>
