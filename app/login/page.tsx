@@ -3,11 +3,7 @@
 import Link from 'next/link';
 import { FormEvent, useState } from 'react';
 import { supabase } from '@/lib/supabase';
-
-function getRedirectUrl() {
-  const base = process.env.NEXT_PUBLIC_SITE_URL || (typeof window !== 'undefined' ? window.location.origin : '');
-  return `${base.replace(/\/$/, '')}/login`;
-}
+import { getAuthRedirectUrl } from '@/lib/site-url';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
@@ -39,7 +35,7 @@ export default function LoginPage() {
       type: 'signup',
       email,
       options: {
-        emailRedirectTo: getRedirectUrl()
+        emailRedirectTo: getAuthRedirectUrl('/login')
       }
     });
 
