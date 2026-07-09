@@ -1,12 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { getAuthRedirectUrl } from '@/lib/site-url';
 
 function onlyNumbers(value: string) {
   return value.replace(/\D/g, '');
-}
-
-function getSiteUrl() {
-  return (process.env.NEXT_PUBLIC_SITE_URL || 'https://agromarket-two.vercel.app').replace(/\/$/, '');
 }
 
 function getSupabaseAdmin() {
@@ -76,7 +73,7 @@ export async function POST(request: NextRequest) {
 
     if (emailParaReset && client) {
       const { error } = await client.auth.resetPasswordForEmail(emailParaReset, {
-        redirectTo: `${getSiteUrl()}/redefinir-senha`
+        redirectTo: getAuthRedirectUrl('/redefinir-senha')
       });
       observacao = error ? `Falha ao solicitar reset: ${error.message}` : 'E-mail de recuperação solicitado.';
     }
