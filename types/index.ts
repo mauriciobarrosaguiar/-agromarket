@@ -8,6 +8,7 @@ export type StatusPatrocinado = 'pendente_pagamento' | 'pendente' | 'aprovado' |
 export type StatusAvaliacaoVendedor = 'aprovada' | 'pendente' | 'oculta' | 'removida';
 export type StatusAssinaturaVitrine = 'pendente_pagamento' | 'ativa' | 'vencida' | 'cancelada' | 'gratis_lancamento';
 export type StatusPagamentoVitrine = 'pendente' | 'pago' | 'recusado' | 'cancelado' | 'estornado';
+export type StatusDocumentoUsuario = 'nao_enviado' | 'pendente' | 'aprovado' | 'recusado';
 export type TipoPlanoMonetizacao = 'destaque' | 'vitrine' | 'assinatura';
 export type ProvedorPagamento = 'asaas' | 'efi';
 export type AmbientePagamento = 'sandbox' | 'producao';
@@ -24,6 +25,10 @@ export type Usuario = {
   foto_url?: string | null;
   selfie_url?: string | null;
   documento_url?: string | null;
+  documento_status?: StatusDocumentoUsuario | string;
+  documento_motivo_recusa?: string | null;
+  documento_verificado_em?: string | null;
+  documento_verificado_por?: string | null;
   cpf?: string | null;
   data_nascimento?: string | null;
   documento_tipo?: string | null;
