@@ -147,7 +147,7 @@ export default function PatrocinadoCarousel({ itens }: Props) {
                       <img
                         src={item.imagem_url}
                         alt={item.titulo}
-                        style={{ width: '100%', aspectRatio: '16/9', objectFit: 'cover', background: '#e8efe2', display: 'block' }}
+                        style={{ width: '100%', height: 'clamp(160px, 31vw, 360px)', objectFit: 'cover', objectPosition: 'center', background: '#e8efe2', display: 'block' }}
                       />
                     </a>
                   );
