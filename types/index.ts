@@ -46,6 +46,7 @@ export type Usuario = {
   localizacao_accuracy?: number | null;
   localizacao_capturada_em?: string | null;
   localizacao_validada?: boolean;
+  asaas_customer_id?: string | null;
   created_at?: string;
   updated_at?: string;
 };
@@ -228,7 +229,15 @@ export type VitrinePagamento = {
   meses: number;
   status: StatusPagamentoVitrine;
   provedor?: string | null;
+  forma_pagamento?: string | null;
   referencia_externa?: string | null;
+  checkout_url?: string | null;
+  invoice_url?: string | null;
+  pix_qr_code_payload?: string | null;
+  pix_qr_code_image?: string | null;
+  pix_expiration_date?: string | null;
+  asaas_status?: string | null;
+  asaas_payload?: Record<string, unknown> | null;
   comprovante_url?: string | null;
   observacao?: string | null;
   admin_id?: string | null;
