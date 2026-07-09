@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { FormEvent, useEffect, useMemo, useRef, useState } from 'react';
-import { Camera, FileText, KeyRound, LayoutDashboard, MapPin, X } from 'lucide-react';
+import { AlertTriangle, Camera, CheckCircle2, FileText, KeyRound, LayoutDashboard, MapPin, X } from 'lucide-react';
 import AuthGuard from '@/components/AuthGuard';
 import { supabase } from '@/lib/supabase';
 import { CIDADES_POR_ESTADO, ESTADOS } from '@/lib/constants';
@@ -21,6 +21,20 @@ function formatCpf(value: string) {
     .replace(/(\d{3})(\d)/, '$1.$2')
     .replace(/(\d{3})(\d)/, '$1.$2')
     .replace(/(\d{3})(\d{1,2})$/, '$1-$2');
+}
+
+function documentoStatusLabel(status?: string | null) {
+  if (status === 'aprovado') return 'Documento aprovado pelo administrador';
+  if (status === 'pendente') return 'Documento enviado, aguardando análise';
+  if (status === 'recusado') return 'Documento recusado';
+  return 'Documento ainda não enviado';
+}
+
+function documentoStatusCor(status?: string | null) {
+  if (status === 'aprovado') return { bg: '#f0fdf4', border: '#bbf7d0', color: '#166534' };
+  if (status === 'pendente') return { bg: '#fff7ed', border: '#fed7aa', color: '#9a3412' };
+  if (status === 'recusado') return { bg: '#fef2f2', border: '#fecaca', color: '#991b1b' };
+  return { bg: '#f8faf4', border: '#dfe8d9', color: '#14532d' };
 }
 
 function PerfilContent() {
@@ -184,6 +198,13 @@ function PerfilContent() {
       const cpfLimpo = onlyNumbers(perfil.cpf || '');
       let selfieUrl = perfil.selfie_url || perfil.foto_url || null;
       let documentoUrl = perfil.documento_url || null;
+      let documentoStatus = perfil.documento_status || (documentoUrl ? 'pendente' : 'nao_enviado');
+
+      const { data: usuarioAtual } = await supabase
+        .from('usuarios')
+        .select('cpf, documento_numero, documento_orgao_emissor, documento_uf, documento_url, documento_status')
+        .eq('id', perfil.id)
+        .maybeSingle();
 
       if (selfieFile) {
         selfieUrl = await uploadPerfilArquivo(selfieFile, perfil.id, 'selfie');
@@ -191,6 +212,7 @@ function PerfilContent() {
 
       if (documentoFile) {
         documentoUrl = await uploadPerfilArquivo(documentoFile, perfil.id, 'documento');
+        documentoStatus = 'pendente';
       }
 
       if (!perfil.nome || !perfil.whatsapp || !perfil.estado || !perfil.cidade) {
@@ -217,6 +239,19 @@ function PerfilContent() {
         throw new Error('A localização precisa ser capturada com melhor precisão para evitar localização fictícia.');
       }
 
+      const mudouDadosDocumento = Boolean(
+        usuarioAtual?.documento_status === 'aprovado' && (
+          onlyNumbers(usuarioAtual?.cpf || '') !== cpfLimpo ||
+          usuarioAtual?.documento_numero !== perfil.documento_numero ||
+          usuarioAtual?.documento_orgao_emissor !== perfil.documento_orgao_emissor ||
+          usuarioAtual?.documento_uf !== perfil.documento_uf ||
+          usuarioAtual?.documento_url !== documentoUrl
+        )
+      );
+
+      if (mudouDadosDocumento) documentoStatus = 'pendente';
+      if (!documentoUrl) documentoStatus = 'nao_enviado';
+
       const { error } = await supabase.from('usuarios').update({
         nome: perfil.nome,
         whatsapp: perfil.whatsapp,
@@ -232,6 +267,8 @@ function PerfilContent() {
         foto_url: selfieUrl,
         selfie_url: selfieUrl,
         documento_url: documentoUrl,
+        documento_status: documentoStatus,
+        documento_motivo_recusa: documentoStatus === 'pendente' ? null : perfil.documento_motivo_recusa || null,
         latitude: perfil.latitude,
         longitude: perfil.longitude,
         localizacao_accuracy: perfil.localizacao_accuracy,
@@ -242,10 +279,12 @@ function PerfilContent() {
 
       if (error) throw error;
 
-      setPerfil({ ...perfil, cpf: cpfLimpo, foto_url: selfieUrl, selfie_url: selfieUrl, documento_url: documentoUrl, cadastro_completo: true, localizacao_validada: true });
+      setPerfil({ ...perfil, cpf: cpfLimpo, foto_url: selfieUrl, selfie_url: selfieUrl, documento_url: documentoUrl, documento_status: documentoStatus, documento_motivo_recusa: documentoStatus === 'pendente' ? null : perfil.documento_motivo_recusa, cadastro_completo: true, localizacao_validada: true });
       setSelfieFile(null);
       setDocumentoFile(null);
-      setMessage('Perfil salvo com cadastro completo, selfie tirada na hora e localização real validada.');
+      setMessage(documentoStatus === 'aprovado'
+        ? 'Perfil salvo. Documento continua aprovado.'
+        : 'Perfil salvo. O documento precisa ser aprovado pelo administrador antes de liberar a lojinha.');
     } catch (err) {
       setMessage(err instanceof Error ? err.message : 'Erro ao salvar perfil.');
     } finally {
@@ -257,13 +296,14 @@ function PerfilContent() {
 
   const fotoPerfil = selfiePreview || perfil.selfie_url || perfil.foto_url;
   const localizacaoOk = perfil.localizacao_validada && perfil.latitude && perfil.longitude;
+  const docStyle = documentoStatusCor(perfil.documento_status);
 
   return (
     <form className="form card" onSubmit={submit}>
       {message && <div className="notice">{message}</div>}
 
       <div className="notice">
-        Para anunciar com mais segurança, o perfil precisa ter <strong>selfie tirada na hora</strong>, <strong>CPF/dados do documento</strong> e <strong>localização real validada por GPS</strong>. O documento enviado é opcional e não aparece publicamente.
+        Para anunciar com mais segurança, o perfil precisa ter <strong>selfie tirada na hora</strong>, <strong>CPF/dados do documento</strong> e <strong>localização real validada por GPS</strong>. Para criar lojinha, o <strong>documento precisa ser aprovado pelo administrador</strong>.
       </div>
 
       <div style={{ display: 'grid', gap: 10 }}>
@@ -354,12 +394,16 @@ function PerfilContent() {
 
       <div className="card" style={{ background: '#f8faf4' }}>
         <h2 style={{ marginTop: 0 }}>Arquivo do documento</h2>
-        <p className="muted">Opcional neste momento. Não aparece publicamente no anúncio e fica em área privada.</p>
+        <p className="muted">Para criar lojinha, o documento precisa ser enviado e aprovado pelo administrador. O arquivo fica em bucket privado.</p>
+        <div className="notice" style={{ background: docStyle.bg, borderColor: docStyle.border, color: docStyle.color }}>
+          {perfil.documento_status === 'aprovado' ? <CheckCircle2 size={18} /> : <AlertTriangle size={18} />} {documentoStatusLabel(perfil.documento_status)}
+        </div>
+        {perfil.documento_motivo_recusa && <div className="notice">Motivo da recusa: {perfil.documento_motivo_recusa}</div>}
         <label className="field">
-          <span className="label"><FileText size={16} /> Documento opcional</span>
+          <span className="label"><FileText size={16} /> Enviar documento para análise</span>
           <input className="input" type="file" accept="image/png,image/jpeg,image/webp,application/pdf" onChange={(e) => setDocumentoFile(e.target.files?.[0] || null)} />
         </label>
-        {perfil.documento_url && <div className="notice">Documento já enviado em área privada.</div>}
+        {documentoFile && <div className="notice">Novo arquivo selecionado. Ao salvar, ele ficará pendente para aprovação.</div>}
       </div>
 
       <button className="btn btn-primary btn-full" disabled={loading}>
