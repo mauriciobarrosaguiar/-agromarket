@@ -4,6 +4,8 @@ import Link from 'next/link';
 import { FormEvent, useState } from 'react';
 import { Mail, ShieldCheck } from 'lucide-react';
 
+type MessageType = 'success' | 'error' | 'info';
+
 function onlyNumbers(value: string) {
   return value.replace(/\D/g, '');
 }
@@ -20,6 +22,7 @@ export default function RecuperarSenhaPage() {
   const [identificador, setIdentificador] = useState('');
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+  const [messageType, setMessageType] = useState<MessageType>('info');
 
   function updateIdentificador(value: string) {
     if (value.includes('@') || /[a-zA-Z]/.test(value)) setIdentificador(value.toLowerCase());
@@ -28,6 +31,8 @@ export default function RecuperarSenhaPage() {
 
   async function submit(e: FormEvent) {
     e.preventDefault();
+    if (loading) return;
+
     setLoading(true);
     setMessage(null);
 
@@ -39,6 +44,7 @@ export default function RecuperarSenhaPage() {
 
     const data = await response.json().catch(() => null);
     setMessage(data?.message || 'Se os dados estiverem cadastrados, enviaremos as instruções por e-mail.');
+    setMessageType(response.ok ? 'success' : 'error');
     setLoading(false);
   }
 
@@ -50,7 +56,7 @@ export default function RecuperarSenhaPage() {
           <h1>Recuperar senha</h1>
           <p className="muted">Informe seu e-mail cadastrado ou CPF. Se encontrarmos sua conta, enviaremos um link seguro para trocar a senha.</p>
 
-          {message && <div className="notice">{message}</div>}
+          {message && <div className={`notice notice-${messageType} action-feedback`} role={messageType === 'error' ? 'alert' : 'status'}>{message}</div>}
 
           <form className="form" onSubmit={submit}>
             <label className="field">
@@ -64,12 +70,12 @@ export default function RecuperarSenhaPage() {
               />
             </label>
 
-            <button className="btn btn-primary btn-full" disabled={loading}>
-              <Mail size={18} /> {loading ? 'Enviando...' : 'Enviar link de recuperação'}
+            <button className="btn btn-primary btn-full" disabled={loading} aria-busy={loading}>
+              <Mail size={18} /> {loading ? 'Enviando link...' : 'Enviar link de recuperação'}
             </button>
           </form>
 
-          <div className="notice">
+          <div className="notice notice-info">
             Por segurança, não informamos se o e-mail ou CPF existe. Confira a caixa de entrada e o spam.
           </div>
 
