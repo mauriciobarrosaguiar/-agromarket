@@ -66,8 +66,6 @@ export default function PatrocinadoCarousel({ itens }: Props) {
     return () => window.clearInterval(timer);
   }, [itens.length]);
 
-  if (!itens.length) return null;
-
   async function registrarClique(item: PatrocinadoHome) {
     await supabase.rpc('incrementar_patrocinado_clique', { patrocinado_uuid: item.id });
   }
@@ -105,45 +103,54 @@ export default function PatrocinadoCarousel({ itens }: Props) {
           </Link>
         </div>
 
-        <div
-          ref={containerRef}
-          onScroll={atualizarIndexPeloScroll}
-          style={{ display: 'flex', overflowX: 'auto', scrollSnapType: 'x mandatory', gap: 12, padding: '2px 2px 10px', scrollbarWidth: 'none', WebkitOverflowScrolling: 'touch' }}
-        >
-          {itens.map((item) => {
-            const href = destinoValido(item);
-            const externo = href.startsWith('http');
-            return (
-              <a
-                key={item.id}
-                href={href}
-                target={externo ? '_blank' : undefined}
-                rel={externo ? 'noreferrer' : undefined}
-                onClick={() => registrarClique(item)}
-                className="card"
-                style={{ minWidth: 'min(88%, 720px)', padding: 0, overflow: 'hidden', scrollSnapAlign: 'center', textDecoration: 'none', borderRadius: 18 }}
-              >
-                <img
-                  src={item.imagem_url}
-                  alt={item.titulo}
-                  style={{ width: '100%', aspectRatio: '16/9', objectFit: 'cover', background: '#e8efe2' }}
-                />
-              </a>
-            );
-          })}
-        </div>
+        {itens.length > 0 ? (
+          <>
+            <div
+              ref={containerRef}
+              onScroll={atualizarIndexPeloScroll}
+              style={{ display: 'flex', overflowX: 'auto', scrollSnapType: 'x mandatory', gap: 12, padding: '2px 2px 10px', scrollbarWidth: 'none', WebkitOverflowScrolling: 'touch' }}
+            >
+              {itens.map((item) => {
+                const href = destinoValido(item);
+                const externo = href.startsWith('http');
+                return (
+                  <a
+                    key={item.id}
+                    href={href}
+                    target={externo ? '_blank' : undefined}
+                    rel={externo ? 'noreferrer' : undefined}
+                    onClick={() => registrarClique(item)}
+                    className="card"
+                    style={{ minWidth: 'min(88%, 720px)', padding: 0, overflow: 'hidden', scrollSnapAlign: 'center', textDecoration: 'none', borderRadius: 18 }}
+                  >
+                    <img
+                      src={item.imagem_url}
+                      alt={item.titulo}
+                      style={{ width: '100%', aspectRatio: '16/9', objectFit: 'cover', background: '#e8efe2' }}
+                    />
+                  </a>
+                );
+              })}
+            </div>
 
-        {itens.length > 1 && (
-          <div style={{ display: 'flex', justifyContent: 'center', gap: 7, marginTop: 4 }}>
-            {itens.map((item, i) => (
-              <button
-                key={item.id}
-                type="button"
-                onClick={() => setIndex(i)}
-                aria-label={`Ir para patrocinado ${i + 1}`}
-                style={{ width: i === index ? 20 : 9, height: 9, borderRadius: 999, border: 0, background: i === index ? '#166534' : '#dce4d5', transition: '.18s ease' }}
-              />
-            ))}
+            {itens.length > 1 && (
+              <div style={{ display: 'flex', justifyContent: 'center', gap: 7, marginTop: 4 }}>
+                {itens.map((item, i) => (
+                  <button
+                    key={item.id}
+                    type="button"
+                    onClick={() => setIndex(i)}
+                    aria-label={`Ir para patrocinado ${i + 1}`}
+                    style={{ width: i === index ? 20 : 9, height: 9, borderRadius: 999, border: 0, background: i === index ? '#166534' : '#dce4d5', transition: '.18s ease' }}
+                  />
+                ))}
+              </div>
+            )}
+          </>
+        ) : (
+          <div className="card" style={{ background: '#f8faf4', marginBottom: 10 }}>
+            <strong>Espaço patrocinado disponível</strong>
+            <p className="muted" style={{ marginBottom: 0 }}>Contrate um banner para aparecer no topo da página inicial.</p>
           </div>
         )}
 
