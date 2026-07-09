@@ -3,12 +3,8 @@
 import Link from 'next/link';
 import { FormEvent, useMemo, useState } from 'react';
 import { supabase } from '@/lib/supabase';
+import { getAuthRedirectUrl } from '@/lib/site-url';
 import { CIDADES_POR_ESTADO, ESTADOS } from '@/lib/constants';
-
-function getRedirectUrl() {
-  const base = process.env.NEXT_PUBLIC_SITE_URL || (typeof window !== 'undefined' ? window.location.origin : '');
-  return `${base.replace(/\/$/, '')}/login`;
-}
 
 function onlyNumbers(value: string) {
   return value.replace(/\D/g, '');
@@ -73,7 +69,7 @@ export default function CadastroPage() {
       email,
       password: senha,
       options: {
-        emailRedirectTo: getRedirectUrl()
+        emailRedirectTo: getAuthRedirectUrl('/login')
       }
     });
 
