@@ -39,10 +39,6 @@ function dataVencimento(dias = 2) {
   return data.toISOString().slice(0, 10);
 }
 
-function siteUrl() {
-  return process.env.NEXT_PUBLIC_SITE_URL || 'https://agromarket-two.vercel.app';
-}
-
 function statusCode(error: unknown) {
   const msg = error instanceof Error ? error.message : String(error || '');
   if (msg.includes('ASAAS_ACCESS_TOKEN')) return 500;
@@ -81,13 +77,8 @@ export async function POST(request: Request) {
     const supabaseAnon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
     const authorization = request.headers.get('authorization') || '';
 
-    if (!supabaseUrl || !supabaseAnon) {
-      throw new Error('Supabase não configurado na Vercel.');
-    }
-
-    if (!authorization) {
-      throw new Error('Sessão expirada. Entre novamente para gerar o Pix.');
-    }
+    if (!supabaseUrl || !supabaseAnon) throw new Error('Supabase não configurado na Vercel.');
+    if (!authorization) throw new Error('Sessão expirada. Entre novamente para gerar o Pix.');
 
     const body = await request.json();
     const pagamentoId = String(body?.pagamento_id || '');
@@ -143,11 +134,7 @@ export async function POST(request: Request) {
         value: valor,
         dueDate: vencimento,
         description: 'Mensalidade da vitrine AgroMarket',
-        externalReference: pagamentoAtual.id,
-        callback: {
-          successUrl: `${siteUrl()}/painel/vitrine`,
-          autoRedirect: false
-        }
+        externalReference: pagamentoAtual.id
       })
     });
 
