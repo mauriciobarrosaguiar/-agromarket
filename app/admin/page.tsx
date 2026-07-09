@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { AlertTriangle, BadgeDollarSign, BellRing, CheckCircle2, DatabaseBackup, LayoutDashboard, Megaphone, MessageCircle, ShieldCheck, Store, Tags, Users } from 'lucide-react';
+import { AlertTriangle, BadgeDollarSign, BellRing, CheckCircle2, DatabaseBackup, FileText, LayoutDashboard, Megaphone, MessageCircle, ShieldCheck, Store, Tags, Users } from 'lucide-react';
 import AuthGuard from '@/components/AuthGuard';
 import StatCard from '@/components/StatCard';
 import { supabase } from '@/lib/supabase';
@@ -45,9 +45,10 @@ function AdminContent() {
   const patrocinadosPagamento = patrocinados.filter((p) => p.status === 'pendente_pagamento').length;
   const patrocinadosAprovar = patrocinados.filter((p) => p.status === 'pendente').length;
   const patrocinadosPendentes = patrocinadosPagamento + patrocinadosAprovar;
+  const documentosPendentes = usuarios.filter((u) => u.documento_status === 'pendente').length;
   const denunciasAbertas = denuncias.filter((d) => d.status === 'aberta').length;
   const bannersAtivos = patrocinados.filter((p) => p.ativo && p.status === 'aprovado').length;
-  const atencao = pendentes + destaquesPendentes + patrocinadosPendentes + denunciasAbertas;
+  const atencao = pendentes + destaquesPendentes + patrocinadosPendentes + documentosPendentes + denunciasAbertas;
 
   const grupos = [
     {
@@ -56,6 +57,7 @@ function AdminContent() {
       itens: [
         { href: '/admin/pendentes', titulo: 'Aprovar anúncios', texto: `${pendentes} anúncio(s) aguardando análise`, icon: CheckCircle2, destaque: pendentes > 0 },
         { href: '/admin/destaques', titulo: 'Aprovar destaques', texto: `${destaquesPendentes} solicitação(ões) pendente(s)`, icon: BellRing, destaque: destaquesPendentes > 0 },
+        { href: '/admin/documentos', titulo: 'Aprovar documentos', texto: `${documentosPendentes} documento(s) aguardando conferência`, icon: FileText, destaque: documentosPendentes > 0 },
         { href: '/admin/denuncias', titulo: 'Denúncias', texto: `${denunciasAbertas} denúncia(s) aberta(s)`, icon: AlertTriangle, destaque: denunciasAbertas > 0 },
         { href: '/admin/anuncios', titulo: 'Todos os anúncios', texto: 'Editar status, pausar, reprovar e destacar.', icon: Megaphone, destaque: false }
       ]
@@ -75,6 +77,7 @@ function AdminContent() {
       descricao: 'Usuários, categorias, backup e checklist de produção.',
       itens: [
         { href: '/admin/usuarios', titulo: 'Usuários', texto: `${usuarios.length} usuário(s) cadastrado(s)`, icon: Users, destaque: false },
+        { href: '/admin/documentos', titulo: 'Documentos', texto: 'Aprovar ou recusar documentos do perfil.', icon: FileText, destaque: documentosPendentes > 0 },
         { href: '/admin/categorias', titulo: 'Categorias', texto: 'Editar categorias do marketplace.', icon: Tags, destaque: false },
         { href: '/admin/seguranca', titulo: 'Backup e segurança', texto: 'Checklist, documentos privados e backup.', icon: DatabaseBackup, destaque: false }
       ]
@@ -89,6 +92,7 @@ function AdminContent() {
           <h1 style={{ color: '#fff', marginBottom: 8 }}>Admin AgroMarket</h1>
           <p style={{ color: 'rgba(255,255,255,.84)', marginBottom: 18 }}>Controle operação, monetização, segurança, usuários, vitrines, pagamentos, patrocinados e relatórios em um só lugar.</p>
           <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+            <Link className="btn btn-primary" href="/admin/documentos"><FileText size={18} /> Aprovar documentos</Link>
             <Link className="btn btn-primary" href="/admin/monetizacao"><BadgeDollarSign size={18} /> Planos e pagamentos</Link>
             <Link className="btn btn-secondary" href="/admin/patrocinados"><Megaphone size={18} /> Patrocinados</Link>
             <Link className="btn btn-secondary" href="/admin/whatsapp-cliques"><MessageCircle size={18} /> Relatório WhatsApp</Link>
@@ -102,6 +106,7 @@ function AdminContent() {
           <StatCard label="Pendentes" value={pendentes} href="/admin/pendentes" />
           <StatCard label="Aprovados" value={aprovados} href="/admin/anuncios" />
           <StatCard label="Destaques pendentes" value={destaquesPendentes} href="/admin/destaques" />
+          <StatCard label="Documentos pendentes" value={documentosPendentes} href="/admin/documentos" />
           <StatCard label="Patrocinados aguardando pagamento" value={patrocinadosPagamento} href="/admin/patrocinados" />
           <StatCard label="Patrocinados para aprovar" value={patrocinadosAprovar} href="/admin/patrocinados" />
           <StatCard label="Denúncias abertas" value={denunciasAbertas} href="/admin/denuncias" />
