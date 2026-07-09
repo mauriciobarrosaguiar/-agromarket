@@ -28,7 +28,7 @@ export default function AnuncioCard({ anuncio }: { anuncio: Anuncio }) {
 
         <div className="ad-actions">
           <Link className="btn btn-secondary" href={`/anuncio/${anuncio.slug}`}>Detalhes</Link>
-          <WhatsAppButton phone={anuncio.whatsapp} title={anuncio.titulo} label="WhatsApp" urlPath={`/anuncio/${anuncio.slug}`} />
+          <WhatsAppButton phone={anuncio.whatsapp} title={anuncio.titulo} label="WhatsApp" urlPath={`/anuncio/${anuncio.slug}`} anuncioId={anuncio.id} origem="card" />
         </div>
       </div>
     </article>
