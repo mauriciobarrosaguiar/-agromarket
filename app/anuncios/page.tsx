@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { LocateFixed, Search, SlidersHorizontal, X } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { CIDADES_POR_ESTADO, ESTADOS, TIPOS_ANUNCIO } from '@/lib/constants';
-import type { Anuncio, Categoria } from '@/types';
+import type { Anuncio, Categoria, Subcategoria } from '@/types';
 import AnuncioCard from '@/components/AnuncioCard';
 import EmptyState from '@/components/EmptyState';
 
@@ -52,7 +52,9 @@ export default function AnunciosPage() {
   const router = useRouter();
   const [anuncios, setAnuncios] = useState<AnuncioComDistancia[]>([]);
   const [categorias, setCategorias] = useState<Categoria[]>([]);
+  const [subcategorias, setSubcategorias] = useState<Subcategoria[]>([]);
   const [categoria, setCategoria] = useState('');
+  const [subcategoria, setSubcategoria] = useState('');
   const [estado, setEstado] = useState('');
   const [cidade, setCidade] = useState('');
   const [tipo, setTipo] = useState('');
@@ -68,12 +70,14 @@ export default function AnunciosPage() {
   const [message, setMessage] = useState<string | null>(null);
 
   const cidades = useMemo(() => estado ? (CIDADES_POR_ESTADO[estado] || []) : [], [estado]);
-  const filtrosAtivos = [q, categoria, estado, cidade, tipo, precoMin, precoMax, precoFiltro !== 'todos' ? precoFiltro : '', distancia, ordenacao !== 'perto_de_mim' ? ordenacao : ''].filter(Boolean).length;
+  const subcategoriasDaCategoria = useMemo(() => subcategorias.filter((sub) => sub.categoria_id === categoria), [subcategorias, categoria]);
+  const filtrosAtivos = [q, categoria, subcategoria, estado, cidade, tipo, precoMin, precoMax, precoFiltro !== 'todos' ? precoFiltro : '', distancia, ordenacao !== 'perto_de_mim' ? ordenacao : ''].filter(Boolean).length;
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     setQ(params.get('q') || '');
     setCategoria(params.get('categoria') || '');
+    setSubcategoria(params.get('subcategoria') || '');
     setEstado(params.get('estado') || '');
     setCidade(params.get('cidade') || '');
     setTipo(params.get('tipo') || '');
@@ -93,7 +97,16 @@ export default function AnunciosPage() {
   }, []);
 
   useEffect(() => {
-    supabase.from('categorias').select('*').eq('ativo', true).order('ordem').then(({ data }) => setCategorias((data || []) as Categoria[]));
+    async function loadFiltros() {
+      const [{ data: cats }, { data: subs }] = await Promise.all([
+        supabase.from('categorias').select('*').eq('ativo', true).order('ordem'),
+        supabase.from('subcategorias').select('*').eq('ativo', true).order('ordem')
+      ]);
+      setCategorias((cats || []) as Categoria[]);
+      setSubcategorias((subs || []) as Subcategoria[]);
+    }
+
+    loadFiltros();
   }, []);
 
   useEffect(() => {
@@ -103,7 +116,7 @@ export default function AnunciosPage() {
 
       let query = supabase
         .from('anuncios')
-        .select('*, categorias(*), fotos_anuncios(*)')
+        .select('*, categorias(*), subcategorias(*), fotos_anuncios(*)')
         .eq('status', 'aprovado');
 
       const busca = limparBusca(q);
@@ -112,6 +125,7 @@ export default function AnunciosPage() {
       }
 
       if (categoria) query = query.eq('categoria_id', categoria);
+      if (subcategoria) query = query.eq('subcategoria_id', subcategoria);
       if (estado) query = query.eq('estado', estado);
       if (cidade) query = query.ilike('cidade', `%${cidade}%`);
       if (tipo) query = query.eq('tipo_anuncio', tipo);
@@ -164,13 +178,14 @@ export default function AnunciosPage() {
     }
 
     load();
-  }, [q, categoria, estado, cidade, tipo, precoMin, precoMax, precoFiltro, ordenacao, distancia, coords]);
+  }, [q, categoria, subcategoria, estado, cidade, tipo, precoMin, precoMax, precoFiltro, ordenacao, distancia, coords]);
 
   function aplicarFiltros(e?: FormEvent) {
     e?.preventDefault();
     const params = new URLSearchParams();
     if (q.trim()) params.set('q', q.trim());
     if (categoria) params.set('categoria', categoria);
+    if (subcategoria) params.set('subcategoria', subcategoria);
     if (estado) params.set('estado', estado);
     if (cidade) params.set('cidade', cidade);
     if (tipo) params.set('tipo', tipo);
@@ -185,6 +200,7 @@ export default function AnunciosPage() {
   function limparFiltros() {
     setQ('');
     setCategoria('');
+    setSubcategoria('');
     setEstado('');
     setCidade('');
     setTipo('');
@@ -195,6 +211,11 @@ export default function AnunciosPage() {
     setDistancia('');
     setMessage(null);
     router.push('/anuncios');
+  }
+
+  function mudarCategoria(categoriaId: string) {
+    setCategoria(categoriaId);
+    setSubcategoria('');
   }
 
   function mudarEstado(uf: string) {
@@ -243,7 +264,7 @@ export default function AnunciosPage() {
               className="search-input"
               value={q}
               onChange={(e) => setQ(e.target.value)}
-              placeholder="Buscar milho, soja, leitão, ovos, trator..."
+              placeholder="Buscar milho, leitão, ovos, trator..."
             />
             <button className="btn btn-primary" type="submit"><Search size={18} /> Buscar</button>
           </div>
@@ -262,12 +283,22 @@ export default function AnunciosPage() {
                 <div className="form-row">
                   <label className="field">
                     <span className="label">Categoria</span>
-                    <select className="select" value={categoria} onChange={(e) => setCategoria(e.target.value)}>
+                    <select className="select" value={categoria} onChange={(e) => mudarCategoria(e.target.value)}>
                       <option value="">Todas</option>
                       {categorias.map((cat) => <option key={cat.id} value={cat.id}>{cat.nome}</option>)}
                     </select>
                   </label>
 
+                  <label className="field">
+                    <span className="label">Subcategoria</span>
+                    <select className="select" value={subcategoria} onChange={(e) => setSubcategoria(e.target.value)} disabled={!categoria}>
+                      <option value="">{categoria ? 'Todas' : 'Escolha a categoria primeiro'}</option>
+                      {subcategoriasDaCategoria.map((sub) => <option key={sub.id} value={sub.id}>{sub.nome}</option>)}
+                    </select>
+                  </label>
+                </div>
+
+                <div className="form-row">
                   <label className="field">
                     <span className="label">Tipo</span>
                     <select className="select" value={tipo} onChange={(e) => setTipo(e.target.value)}>
@@ -275,9 +306,7 @@ export default function AnunciosPage() {
                       {TIPOS_ANUNCIO.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
                     </select>
                   </label>
-                </div>
 
-                <div className="form-row">
                   <label className="field">
                     <span className="label">Estado</span>
                     <select className="select" value={estado} onChange={(e) => mudarEstado(e.target.value)}>
@@ -285,15 +314,15 @@ export default function AnunciosPage() {
                       {ESTADOS.map((uf) => <option key={uf} value={uf}>{uf}</option>)}
                     </select>
                   </label>
-
-                  <label className="field">
-                    <span className="label">Cidade</span>
-                    <select className="select" value={cidade} onChange={(e) => setCidade(e.target.value)} disabled={!estado}>
-                      <option value="">{estado ? 'Todas' : 'Escolha o estado primeiro'}</option>
-                      {cidades.map((nomeCidade) => <option key={nomeCidade} value={nomeCidade}>{nomeCidade}</option>)}
-                    </select>
-                  </label>
                 </div>
+
+                <label className="field">
+                  <span className="label">Cidade</span>
+                  <select className="select" value={cidade} onChange={(e) => setCidade(e.target.value)} disabled={!estado}>
+                    <option value="">{estado ? 'Todas' : 'Escolha o estado primeiro'}</option>
+                    {cidades.map((nomeCidade) => <option key={nomeCidade} value={nomeCidade}>{nomeCidade}</option>)}
+                  </select>
+                </label>
 
                 <div className="form-row">
                   <label className="field">
