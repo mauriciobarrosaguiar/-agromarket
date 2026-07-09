@@ -2,11 +2,10 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { BadgeCheck, MapPin, Megaphone, PlusCircle, Search, ShieldCheck, Sparkles, Store, Tag } from 'lucide-react';
+import { BadgeCheck, MapPin, Megaphone, PlusCircle, Search, ShieldCheck, Sparkles, Store } from 'lucide-react';
 import { supabase, hasSupabaseEnv } from '@/lib/supabase';
 import type { Anuncio, Categoria, PatrocinadoHome } from '@/types';
 import SearchBar from '@/components/SearchBar';
-import CategoryPills from '@/components/CategoryPills';
 import AnuncioCard from '@/components/AnuncioCard';
 import EmptyState from '@/components/EmptyState';
 import PatrocinadoCarousel from '@/components/PatrocinadoCarousel';
@@ -62,7 +61,7 @@ export default function HomePage() {
     async function load() {
       const hoje = new Date().toISOString().slice(0, 10);
       const [{ data: cats }, { data: ads }, { data: banners }] = await Promise.all([
-        supabase.from('categorias').select('*').eq('ativo', true).order('ordem').limit(12),
+        supabase.from('categorias').select('*').eq('ativo', true).order('ordem').limit(8),
         supabase
           .from('anuncios')
           .select('*, categorias(*), fotos_anuncios(*)')
@@ -89,10 +88,6 @@ export default function HomePage() {
     load();
   }, [coords]);
 
-  const totalDestaques = anuncios.filter((ad) => ad.destaque).length;
-  const cidades = Array.from(new Set(anuncios.map((ad) => `${ad.cidade}-${ad.estado}`))).length;
-  const novosContatos = anuncios.reduce((acc, ad) => acc + Number(ad.cliques_whatsapp || 0), 0);
-
   return (
     <main className="page">
       <PatrocinadoCarousel itens={patrocinados} />
@@ -100,16 +95,45 @@ export default function HomePage() {
       <section className="hero" style={{ paddingTop: 12, paddingBottom: 8 }}>
         <div className="container">
           {!hasSupabaseEnv && <div className="notice" style={{ marginBottom: 14 }}>Configure o Supabase no arquivo .env.local para carregar dados reais.</div>}
-          <div className="hero-card" style={{ padding: 20, borderRadius: 24 }}>
-            <div style={{ maxWidth: 900 }}>
+          <div
+            className="hero-card"
+            style={{
+              padding: 'clamp(18px, 3vw, 30px)',
+              borderRadius: 24,
+              display: 'grid',
+              gap: 16,
+              alignItems: 'center'
+            }}
+          >
+            <div style={{ maxWidth: 980 }}>
               <span className="badge"><Sparkles size={15} /> Anuncie Grátis</span>
-              <h1 style={{ fontSize: 'clamp(30px, 7vw, 50px)', lineHeight: 1, marginBottom: 10 }}>Compre e venda no agro perto de você.</h1>
-              <p style={{ marginBottom: 14 }}>Produtos rurais, animais, máquinas, serviços e oportunidades em um só lugar, com negociação direta pelo WhatsApp.</p>
-              <SearchBar />
-              <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 14 }}>
+              <h1 style={{ fontSize: 'clamp(32px, 5vw, 58px)', lineHeight: 1, margin: '10px 0' }}>Compre e venda no agro perto de você.</h1>
+              <p style={{ marginBottom: 16, maxWidth: 720 }}>Produtos rurais, animais, máquinas, serviços e oportunidades em um só lugar, com negociação direta pelo WhatsApp.</p>
+
+              <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) auto', gap: 10, alignItems: 'center' }}>
+                <SearchBar />
                 <Link className="btn btn-primary" href="/anuncios"><Search size={18} /> Buscar</Link>
+              </div>
+
+              {categorias.length > 0 && (
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 12 }}>
+                  {categorias.slice(0, 6).map((cat) => (
+                    <Link
+                      key={cat.id}
+                      className="badge"
+                      href={`/anuncios?categoria=${cat.slug}`}
+                      style={{ background: 'rgba(255,255,255,.18)', color: '#fff', borderColor: 'rgba(255,255,255,.25)', textDecoration: 'none' }}
+                    >
+                      {cat.nome}
+                    </Link>
+                  ))}
+                </div>
+              )}
+
+              <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 14 }}>
                 <Link className="btn btn-primary" href="/anunciar"><PlusCircle size={18} /> Quero anunciar</Link>
-                <Link className="btn btn-secondary" href="/anuncios"><MapPin size={18} /> Perto de mim</Link>
+                <Link className="btn btn-secondary" href="/anuncios"><MapPin size={18} /> Ver perto de mim</Link>
+                <Link className="btn btn-secondary" href="/vitrines"><Store size={18} /> Ver lojinhas</Link>
               </div>
             </div>
           </div>
@@ -117,23 +141,6 @@ export default function HomePage() {
       </section>
 
       <section className="section" style={{ marginTop: 14 }}>
-        <div className="container">
-          <div className="section-head section-head-compact">
-            <div>
-              <h2>Panorama rápido</h2>
-              <p>Movimento atual do AgroMarket.</p>
-            </div>
-          </div>
-          <div className="stats-grid">
-            <div className="mini-card"><Tag size={24} /><strong>{anuncios.length}</strong><br /><span className="muted">anúncios ativos</span></div>
-            <div className="mini-card"><MapPin size={24} /><strong>{cidades}</strong><br /><span className="muted">cidades disponíveis</span></div>
-            <div className="mini-card"><Megaphone size={24} /><strong>{totalDestaques}</strong><br /><span className="muted">destaques</span></div>
-            <div className="mini-card"><BadgeCheck size={24} /><strong>{novosContatos}</strong><br /><span className="muted">contatos gerados</span></div>
-          </div>
-        </div>
-      </section>
-
-      <section className="section">
         <div className="container">
           <div className="grid grid-3">
             <div className="card" style={{ background: '#f8faf4' }}>
@@ -143,28 +150,15 @@ export default function HomePage() {
             </div>
             <div className="card" style={{ background: '#f8faf4' }}>
               <Store size={30} />
-              <h2>Vitrine do vendedor</h2>
-              <p className="muted">Cada vendedor pode ter uma página pública com seus produtos e serviços.</p>
+              <h2>Lojinhas do agro</h2>
+              <p className="muted">Vendedores podem ter uma vitrine pública com produtos, avaliações e WhatsApp.</p>
             </div>
             <div className="card" style={{ background: '#f8faf4' }}>
               <BadgeCheck size={30} />
               <h2>Destaque para vender</h2>
-              <p className="muted">Planos de destaque fazem o anúncio aparecer acima na busca e na página inicial.</p>
+              <p className="muted">Anúncios, vitrines e banners patrocinados ajudam a vender mais rápido.</p>
             </div>
           </div>
-        </div>
-      </section>
-
-      <section className="section">
-        <div className="container">
-          <div className="section-head section-head-compact">
-            <div>
-              <h2>Categorias do agro</h2>
-              <p>Toque e filtre rápido.</p>
-            </div>
-            <Link href="/anuncios" className="btn btn-secondary">Ver tudo</Link>
-          </div>
-          {categorias.length ? <CategoryPills categorias={categorias} /> : <EmptyState title="Categorias ainda não carregadas" description="Rode o SQL inicial no Supabase." />}
         </div>
       </section>
 
