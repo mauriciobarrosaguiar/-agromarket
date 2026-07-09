@@ -14,7 +14,7 @@ function EditarContent() {
 
   useEffect(() => {
     async function load() {
-      const { data } = await supabase.from('anuncios').select('*').eq('id', params.id).single();
+      const { data } = await supabase.from('anuncios').select('*, categorias(*), subcategorias(*)').eq('id', params.id).single();
       setAnuncio(data as Anuncio);
       setLoading(false);
     }
