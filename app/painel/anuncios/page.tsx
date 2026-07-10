@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { CheckCircle2, Eye, Pause, Pencil, Play, RefreshCcw, Sparkles, Trash2 } from 'lucide-react';
+import { CheckCircle2, Eye, MessageCircle, Pause, Pencil, Play, RefreshCcw, Sparkles, Trash2 } from 'lucide-react';
 import AuthGuard from '@/components/AuthGuard';
 import { supabase } from '@/lib/supabase';
 import { formatMoney } from '@/lib/whatsapp';
@@ -196,7 +196,23 @@ function MeusAnuncios() {
                   <h2 style={{ margin: '10px 0 4px', fontSize: 20, lineHeight: 1.1 }}>{ad.titulo}</h2>
                   <strong className="price">{formatMoney(ad.preco, ad.preco_a_combinar)}</strong>
                   <p className="muted" style={{ margin: '6px 0' }}>{ad.bairro ? `${ad.bairro} - ` : ''}{ad.cidade} - {ad.estado}</p>
-                  <p className="muted" style={{ margin: 0 }}>{ad.visualizacoes || 0} views · {ad.cliques_whatsapp || 0} WhatsApp</p>
+
+                  <div className="card" style={{ background: '#f8faf4', padding: 10, marginTop: 10, boxShadow: 'none' }}>
+                    <strong style={{ display: 'block', marginBottom: 8 }}>Resultados do anúncio</strong>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                      <div style={{ display: 'flex', gap: 7, alignItems: 'center', fontWeight: 900, color: '#14532d' }}>
+                        <Eye size={17} /> {ad.visualizacoes || 0}
+                        <span className="muted" style={{ fontWeight: 700 }}>views</span>
+                      </div>
+                      <div style={{ display: 'flex', gap: 7, alignItems: 'center', fontWeight: 900, color: '#14532d' }}>
+                        <MessageCircle size={17} /> {ad.cliques_whatsapp || 0}
+                        <span className="muted" style={{ fontWeight: 700 }}>WhatsApp</span>
+                      </div>
+                    </div>
+                    <p className="muted" style={{ margin: '8px 0 0', fontSize: 12, lineHeight: 1.35 }}>
+                      Views contam quando alguém abre o anúncio. WhatsApp conta quando o comprador continua para o contato.
+                    </p>
+                  </div>
                 </div>
               </div>
 
