@@ -19,7 +19,7 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: '#166534',
+  themeColor: '#0b3d25',
   width: 'device-width',
   initialScale: 1,
   maximumScale: 1
@@ -32,22 +32,43 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <Header />
         {children}
         <footer className="footer">
-          <div className="container">
-            <strong>AgroMarket</strong>
-            <p>Divulgação de produtos agro, animais, serviços rurais, máquinas e empregos.</p>
-            <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap', marginTop: 10, fontWeight: 800 }}>
-              <Link href="/termos">Termos de uso</Link>
-              <Link href="/privacidade">Privacidade</Link>
+          <div className="container footer-grid">
+            <div className="footer-brand">
+              <Link href="/" className="logo footer-logo" aria-label="AgroMarket">
+                <span className="logo-mark">Ag</span>
+                <span>AgroMarket</span>
+              </Link>
+              <p>O marketplace do agro perto de você. Negocie direto pelo WhatsApp.</p>
+              <SupportButton />
+            </div>
+
+            <div className="footer-col">
+              <strong>Explorar</strong>
+              <Link href="/">Início</Link>
+              <Link href="/anuncios">Buscar anúncios</Link>
+              <Link href="/vitrines">Lojinhas</Link>
+              <Link href="/patrocinados">Patrocinados</Link>
+            </div>
+
+            <div className="footer-col">
+              <strong>Vender</strong>
+              <Link href="/anunciar">Anunciar grátis</Link>
+              <Link href="/painel/vitrine">Criar lojinha</Link>
+              <Link href="/planos">Planos</Link>
               <Link href="/regras">Regras</Link>
+            </div>
+
+            <div className="footer-col">
+              <strong>Suporte</strong>
               <Link href="/seguranca">Segurança</Link>
               <Link href="/contato">Contato</Link>
-              <Link href="/planos">Planos</Link>
-              <Link href="/anuncios">Anúncios</Link>
+              <Link href="/termos">Termos</Link>
+              <Link href="/privacidade">Privacidade</Link>
             </div>
-            <SupportButton />
-            <div style={{ marginTop: 18, paddingTop: 14, borderTop: '1px solid var(--border)', fontWeight: 800 }}>
-              Feito pela MBA Labs • <a href="https://www.mbalabs.com.br" target="_blank" rel="noreferrer">www.mbalabs.com.br</a>
-            </div>
+          </div>
+          <div className="container footer-bottom">
+            <span>© 2026 AgroMarket. Feito no cerrado.</span>
+            <span>Feito pela MBA Labs • <a href="https://www.mbalabs.com.br" target="_blank" rel="noreferrer">www.mbalabs.com.br</a></span>
           </div>
         </footer>
         <InstallAppButton />
