@@ -110,7 +110,6 @@ export default function PatrocinadoCarousel({ itens }: Props) {
         <div className="section-head sponsored-head">
           <div>
             <h2>Patrocinado</h2>
-            <p>Ofertas e parceiros com destaque no AgroMarket.</p>
           </div>
           <Link href="/patrocinados" className="link-strong">Ver todos →</Link>
         </div>
@@ -130,8 +129,14 @@ export default function PatrocinadoCarousel({ itens }: Props) {
                   const externo = href.startsWith('http');
                   return (
                     <a key={item.id} href={href} target={externo ? '_blank' : undefined} rel={externo ? 'noreferrer' : undefined} onClick={() => registrarClique(item)} className={`sponsored-card ${itens.length === 1 ? 'single' : ''}`}>
-                      <span className="sponsored-badge"><Sparkles size={13} /> Patrocinado</span>
-                      <img src={item.imagem_url} alt={item.titulo} />
+                      <div className="sponsored-image-wrap">
+                        <span className="sponsored-badge"><Sparkles size={13} /> Patrocinado</span>
+                        <img src={item.imagem_url} alt={item.titulo} />
+                      </div>
+                      <div className="sponsored-body">
+                        <strong>{item.titulo}</strong>
+                        {(item.subtitulo || item.cidade || item.estado) && <p>{item.subtitulo || `${item.cidade || ''}${item.estado ? `, ${item.estado}` : ''}`}</p>}
+                      </div>
                     </a>
                   );
                 })}
