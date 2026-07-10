@@ -3,9 +3,9 @@
 import { FormEvent, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { BadgeCheck, MapPin, PlusCircle, Search, ShieldCheck, Sparkles, Store } from 'lucide-react';
+import { BadgeCheck, MapPin, MessageCircle, PlusCircle, Search, ShieldCheck, Sparkles, Store } from 'lucide-react';
 import { supabase, hasSupabaseEnv } from '@/lib/supabase';
-import type { Anuncio, Categoria, PatrocinadoHome } from '@/types';
+import type { Anuncio, Categoria, PatrocinadoHome, Vitrine } from '@/types';
 import AnuncioCard from '@/components/AnuncioCard';
 import EmptyState from '@/components/EmptyState';
 import PatrocinadoCarousel from '@/components/PatrocinadoCarousel';
@@ -30,9 +30,9 @@ type AnuncioComDistancia = Anuncio & {
 };
 
 const HOME_PADRAO: HomeConfig = {
-  badge: 'Anuncie Grátis',
+  badge: 'Anuncie grátis',
   titulo: 'Compre e venda no agro perto de você.',
-  subtitulo: 'Produtos rurais, animais, máquinas, serviços e oportunidades em um só lugar, com negociação direta pelo WhatsApp.',
+  subtitulo: 'Animais, ovos férteis, produtos da chácara, rações, máquinas e serviços — negociação direta pelo WhatsApp, sem intermediários.',
   placeholder_busca: 'Buscar leitão, ovos férteis, ração...',
   botao_anunciar: 'Quero anunciar',
   botao_perto: 'Ver perto de mim',
@@ -60,26 +60,40 @@ function ordenarPorProximidade(lista: AnuncioComDistancia[], coords: Coordenadas
   return ordenada.sort((a, b) => Number(b.destaque) - Number(a.destaque));
 }
 
+function categoriaIcone(cat: Categoria) {
+  const nome = cat.nome.toLowerCase();
+  if (cat.icone) return cat.icone;
+  if (nome.includes('ovo') || nome.includes('reprodução') || nome.includes('reproducao')) return '🥚';
+  if (nome.includes('animal')) return '🐂';
+  if (nome.includes('chácara') || nome.includes('chacara') || nome.includes('produto')) return '🌽';
+  if (nome.includes('ração') || nome.includes('racao') || nome.includes('insumo')) return '🌾';
+  if (nome.includes('máquina') || nome.includes('maquina')) return '🚜';
+  if (nome.includes('serviço') || nome.includes('servico')) return '🛠️';
+  if (nome.includes('emprego')) return '💼';
+  return 'Ag';
+}
+
+function vitrineLiberada(vitrine: Vitrine) {
+  if (!vitrine.vitrine_ativa) return false;
+  if (vitrine.assinatura_status === 'ativa') return true;
+  if (vitrine.assinatura_status === 'gratis_lancamento') {
+    if (!vitrine.gratis_ate && !vitrine.assinatura_vencimento) return true;
+    const limite = vitrine.gratis_ate || vitrine.assinatura_vencimento;
+    return limite ? new Date(limite) >= new Date() : true;
+  }
+  return !vitrine.assinatura_vencimento || new Date(vitrine.assinatura_vencimento) >= new Date();
+}
+
 export default function HomePage() {
   const router = useRouter();
   const [categorias, setCategorias] = useState<Categoria[]>([]);
   const [anuncios, setAnuncios] = useState<AnuncioComDistancia[]>([]);
+  const [vitrines, setVitrines] = useState<Vitrine[]>([]);
   const [patrocinados, setPatrocinados] = useState<PatrocinadoHome[]>([]);
   const [homeConfig, setHomeConfig] = useState<HomeConfig>(HOME_PADRAO);
   const [coords, setCoords] = useState<Coordenadas | null>(null);
   const [loading, setLoading] = useState(true);
   const [busca, setBusca] = useState('');
-  const [isMobile, setIsMobile] = useState(false);
-
-  useEffect(() => {
-    function check() {
-      setIsMobile(window.innerWidth <= 860);
-    }
-
-    check();
-    window.addEventListener('resize', check);
-    return () => window.removeEventListener('resize', check);
-  }, []);
 
   useEffect(() => {
     if (!navigator.geolocation) return;
@@ -94,7 +108,7 @@ export default function HomePage() {
   useEffect(() => {
     async function load() {
       const hoje = new Date().toISOString().slice(0, 10);
-      const [{ data: cats }, { data: ads }, { data: banners }, { data: config }] = await Promise.all([
+      const [{ data: cats }, { data: ads }, { data: banners }, { data: lojas }, { data: config }] = await Promise.all([
         supabase.from('categorias').select('*').eq('ativo', true).order('ordem').limit(8),
         supabase
           .from('anuncios')
@@ -113,11 +127,19 @@ export default function HomePage() {
           .order('ordem')
           .order('created_at', { ascending: false })
           .limit(10),
+        supabase
+          .from('vitrines')
+          .select('*')
+          .eq('vitrine_ativa', true)
+          .order('destaque', { ascending: false })
+          .order('created_at', { ascending: false })
+          .limit(6),
         supabase.from('site_configuracoes').select('valor').eq('chave', 'home').maybeSingle()
       ]);
       setCategorias((cats || []) as Categoria[]);
       setAnuncios(ordenarPorProximidade((ads || []) as AnuncioComDistancia[], coords));
       setPatrocinados((banners || []) as PatrocinadoHome[]);
+      setVitrines(((lojas || []) as Vitrine[]).filter(vitrineLiberada).slice(0, 3));
       if (config?.valor) setHomeConfig({ ...HOME_PADRAO, ...(config.valor as Partial<HomeConfig>) });
       setLoading(false);
     }
@@ -132,100 +154,67 @@ export default function HomePage() {
   }
 
   return (
-    <main className="page">
-      <PatrocinadoCarousel itens={patrocinados} />
-
-      <section className="hero home-hero" style={{ paddingTop: 10, paddingBottom: 8 }}>
+    <main className="page home-page">
+      <section className="hero home-hero-v2">
         <div className="container">
           {!hasSupabaseEnv && <div className="notice" style={{ marginBottom: 14 }}>Configure o Supabase no arquivo .env.local para carregar dados reais.</div>}
-          <div
-            className="hero-card"
-            style={{
-              padding: isMobile ? 16 : 26,
-              borderRadius: isMobile ? 22 : 24,
-              maxWidth: '100%',
-              overflow: 'hidden'
-            }}
-          >
-            <div style={{ minWidth: 0 }}>
-              <span className="badge"><Sparkles size={15} /> {homeConfig.badge}</span>
-              <h1 style={{ fontSize: isMobile ? '34px' : 'clamp(38px, 5vw, 58px)', lineHeight: isMobile ? 1.04 : 1, letterSpacing: '-0.05em', margin: '10px 0' }}>
-                {homeConfig.titulo}
-              </h1>
-              <p style={{ fontSize: isMobile ? 16 : 18, lineHeight: 1.28, margin: '0 0 14px', maxWidth: 720 }}>
-                {homeConfig.subtitulo}
-              </p>
+          <div className="hero-card home-hero-card-v2">
+            <div className="hero-copy">
+              <span className="badge badge-amber"><Sparkles size={15} /> {homeConfig.badge}</span>
+              <h1>{homeConfig.titulo}</h1>
+              <p>{homeConfig.subtitulo}</p>
 
-              <form onSubmit={buscar} style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'minmax(0, 1fr) auto', gap: 10, width: '100%', maxWidth: 820 }}>
-                <input
-                  value={busca}
-                  onChange={(e) => setBusca(e.target.value)}
-                  placeholder={homeConfig.placeholder_busca}
-                  style={{ width: '100%', minWidth: 0, border: 0, borderRadius: 16, padding: '15px 16px', outline: 'none' }}
-                />
-                <button className="btn btn-primary" type="submit" style={{ width: isMobile ? '100%' : 'auto' }}>
-                  <Search size={18} /> Buscar
-                </button>
+              <form onSubmit={buscar} className="home-search">
+                <Search size={20} />
+                <input value={busca} onChange={(e) => setBusca(e.target.value)} placeholder={homeConfig.placeholder_busca} />
+                <button className="btn btn-primary" type="submit">Buscar</button>
               </form>
 
-              {categorias.length > 0 && (
-                <div style={{ display: 'flex', gap: 8, flexWrap: isMobile ? 'nowrap' : 'wrap', overflowX: isMobile ? 'auto' : 'visible', maxWidth: '100%', marginTop: 12, paddingBottom: isMobile ? 4 : 0 }}>
-                  {categorias.slice(0, 5).map((cat) => (
-                    <Link
-                      key={cat.id}
-                      className="badge"
-                      href={`/anuncios?categoria=${cat.id}`}
-                      style={{ flex: '0 0 auto', background: 'rgba(255,255,255,.18)', color: '#fff', border: '1px solid rgba(255,255,255,.25)' }}
-                    >
-                      {cat.nome}
-                    </Link>
-                  ))}
-                </div>
-              )}
-
-              <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, max-content)', gap: 10, marginTop: 14, maxWidth: '100%' }}>
-                <Link className="btn btn-primary" href="/anunciar" style={{ width: isMobile ? '100%' : 'auto' }}><PlusCircle size={18} /> {homeConfig.botao_anunciar}</Link>
-                <Link className="btn btn-secondary" href="/anuncios" style={{ width: isMobile ? '100%' : 'auto' }}><MapPin size={18} /> {homeConfig.botao_perto}</Link>
-                <Link className="btn btn-secondary" href="/vitrines" style={{ width: isMobile ? '100%' : 'auto' }}><Store size={18} /> {homeConfig.botao_vitrines}</Link>
+              <div className="hero-quick-actions">
+                <Link className="btn btn-amber" href="/anunciar"><PlusCircle size={18} /> {homeConfig.botao_anunciar}</Link>
+                <Link className="btn btn-glass" href="/anuncios"><MapPin size={18} /> {homeConfig.botao_perto}</Link>
+                <Link className="btn btn-glass" href="/vitrines"><Store size={18} /> {homeConfig.botao_vitrines}</Link>
               </div>
             </div>
           </div>
         </div>
       </section>
 
-      <section className="section" style={{ marginTop: 14 }}>
-        <div className="container">
-          <div className="grid grid-3">
-            <div className="card" style={{ background: '#f8faf4' }}>
-              <ShieldCheck size={30} />
-              <h2>Mais confiança</h2>
-              <p className="muted">Perfil com selfie, localização real por GPS, anúncios aprovados e botão de denúncia.</p>
+      <PatrocinadoCarousel itens={patrocinados} />
+
+      {categorias.length > 0 && (
+        <section className="section category-showcase">
+          <div className="container">
+            <div className="section-head">
+              <div>
+                <h2>Categorias do agro</h2>
+                <p>Filtre rápido por tipo de produto, criação ou serviço.</p>
+              </div>
+              <Link href="/anuncios" className="link-strong">Ver tudo →</Link>
             </div>
-            <div className="card" style={{ background: '#f8faf4' }}>
-              <Store size={30} />
-              <h2>Lojinhas do agro</h2>
-              <p className="muted">Vendedores podem ter uma vitrine pública com produtos, avaliações e WhatsApp.</p>
-            </div>
-            <div className="card" style={{ background: '#f8faf4' }}>
-              <BadgeCheck size={30} />
-              <h2>Destaque para vender</h2>
-              <p className="muted">Anúncios, vitrines e banners patrocinados ajudam a vender mais rápido.</p>
+            <div className="category-grid-premium">
+              {categorias.slice(0, 6).map((cat) => (
+                <Link key={cat.id} href={`/anuncios?categoria=${cat.id}`} className="category-card-premium">
+                  <span className="category-icon-premium">{categoriaIcone(cat)}</span>
+                  <strong>{cat.nome}</strong>
+                </Link>
+              ))}
             </div>
           </div>
-        </div>
-      </section>
+        </section>
+      )}
 
       <section className="section">
         <div className="container">
           <div className="section-head">
             <div>
-              <h2>Anúncios em destaque e recentes</h2>
-              <p>Produtos, animais, serviços, máquinas e vagas publicados no AgroMarket.</p>
+              <h2>Em destaque perto de você</h2>
+              <p>Anúncios aprovados, com negociação direta pelo WhatsApp.</p>
             </div>
-            <Link href="/anuncios" className="btn btn-secondary">Buscar</Link>
+            <Link href="/anuncios" className="link-strong">Ver todos →</Link>
           </div>
           {loading ? <div className="card">Carregando...</div> : anuncios.length ? (
-            <div className="grid grid-4">
+            <div className="grid grid-4 home-ad-grid">
               {anuncios.slice(0, 8).map((ad) => <AnuncioCard key={ad.id} anuncio={ad} />)}
             </div>
           ) : <EmptyState title="Nenhum anúncio aprovado ainda" description="Crie o primeiro anúncio pelo botão Anunciar." />}
@@ -234,13 +223,70 @@ export default function HomePage() {
 
       <section className="section">
         <div className="container">
-          <div className="card" style={{ background: 'linear-gradient(135deg, #052e16, #166534)', color: '#fff' }}>
-            <h2 style={{ color: '#fff' }}>Tem algo para vender no agro?</h2>
-            <p style={{ color: 'rgba(255,255,255,.84)' }}>Anuncie grátis, compartilhe nos grupos e receba interessados direto no WhatsApp.</p>
-            <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-              <Link className="btn btn-primary" href="/anunciar"><PlusCircle size={18} /> Criar anúncio agora</Link>
-              <Link className="btn btn-secondary" href="/planos">Ver planos</Link>
-              <Link className="btn btn-secondary" href="/regras">Ver regras</Link>
+          <div className="store-cta-card">
+            <div>
+              <span className="badge badge-dark"><Store size={14} /> Lojinhas do agro</span>
+              <h2>Sua chácara com vitrine própria.</h2>
+              <p>Mostre produtos, avaliações e WhatsApp em uma página pública com banner, logo e selo de vendedor verificado.</p>
+              <div className="store-cta-actions">
+                <Link className="btn btn-amber" href="/vitrines">Ver lojinhas</Link>
+                <Link className="btn btn-glass" href="/painel/vitrine">Criar minha lojinha</Link>
+              </div>
+            </div>
+
+            <div className="store-list-preview">
+              {vitrines.length ? vitrines.map((loja) => (
+                <Link href={`/vendedor/${loja.slug}`} key={loja.id} className="store-preview-row">
+                  <span className="store-avatar">{loja.nome_vitrine?.slice(0, 1) || 'A'}</span>
+                  <span>
+                    <strong>{loja.nome_vitrine}</strong>
+                    <small>{loja.cidade || 'AgroMarket'}{loja.estado ? `, ${loja.estado}` : ''} {loja.verificado ? '• verificada' : ''}</small>
+                  </span>
+                  <b>Visitar</b>
+                </Link>
+              )) : (
+                <>
+                  <Link href="/vitrines" className="store-preview-row"><span className="store-avatar">A</span><span><strong>Lojinhas AgroMarket</strong><small>Produtos da chácara • WhatsApp direto</small></span><b>Ver</b></Link>
+                  <Link href="/painel/vitrine" className="store-preview-row"><span className="store-avatar">+</span><span><strong>Crie sua vitrine</strong><small>Banner, logo, produtos e avaliações</small></span><b>Criar</b></Link>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section className="section trust-section">
+        <div className="container">
+          <div className="grid grid-3">
+            <div className="card feature-card">
+              <ShieldCheck size={30} />
+              <h2>Perfil verificado</h2>
+              <p className="muted">Selfie, documento, localização real por GPS e anúncios aprovados pelo administrador.</p>
+            </div>
+            <div className="card feature-card">
+              <MessageCircle size={30} />
+              <h2>WhatsApp direto</h2>
+              <p className="muted">O comprador fala direto com o vendedor, sem taxa e sem intermediário na negociação.</p>
+            </div>
+            <div className="card feature-card">
+              <BadgeCheck size={30} />
+              <h2>Mais destaque</h2>
+              <p className="muted">Banners patrocinados, vitrines e destaques ajudam bons anúncios a venderem mais rápido.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section className="section final-cta-section">
+        <div className="container">
+          <div className="final-cta-card">
+            <div>
+              <h2>Anuncie grátis e venda pelo WhatsApp hoje.</h2>
+              <p>Sem taxa, sem intermediário. Publique fotos, preço e cidade em poucos minutos.</p>
+            </div>
+            <div className="final-cta-actions">
+              <Link className="btn btn-primary" href="/anunciar"><PlusCircle size={18} /> Anunciar grátis</Link>
+              <Link className="btn btn-secondary" href="/anuncios">Ver anúncios</Link>
             </div>
           </div>
         </div>
