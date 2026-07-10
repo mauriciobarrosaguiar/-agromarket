@@ -2,14 +2,23 @@
 
 import { MessageCircle } from 'lucide-react';
 import { useEffect, useState } from 'react';
+import { supabase } from '@/lib/supabase';
 
 function onlyNumbers(value?: string | null) {
   return String(value || '').replace(/\D/g, '');
 }
 
+type SuporteConfig = {
+  whatsapp?: string;
+  mensagem?: string;
+};
+
 export default function SupportButton() {
   const [isMobile, setIsMobile] = useState(false);
-  const phone = onlyNumbers(process.env.NEXT_PUBLIC_WHATSAPP_SUPORTE);
+  const [config, setConfig] = useState<SuporteConfig>({
+    whatsapp: process.env.NEXT_PUBLIC_WHATSAPP_SUPORTE,
+    mensagem: 'Olá, preciso de suporte no AgroMarket.'
+  });
 
   useEffect(() => {
     function check() {
@@ -21,9 +30,20 @@ export default function SupportButton() {
     return () => window.removeEventListener('resize', check);
   }, []);
 
+  useEffect(() => {
+    async function load() {
+      const { data } = await supabase.from('site_configuracoes').select('valor').eq('chave', 'suporte').maybeSingle();
+      const valor = data?.valor as SuporteConfig | undefined;
+      if (valor?.whatsapp) setConfig((prev) => ({ ...prev, ...valor }));
+    }
+
+    load();
+  }, []);
+
+  const phone = onlyNumbers(config.whatsapp);
   if (!phone) return null;
 
-  const texto = encodeURIComponent('Olá, preciso de suporte no AgroMarket.');
+  const texto = encodeURIComponent(config.mensagem || 'Olá, preciso de suporte no AgroMarket.');
 
   return (
     <a
