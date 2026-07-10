@@ -129,7 +129,7 @@ export default function PatrocinadoCarousel({ itens }: Props) {
                   const href = destinoValido(item);
                   const externo = href.startsWith('http');
                   return (
-                    <a key={item.id} href={href} target={externo ? '_blank' : undefined} rel={externo ? 'noreferrer' : undefined} onClick={() => registrarClique(item)} className="sponsored-card">
+                    <a key={item.id} href={href} target={externo ? '_blank' : undefined} rel={externo ? 'noreferrer' : undefined} onClick={() => registrarClique(item)} className={`sponsored-card ${itens.length === 1 ? 'single' : ''}`}>
                       <span className="sponsored-badge"><Sparkles size={13} /> Patrocinado</span>
                       <img src={item.imagem_url} alt={item.titulo} />
                     </a>
