@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { BellRing, Volume2, X } from 'lucide-react';
+import { BellRing, X } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 
@@ -186,13 +186,6 @@ export default function AdminAlertWatcher() {
     setTimeout(() => setToast(null), 7000);
   }
 
-  async function testarAlerta() {
-    tocarAlerta();
-    notificarSistema('Teste de alerta do AgroMarket.');
-    setToast('Teste enviado: som/vibração executados.');
-    setTimeout(() => setToast(null), 7000);
-  }
-
   if (!isAdmin || loading) return null;
 
   const total = totalPendencias(counts);
@@ -207,16 +200,16 @@ export default function AdminAlertWatcher() {
           type="button"
           className="btn btn-primary"
           onClick={ativarAlertas}
-          style={{ position: 'fixed', right: 14, bottom: 92, zIndex: 850, boxShadow: '0 18px 45px rgba(22,101,52,.28)' }}
+          style={{ position: 'fixed', right: 12, top: 82, zIndex: 850, boxShadow: '0 12px 30px rgba(22,101,52,.18)', padding: '9px 12px' }}
         >
-          <BellRing size={18} /> Ativar alertas admin
+          <BellRing size={16} /> Ativar alertas
         </button>
       )}
 
       {enabled && total > 0 && (
         <div
           className="card"
-          style={{ position: 'fixed', right: 12, bottom: 92, zIndex: 840, padding: 12, maxWidth: 320, boxShadow: '0 18px 45px rgba(0,0,0,.16)' }}
+          style={{ position: 'fixed', right: 12, top: 82, zIndex: 840, padding: 12, maxWidth: 320, boxShadow: '0 18px 45px rgba(0,0,0,.16)' }}
         >
           <strong style={{ display: 'flex', gap: 8, alignItems: 'center' }}><BellRing size={18} /> {total} pendência(s)</strong>
           <p className="muted" style={{ margin: '4px 0 10px' }}>{resumoPendencias(counts)}</p>
@@ -230,21 +223,10 @@ export default function AdminAlertWatcher() {
         </div>
       )}
 
-      {enabled && total === 0 && (
-        <button
-          type="button"
-          className="btn btn-secondary"
-          onClick={testarAlerta}
-          style={{ position: 'fixed', right: 14, bottom: 92, zIndex: 830, boxShadow: '0 14px 34px rgba(0,0,0,.12)' }}
-        >
-          <Volume2 size={18} /> Testar alerta
-        </button>
-      )}
-
       {toast && (
         <div
           className="card"
-          style={{ position: 'fixed', left: 12, right: 12, bottom: 164, zIndex: 900, padding: 14, border: '2px solid #16a34a', boxShadow: '0 20px 55px rgba(0,0,0,.2)' }}
+          style={{ position: 'fixed', left: 12, right: 12, top: 82, zIndex: 900, padding: 14, border: '2px solid #16a34a', boxShadow: '0 20px 55px rgba(0,0,0,.2)' }}
         >
           <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'start' }}>
             <div>
