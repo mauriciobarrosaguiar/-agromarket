@@ -14,21 +14,10 @@ type SuporteConfig = {
 };
 
 export default function SupportButton() {
-  const [isMobile, setIsMobile] = useState(false);
   const [config, setConfig] = useState<SuporteConfig>({
     whatsapp: process.env.NEXT_PUBLIC_WHATSAPP_SUPORTE,
     mensagem: 'Olá, preciso de suporte no AgroMarket.'
   });
-
-  useEffect(() => {
-    function check() {
-      setIsMobile(window.innerWidth <= 860);
-    }
-
-    check();
-    window.addEventListener('resize', check);
-    return () => window.removeEventListener('resize', check);
-  }, []);
 
   useEffect(() => {
     async function load() {
@@ -53,17 +42,14 @@ export default function SupportButton() {
       rel="noreferrer"
       aria-label="Falar com suporte do AgroMarket"
       style={{
-        position: 'fixed',
-        left: isMobile ? 12 : 'auto',
-        right: isMobile ? 'auto' : 18,
-        bottom: isMobile ? 82 : 18,
-        zIndex: 820,
-        borderRadius: 999,
-        boxShadow: '0 16px 38px rgba(22,101,52,.24)',
-        padding: isMobile ? '11px 13px' : '12px 16px'
+        marginTop: 14,
+        borderRadius: 14,
+        padding: '11px 14px',
+        width: 'fit-content',
+        maxWidth: '100%'
       }}
     >
-      <MessageCircle size={18} /> {isMobile ? 'Suporte' : 'Suporte AgroMarket'}
+      <MessageCircle size={18} /> Suporte AgroMarket
     </a>
   );
 }
