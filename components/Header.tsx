@@ -32,15 +32,15 @@ export default function Header() {
           <span>AgroMarket</span>
         </Link>
 
-        <nav className="nav">
-          <Link href="/"><Home size={17} /> Início</Link>
-          <Link href="/anuncios"><Search size={17} /> Buscar</Link>
-          <Link href="/vitrines"><Store size={17} /> Vitrine</Link>
-          <Link href="/painel/perfil"><UserRound size={17} /> Perfil</Link>
+        <nav className="nav nav-pill">
+          <Link href="/"><Home size={16} /> Início</Link>
+          <Link href="/anuncios"><Search size={16} /> Buscar</Link>
+          <Link href="/vitrines"><Store size={16} /> Lojinhas</Link>
+          <Link href="/painel/perfil"><UserRound size={16} /> Perfil</Link>
         </nav>
 
         <div className="actions">
-          <Link className="btn btn-primary" href="/anunciar"><Plus size={18} /> Anunciar</Link>
+          <Link className="btn btn-amber header-cta" href="/anunciar"><Plus size={18} /> Anunciar grátis</Link>
           {email ? (
             <button className="btn btn-secondary" onClick={sair} disabled={saindo} aria-busy={saindo}>
               <LogOut size={18} /> {saindo ? 'Saindo...' : 'Sair'}
