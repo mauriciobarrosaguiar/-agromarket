@@ -52,10 +52,7 @@ export default function PatrocinadoCarousel({ itens }: Props) {
     if (!el || !child) return;
 
     programmaticScrollRef.current = true;
-    el.scrollTo({
-      left: child.offsetLeft - el.offsetLeft,
-      behavior
-    });
+    el.scrollTo({ left: child.offsetLeft - el.offsetLeft, behavior });
 
     window.setTimeout(() => {
       programmaticScrollRef.current = false;
@@ -118,7 +115,7 @@ export default function PatrocinadoCarousel({ itens }: Props) {
     }, 160);
   }
 
-  const alturaBanner = isMobile ? 168 : 300;
+  const alturaBanner = isMobile ? 168 : 280;
   const raioBanner = isMobile ? 16 : 18;
 
   return (
@@ -156,12 +153,12 @@ export default function PatrocinadoCarousel({ itens }: Props) {
                       rel={externo ? 'noreferrer' : undefined}
                       onClick={() => registrarClique(item)}
                       className="card"
-                      style={{ flex: '0 0 100%', width: '100%', height: alturaBanner, padding: 0, overflow: 'hidden', scrollSnapAlign: 'start', textDecoration: 'none', borderRadius: raioBanner }}
+                      style={{ flex: '0 0 100%', width: '100%', height: alturaBanner, padding: 0, overflow: 'hidden', scrollSnapAlign: 'start', textDecoration: 'none', borderRadius: raioBanner, background: '#fff' }}
                     >
                       <img
                         src={item.imagem_url}
                         alt={item.titulo}
-                        style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'center', background: '#e8efe2', display: 'block' }}
+                        style={{ width: '100%', height: '100%', objectFit: 'contain', objectPosition: 'center', background: '#fff', display: 'block' }}
                       />
                     </a>
                   );
