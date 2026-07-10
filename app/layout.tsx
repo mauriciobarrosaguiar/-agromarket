@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from 'next';
 import Link from 'next/link';
 import './globals.css';
+import './lovable-layout.css';
 import Header from '@/components/Header';
 import MobileBottomNav from '@/components/MobileBottomNav';
 import InstallAppButton from '@/components/InstallAppButton';
