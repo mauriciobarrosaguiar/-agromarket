@@ -6,15 +6,12 @@ Use estes modelos em Supabase > Authentication > Email Templates.
 
 Em Authentication > URL Configuration:
 
-- Site URL: `https://agromarket-two.vercel.app`
+- Site URL: `https://meuagromarket.com.br`
 - Redirect URLs:
+  - `https://meuagromarket.com.br/**`
+  - `https://www.meuagromarket.com.br/**`
   - `https://agromarket-two.vercel.app/**`
-  - `https://agromarket.mbalabs.com.br/**` quando o subdomínio estiver ativo
   - `http://localhost:3000/**` somente para desenvolvimento
-
-Quando o domínio oficial entrar, trocar o Site URL para:
-
-`https://agromarket.mbalabs.com.br`
 
 ## Confirmation signup
 
@@ -78,9 +75,11 @@ HTML:
 
 ## Melhor credibilidade do remetente
 
-Para tirar o remetente genérico do Supabase, configure em Authentication > SMTP Settings um provedor SMTP usando um e-mail do domínio, por exemplo:
+Para tirar o remetente genérico do Supabase, configure em Authentication > SMTP Settings um provedor SMTP usando o e-mail de suporte:
 
-- Remetente: `suporte@mbalabs.com.br`
+- Remetente: `mauricio.agromarket@gmail.com`
 - Nome do remetente: `AgroMarket`
 
-Também é necessário configurar SPF/DKIM/DMARC no DNS do domínio conforme o provedor de e-mail escolhido.
+Quando houver e-mail profissional do domínio, troque para algo como:
+
+- `suporte@meuagromarket.com.br`
