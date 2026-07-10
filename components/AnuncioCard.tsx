@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { MapPin } from 'lucide-react';
+import { Heart, MapPin, Sparkles } from 'lucide-react';
 import type { Anuncio } from '@/types';
 import { formatMoney } from '@/lib/whatsapp';
 import WhatsAppButton from '@/components/WhatsAppButton';
@@ -10,15 +10,16 @@ export default function AnuncioCard({ anuncio }: { anuncio: Anuncio }) {
   const subcategoria = anuncio.subcategorias?.nome;
 
   return (
-    <article className="card ad-card">
+    <article className="card ad-card ad-card-premium">
       <Link href={`/anuncio/${anuncio.slug}`} className="ad-image">
         {foto ? <img src={foto} alt={anuncio.titulo} /> : <span>Sem foto</span>}
+        <span className="ad-badge-top"><Sparkles size={12} /> {anuncio.destaque ? 'Destaque' : 'Novo'}</span>
+        <span className="ad-fav" aria-hidden="true"><Heart size={17} /></span>
       </Link>
 
       <div className="ad-body">
         <div className="ad-topline">
           <span className="ad-category">{subcategoria ? `${categoria} • ${subcategoria}` : categoria}</span>
-          {anuncio.destaque && <span className="badge">Destaque</span>}
         </div>
 
         <p className="ad-title"><Link href={`/anuncio/${anuncio.slug}`}>{anuncio.titulo}</Link></p>
