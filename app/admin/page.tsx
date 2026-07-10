@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { AlertTriangle, BadgeDollarSign, BellRing, CheckCircle2, DatabaseBackup, FileText, LayoutDashboard, Megaphone, MessageCircle, ShieldCheck, Store, Tags, Users } from 'lucide-react';
+import { AlertTriangle, BadgeDollarSign, BellRing, CheckCircle2, DatabaseBackup, FileText, LayoutDashboard, Megaphone, MessageCircle, Settings, ShieldCheck, Store, Tags, Users } from 'lucide-react';
 import AuthGuard from '@/components/AuthGuard';
 import StatCard from '@/components/StatCard';
 import { supabase } from '@/lib/supabase';
@@ -73,9 +73,10 @@ function AdminContent() {
       ]
     },
     {
-      titulo: 'Base e segurança',
-      descricao: 'Usuários, categorias, backup e checklist de produção.',
+      titulo: 'Base, conteúdo e segurança',
+      descricao: 'Usuários, categorias, textos públicos, backup e checklist de produção.',
       itens: [
+        { href: '/admin/configuracoes', titulo: 'Configurações do sistema', texto: 'Editar textos da home e WhatsApp de suporte.', icon: Settings, destaque: false },
         { href: '/admin/usuarios', titulo: 'Usuários', texto: `${usuarios.length} usuário(s) cadastrado(s)`, icon: Users, destaque: false },
         { href: '/admin/documentos', titulo: 'Documentos', texto: 'Aprovar ou recusar documentos do perfil.', icon: FileText, destaque: documentosPendentes > 0 },
         { href: '/admin/categorias', titulo: 'Categorias', texto: 'Editar categorias do marketplace.', icon: Tags, destaque: false },
@@ -92,6 +93,7 @@ function AdminContent() {
           <h1 style={{ color: '#fff', marginBottom: 8 }}>Admin AgroMarket</h1>
           <p style={{ color: 'rgba(255,255,255,.84)', marginBottom: 18 }}>Controle operação, monetização, segurança, usuários, vitrines, pagamentos, patrocinados e relatórios em um só lugar.</p>
           <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+            <Link className="btn btn-primary" href="/admin/configuracoes"><Settings size={18} /> Configurações</Link>
             <Link className="btn btn-primary" href="/admin/documentos"><FileText size={18} /> Aprovar documentos</Link>
             <Link className="btn btn-primary" href="/admin/monetizacao"><BadgeDollarSign size={18} /> Planos e pagamentos</Link>
             <Link className="btn btn-secondary" href="/admin/patrocinados"><Megaphone size={18} /> Patrocinados</Link>
