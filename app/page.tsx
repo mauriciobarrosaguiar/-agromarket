@@ -15,8 +15,28 @@ type Coordenadas = {
   lng: number;
 };
 
+type HomeConfig = {
+  badge: string;
+  titulo: string;
+  subtitulo: string;
+  placeholder_busca: string;
+  botao_anunciar: string;
+  botao_perto: string;
+  botao_vitrines: string;
+};
+
 type AnuncioComDistancia = Anuncio & {
   distancia_calculada?: number | null;
+};
+
+const HOME_PADRAO: HomeConfig = {
+  badge: 'Anuncie Grátis',
+  titulo: 'Compre e venda no agro perto de você.',
+  subtitulo: 'Produtos rurais, animais, máquinas, serviços e oportunidades em um só lugar, com negociação direta pelo WhatsApp.',
+  placeholder_busca: 'Buscar leitão, ovos férteis, ração...',
+  botao_anunciar: 'Quero anunciar',
+  botao_perto: 'Ver perto de mim',
+  botao_vitrines: 'Ver lojinhas'
 };
 
 function distanciaKm(origem: Coordenadas, anuncio: Anuncio) {
@@ -45,6 +65,7 @@ export default function HomePage() {
   const [categorias, setCategorias] = useState<Categoria[]>([]);
   const [anuncios, setAnuncios] = useState<AnuncioComDistancia[]>([]);
   const [patrocinados, setPatrocinados] = useState<PatrocinadoHome[]>([]);
+  const [homeConfig, setHomeConfig] = useState<HomeConfig>(HOME_PADRAO);
   const [coords, setCoords] = useState<Coordenadas | null>(null);
   const [loading, setLoading] = useState(true);
   const [busca, setBusca] = useState('');
@@ -73,7 +94,7 @@ export default function HomePage() {
   useEffect(() => {
     async function load() {
       const hoje = new Date().toISOString().slice(0, 10);
-      const [{ data: cats }, { data: ads }, { data: banners }] = await Promise.all([
+      const [{ data: cats }, { data: ads }, { data: banners }, { data: config }] = await Promise.all([
         supabase.from('categorias').select('*').eq('ativo', true).order('ordem').limit(8),
         supabase
           .from('anuncios')
@@ -91,11 +112,13 @@ export default function HomePage() {
           .or(`fim_em.is.null,fim_em.gte.${hoje}`)
           .order('ordem')
           .order('created_at', { ascending: false })
-          .limit(10)
+          .limit(10),
+        supabase.from('site_configuracoes').select('valor').eq('chave', 'home').maybeSingle()
       ]);
       setCategorias((cats || []) as Categoria[]);
       setAnuncios(ordenarPorProximidade((ads || []) as AnuncioComDistancia[], coords));
       setPatrocinados((banners || []) as PatrocinadoHome[]);
+      if (config?.valor) setHomeConfig({ ...HOME_PADRAO, ...(config.valor as Partial<HomeConfig>) });
       setLoading(false);
     }
     load();
@@ -125,19 +148,19 @@ export default function HomePage() {
             }}
           >
             <div style={{ minWidth: 0 }}>
-              <span className="badge"><Sparkles size={15} /> Anuncie Grátis</span>
+              <span className="badge"><Sparkles size={15} /> {homeConfig.badge}</span>
               <h1 style={{ fontSize: isMobile ? '34px' : 'clamp(38px, 5vw, 58px)', lineHeight: isMobile ? 1.04 : 1, letterSpacing: '-0.05em', margin: '10px 0' }}>
-                Compre e venda no agro perto de você.
+                {homeConfig.titulo}
               </h1>
               <p style={{ fontSize: isMobile ? 16 : 18, lineHeight: 1.28, margin: '0 0 14px', maxWidth: 720 }}>
-                Produtos rurais, animais, máquinas, serviços e oportunidades em um só lugar, com negociação direta pelo WhatsApp.
+                {homeConfig.subtitulo}
               </p>
 
               <form onSubmit={buscar} style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'minmax(0, 1fr) auto', gap: 10, width: '100%', maxWidth: 820 }}>
                 <input
                   value={busca}
                   onChange={(e) => setBusca(e.target.value)}
-                  placeholder="Buscar leitão, ovos férteis, ração..."
+                  placeholder={homeConfig.placeholder_busca}
                   style={{ width: '100%', minWidth: 0, border: 0, borderRadius: 16, padding: '15px 16px', outline: 'none' }}
                 />
                 <button className="btn btn-primary" type="submit" style={{ width: isMobile ? '100%' : 'auto' }}>
@@ -161,9 +184,9 @@ export default function HomePage() {
               )}
 
               <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, max-content)', gap: 10, marginTop: 14, maxWidth: '100%' }}>
-                <Link className="btn btn-primary" href="/anunciar" style={{ width: isMobile ? '100%' : 'auto' }}><PlusCircle size={18} /> Quero anunciar</Link>
-                <Link className="btn btn-secondary" href="/anuncios" style={{ width: isMobile ? '100%' : 'auto' }}><MapPin size={18} /> Ver perto de mim</Link>
-                <Link className="btn btn-secondary" href="/vitrines" style={{ width: isMobile ? '100%' : 'auto' }}><Store size={18} /> Ver lojinhas</Link>
+                <Link className="btn btn-primary" href="/anunciar" style={{ width: isMobile ? '100%' : 'auto' }}><PlusCircle size={18} /> {homeConfig.botao_anunciar}</Link>
+                <Link className="btn btn-secondary" href="/anuncios" style={{ width: isMobile ? '100%' : 'auto' }}><MapPin size={18} /> {homeConfig.botao_perto}</Link>
+                <Link className="btn btn-secondary" href="/vitrines" style={{ width: isMobile ? '100%' : 'auto' }}><Store size={18} /> {homeConfig.botao_vitrines}</Link>
               </div>
             </div>
           </div>
