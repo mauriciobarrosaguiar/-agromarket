@@ -2,11 +2,11 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Sparkles } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import type { PatrocinadoHome } from '@/types';
 
-const SITE_URL = 'https://agromarket-two.vercel.app';
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://meuagromarket.com.br';
 
 type Props = {
   itens: PatrocinadoHome[];
@@ -31,20 +31,9 @@ export default function PatrocinadoCarousel({ itens }: Props) {
   const [index, setIndex] = useState(0);
   const [pausado, setPausado] = useState(false);
   const [vistos, setVistos] = useState<Record<string, boolean>>({});
-  const [isMobile, setIsMobile] = useState(false);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const scrollTimerRef = useRef<number | null>(null);
   const programmaticScrollRef = useRef(false);
-
-  useEffect(() => {
-    function check() {
-      setIsMobile(window.innerWidth <= 860);
-    }
-
-    check();
-    window.addEventListener('resize', check);
-    return () => window.removeEventListener('resize', check);
-  }, []);
 
   const irPara = useCallback((novoIndex: number, behavior: ScrollBehavior = 'smooth') => {
     const el = containerRef.current;
@@ -83,7 +72,7 @@ export default function PatrocinadoCarousel({ itens }: Props) {
 
     const timer = window.setInterval(() => {
       setIndex((atual) => (atual + 1) % itens.length);
-    }, 9000);
+    }, 11000);
 
     return () => window.clearInterval(timer);
   }, [itens.length, pausado]);
@@ -115,51 +104,34 @@ export default function PatrocinadoCarousel({ itens }: Props) {
     }, 160);
   }
 
-  const alturaBanner = isMobile ? 168 : 280;
-  const raioBanner = isMobile ? 16 : 18;
-
   return (
-    <section className="section" style={{ marginTop: isMobile ? 10 : 14 }}>
+    <section className="section sponsored-section">
       <div className="container">
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, marginBottom: 10 }}>
-          <h2 style={{ margin: 0, fontSize: 22, color: '#14532d' }}>Patrocinado</h2>
-          <Link href="/patrocinados" style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontWeight: 900, color: '#14532d' }}>
-            Ver todos <ChevronRight size={18} />
-          </Link>
+        <div className="section-head sponsored-head">
+          <div>
+            <h2>Patrocinado</h2>
+            <p>Ofertas e parceiros com destaque no AgroMarket.</p>
+          </div>
+          <Link href="/patrocinados" className="link-strong">Ver todos →</Link>
         </div>
 
         {itens.length > 0 ? (
           <>
             <div
+              className="sponsored-carousel-wrap"
               onMouseEnter={() => setPausado(true)}
               onMouseLeave={() => setPausado(false)}
               onFocus={() => setPausado(true)}
               onBlur={() => setPausado(false)}
-              style={{ position: 'relative' }}
             >
-              <div
-                ref={containerRef}
-                onScroll={atualizarIndexPeloScroll}
-                style={{ display: 'flex', overflowX: 'auto', scrollSnapType: 'x mandatory', gap: 14, padding: '2px 0 10px', scrollbarWidth: 'none', WebkitOverflowScrolling: 'touch' }}
-              >
+              <div ref={containerRef} onScroll={atualizarIndexPeloScroll} className="sponsored-carousel">
                 {itens.map((item) => {
                   const href = destinoValido(item);
                   const externo = href.startsWith('http');
                   return (
-                    <a
-                      key={item.id}
-                      href={href}
-                      target={externo ? '_blank' : undefined}
-                      rel={externo ? 'noreferrer' : undefined}
-                      onClick={() => registrarClique(item)}
-                      className="card"
-                      style={{ flex: '0 0 100%', width: '100%', height: alturaBanner, padding: 0, overflow: 'hidden', scrollSnapAlign: 'start', textDecoration: 'none', borderRadius: raioBanner, background: '#fff' }}
-                    >
-                      <img
-                        src={item.imagem_url}
-                        alt={item.titulo}
-                        style={{ width: '100%', height: '100%', objectFit: 'contain', objectPosition: 'center', background: '#fff', display: 'block' }}
-                      />
+                    <a key={item.id} href={href} target={externo ? '_blank' : undefined} rel={externo ? 'noreferrer' : undefined} onClick={() => registrarClique(item)} className="sponsored-card">
+                      <span className="sponsored-badge"><Sparkles size={13} /> Patrocinado</span>
+                      <img src={item.imagem_url} alt={item.titulo} />
                     </a>
                   );
                 })}
@@ -167,22 +139,10 @@ export default function PatrocinadoCarousel({ itens }: Props) {
 
               {itens.length > 1 && (
                 <>
-                  <button
-                    type="button"
-                    onClick={() => mudarBanner(index - 1)}
-                    aria-label="Patrocinado anterior"
-                    className="btn btn-secondary"
-                    style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', borderRadius: 999, padding: 10, boxShadow: '0 12px 30px rgba(0,0,0,.16)' }}
-                  >
+                  <button type="button" onClick={() => mudarBanner(index - 1)} aria-label="Patrocinado anterior" className="sponsored-arrow sponsored-arrow-left">
                     <ChevronLeft size={20} />
                   </button>
-                  <button
-                    type="button"
-                    onClick={() => mudarBanner(index + 1)}
-                    aria-label="Próximo patrocinado"
-                    className="btn btn-secondary"
-                    style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', borderRadius: 999, padding: 10, boxShadow: '0 12px 30px rgba(0,0,0,.16)' }}
-                  >
+                  <button type="button" onClick={() => mudarBanner(index + 1)} aria-label="Próximo patrocinado" className="sponsored-arrow sponsored-arrow-right">
                     <ChevronRight size={20} />
                   </button>
                 </>
@@ -190,21 +150,15 @@ export default function PatrocinadoCarousel({ itens }: Props) {
             </div>
 
             {itens.length > 1 && (
-              <div style={{ display: 'flex', justifyContent: 'center', gap: 7, marginTop: 4 }}>
+              <div className="sponsored-dots">
                 {itens.map((item, i) => (
-                  <button
-                    key={item.id}
-                    type="button"
-                    onClick={() => mudarBanner(i)}
-                    aria-label={`Ir para patrocinado ${i + 1}`}
-                    style={{ width: i === index ? 20 : 9, height: 9, borderRadius: 999, border: 0, background: i === index ? '#166534' : '#dce4d5', transition: '.18s ease' }}
-                  />
+                  <button key={item.id} type="button" onClick={() => mudarBanner(i)} aria-label={`Ir para patrocinado ${i + 1}`} className={i === index ? 'active' : ''} />
                 ))}
               </div>
             )}
           </>
         ) : (
-          <div className="card" style={{ background: '#f8faf4', marginBottom: 10 }}>
+          <div className="card sponsored-empty">
             <strong>Espaço patrocinado disponível</strong>
             <p className="muted" style={{ marginBottom: 0 }}>Contrate um banner para aparecer no topo da página inicial.</p>
           </div>
