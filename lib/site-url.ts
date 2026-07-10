@@ -1,4 +1,4 @@
-const FALLBACK_SITE_URL = 'https://agromarket-two.vercel.app';
+const FALLBACK_SITE_URL = 'https://meuagromarket.com.br';
 
 function normalizarUrl(url?: string | null) {
   const valor = String(url || '').trim().replace(/\/$/, '');
