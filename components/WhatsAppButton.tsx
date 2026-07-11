@@ -20,7 +20,7 @@ function montarUrl(path?: string) {
   if (!path) return '';
   if (path.startsWith('http')) return path;
   if (typeof window !== 'undefined') return `${window.location.origin}${path}`;
-  return `https://agromarket-two.vercel.app${path}`;
+  return `https://meuagromarket.com.br${path}`;
 }
 
 export default function WhatsAppButton({ phone, title, full = false, label = 'Chamar no WhatsApp', urlPath, anuncioId, origem = 'anuncio' }: WhatsAppButtonProps) {
@@ -36,6 +36,15 @@ export default function WhatsAppButton({ phone, title, full = false, label = 'Ch
     });
     return () => sub.subscription.unsubscribe();
   }, []);
+
+  useEffect(() => {
+    if (!open) return;
+    const originalOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = originalOverflow;
+    };
+  }, [open]);
 
   async function continuarWhatsApp() {
     if (anuncioId) {
@@ -59,19 +68,42 @@ export default function WhatsAppButton({ phone, title, full = false, label = 'Ch
           role="dialog"
           aria-modal="true"
           onClick={() => setOpen(false)}
-          style={{ position: 'fixed', inset: 0, zIndex: 997, background: 'rgba(0,0,0,.72)', display: 'grid', placeItems: 'center', padding: 14 }}
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 9999,
+            background: 'rgba(0,0,0,.72)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '16px',
+            overflowY: 'auto'
+          }}
         >
-          <div className="card form" onClick={(e) => e.stopPropagation()} style={{ width: 'min(520px, 100%)' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'center' }}>
+          <div
+            className="card form"
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              width: 'min(520px, 100%)',
+              maxHeight: 'calc(100dvh - 32px)',
+              overflowY: 'auto',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 14,
+              padding: 18,
+              margin: 'auto'
+            }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'flex-start', flexShrink: 0 }}>
               <div>
-                <h2 style={{ margin: 0, display: 'flex', gap: 8, alignItems: 'center' }}>
+                <h2 style={{ margin: 0, display: 'flex', gap: 8, alignItems: 'center', fontSize: 'clamp(22px, 4vw, 28px)', lineHeight: 1.05 }}>
                   {isLogged ? <ShieldCheck size={24} /> : <Lock size={24} />} {isLogged ? 'Negocie com segurança' : 'Entre para chamar o vendedor'}
                 </h2>
                 <p className="muted" style={{ margin: '6px 0 0' }}>
                   {isLogged ? 'Antes de chamar o vendedor, confira estes cuidados.' : 'Para proteger vendedores e compradores, o WhatsApp só aparece para usuários logados.'}
                 </p>
               </div>
-              <button className="btn btn-secondary" type="button" onClick={() => setOpen(false)}><X size={18} /></button>
+              <button className="btn btn-secondary" type="button" onClick={() => setOpen(false)} aria-label="Fechar" style={{ width: 42, height: 42, padding: 0, flex: '0 0 auto' }}><X size={18} /></button>
             </div>
 
             {!isLogged ? (
@@ -79,18 +111,18 @@ export default function WhatsAppButton({ phone, title, full = false, label = 'Ch
                 <div className="notice">
                   Faça login ou crie sua conta para acessar o contato do vendedor e continuar a negociação pelo WhatsApp.
                 </div>
-                <div style={{ display: 'grid', gap: 10 }}>
+                <div style={{ display: 'grid', gap: 10, flexShrink: 0 }}>
                   <Link className="btn btn-primary btn-full" href="/login" onClick={() => setOpen(false)}>Entrar para ver WhatsApp</Link>
                   <Link className="btn btn-secondary btn-full" href="/cadastro" onClick={() => setOpen(false)}>Criar conta</Link>
                 </div>
               </>
             ) : (
               <>
-                <div className="notice">
+                <div className="notice" style={{ flexShrink: 0 }}>
                   O AgroMarket apenas divulga anúncios e não participa da negociação, pagamento, entrega ou garantia do produto/serviço.
                 </div>
 
-                <ul style={{ margin: 0, paddingLeft: 20, lineHeight: 1.65 }}>
+                <ul style={{ margin: 0, paddingLeft: 20, lineHeight: 1.55, overflowWrap: 'anywhere' }}>
                   <li>Confira fotos, quantidade, preço e estado do produto.</li>
                   <li>Evite pagar adiantado para pessoas desconhecidas.</li>
                   <li>Prefira combinar retirada em local seguro.</li>
@@ -98,7 +130,18 @@ export default function WhatsAppButton({ phone, title, full = false, label = 'Ch
                   <li>Desconfie de preço muito abaixo do normal.</li>
                 </ul>
 
-                <div style={{ display: 'grid', gap: 10 }}>
+                <div
+                  style={{
+                    display: 'grid',
+                    gap: 10,
+                    position: 'sticky',
+                    bottom: -18,
+                    margin: '0 -18px -18px',
+                    padding: '12px 18px 18px',
+                    background: 'linear-gradient(180deg, rgba(255,253,247,.72), #fffdf7 28%)',
+                    flexShrink: 0
+                  }}
+                >
                   <a className="btn btn-whatsapp btn-full" href={whatsLink} target="_blank" rel="noreferrer" onClick={continuarWhatsApp}>
                     <MessageCircle size={18} /> Continuar para o WhatsApp
                   </a>
