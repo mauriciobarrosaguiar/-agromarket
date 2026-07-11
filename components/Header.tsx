@@ -38,14 +38,18 @@ export default function Header() {
           <Link href="/anuncios"><Search size={16} /> Buscar</Link>
           <Link href="/vitrines"><Store size={16} /> Lojinhas</Link>
           <Link href="/anunciar">Anunciar</Link>
+          {email && <Link href="/painel/perfil"><UserRound size={16} /> Perfil</Link>}
         </nav>
 
         <div className="actions header-actions-desktop">
           <Link className="btn btn-amber header-cta" href="/anunciar"><Plus size={18} /> Anunciar grátis</Link>
           {email ? (
-            <button className="btn btn-secondary" onClick={sair} disabled={saindo} aria-busy={saindo}>
-              <LogOut size={18} /> {saindo ? 'Saindo...' : 'Sair'}
-            </button>
+            <>
+              <Link className="btn btn-secondary" href="/painel/perfil"><UserRound size={18} /> Perfil</Link>
+              <button className="btn btn-secondary" onClick={sair} disabled={saindo} aria-busy={saindo}>
+                <LogOut size={18} /> {saindo ? 'Saindo...' : 'Sair'}
+              </button>
+            </>
           ) : (
             <Link className="btn btn-secondary" href="/login"><UserRound size={18} /> Entrar</Link>
           )}
