@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 
-const INSTALL_DISMISSED_KEY = 'agromarket_install_banner_closed';
+const INSTALL_DISMISSED_KEY = 'agromarket_install_banner_closed_v2';
 
 type BeforeInstallPromptEvent = Event & {
   prompt: () => Promise<void>;
@@ -14,9 +14,15 @@ function isMobileViewport() {
   return window.matchMedia('(max-width: 860px)').matches;
 }
 
+function isStandaloneApp() {
+  if (typeof window === 'undefined') return false;
+  return window.matchMedia('(display-mode: standalone)').matches || (navigator as Navigator & { standalone?: boolean }).standalone === true;
+}
+
 export default function InstallAppButton() {
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [visible, setVisible] = useState(false);
+  const [manualHelp, setManualHelp] = useState(false);
 
   useEffect(() => {
     if (
@@ -27,11 +33,15 @@ export default function InstallAppButton() {
       navigator.serviceWorker.register('/sw.js').catch(() => null);
     }
 
+    const jaFechou = localStorage.getItem(INSTALL_DISMISSED_KEY) === 'true';
+    if (isMobileViewport() && !isStandaloneApp() && !jaFechou) {
+      window.setTimeout(() => setVisible(true), 1400);
+    }
+
     const handler = (event: Event) => {
       event.preventDefault();
 
-      const jaFechou = localStorage.getItem(INSTALL_DISMISSED_KEY) === 'true';
-      if (!isMobileViewport() || jaFechou) return;
+      if (!isMobileViewport() || isStandaloneApp()) return;
 
       setDeferredPrompt(event as BeforeInstallPromptEvent);
       setVisible(true);
@@ -48,7 +58,10 @@ export default function InstallAppButton() {
   }
 
   async function instalar() {
-    if (!deferredPrompt) return;
+    if (!deferredPrompt) {
+      setManualHelp(true);
+      return;
+    }
 
     await deferredPrompt.prompt();
     await deferredPrompt.userChoice;
@@ -63,14 +76,19 @@ export default function InstallAppButton() {
   return (
     <div className="install-banner">
       <div>
-        <strong>Instalar AgroMarket</strong>
+        <strong>Baixar app AgroMarket</strong>
         <div style={{ fontSize: 12, opacity: 0.85 }}>
-          Use como app no celular.
+          Use como aplicativo no celular.
         </div>
+        {manualHelp && (
+          <div style={{ fontSize: 12, opacity: 0.9, marginTop: 6, lineHeight: 1.35 }}>
+            No Chrome, toque no menu ⋮ e escolha “Adicionar à tela inicial” ou “Instalar app”.
+          </div>
+        )}
       </div>
 
       <button className="btn btn-primary" onClick={instalar}>
-        Instalar
+        {deferredPrompt ? 'Instalar' : 'Como instalar'}
       </button>
 
       <button className="btn btn-secondary" onClick={fechar}>
