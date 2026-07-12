@@ -1,11 +1,12 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { FormEvent, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { BadgeDollarSign, CalendarClock, Gift, Infinity, Trash2, UserRound } from 'lucide-react';
+import { BadgeDollarSign, CalendarClock, Gift, Infinity, Plus, Trash2, UserRound } from 'lucide-react';
 import AuthGuard from '@/components/AuthGuard';
 import { supabase } from '@/lib/supabase';
-import type { Vitrine, VitrinePagamento } from '@/types';
+import { CIDADES_POR_ESTADO, ESTADOS } from '@/lib/constants';
+import type { Usuario, Vitrine, VitrinePagamento } from '@/types';
 import EmptyState from '@/components/EmptyState';
 
 type VitrineLinha = Vitrine & {
@@ -14,6 +15,18 @@ type VitrineLinha = Vitrine & {
 };
 
 type DatasLiberacao = Record<string, string>;
+
+type NovaVitrineForm = {
+  usuarioId: string;
+  nomeVitrine: string;
+  descricao: string;
+  cidade: string;
+  estado: string;
+  whatsapp: string;
+  liberarGratis: boolean;
+  gratisIlimitada: boolean;
+  gratisAte: string;
+};
 
 function dataBR(value?: string | null) {
   if (!value) return '—';
@@ -51,20 +64,48 @@ function detalhePlano(v: VitrineLinha) {
   return `Vencimento: ${dataBR(v.assinatura_vencimento)}`;
 }
 
+function formInicial(): NovaVitrineForm {
+  return {
+    usuarioId: '',
+    nomeVitrine: '',
+    descricao: '',
+    cidade: '',
+    estado: 'TO',
+    whatsapp: '',
+    liberarGratis: true,
+    gratisIlimitada: false,
+    gratisAte: somarDias(30)
+  };
+}
+
 function AdminVitrinesContent() {
   const [vitrines, setVitrines] = useState<VitrineLinha[]>([]);
+  const [usuarios, setUsuarios] = useState<Usuario[]>([]);
   const [datas, setDatas] = useState<DatasLiberacao>({});
   const [loadingId, setLoadingId] = useState<string | null>(null);
+  const [criando, setCriando] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+  const [novaVitrine, setNovaVitrine] = useState<NovaVitrineForm>(() => formInicial());
+
+  const usuarioSelecionado = usuarios.find((u) => u.id === novaVitrine.usuarioId) || null;
+  const usuariosComVitrine = useMemo(() => new Set(vitrines.map((v) => v.usuario_id)), [vitrines]);
+  const cidadesNovaVitrine = CIDADES_POR_ESTADO[novaVitrine.estado] || [];
 
   async function load() {
-    const { data } = await supabase
-      .from('vitrines')
-      .select('*, usuarios(nome, email, whatsapp), vitrine_pagamentos(*)')
-      .order('created_at', { ascending: false });
+    const [{ data }, { data: users }] = await Promise.all([
+      supabase
+        .from('vitrines')
+        .select('*, usuarios(nome, email, whatsapp), vitrine_pagamentos(*)')
+        .order('created_at', { ascending: false }),
+      supabase
+        .from('usuarios')
+        .select('*')
+        .order('nome', { ascending: true })
+    ]);
 
     const lista = (data || []) as VitrineLinha[];
     setVitrines(lista);
+    setUsuarios((users || []) as Usuario[]);
     setDatas((prev) => {
       const novo = { ...prev };
       lista.forEach((v) => {
@@ -75,6 +116,63 @@ function AdminVitrinesContent() {
   }
 
   useEffect(() => { load(); }, []);
+
+  function selecionarUsuario(usuarioId: string) {
+    const usuario = usuarios.find((u) => u.id === usuarioId);
+    setNovaVitrine((prev) => ({
+      ...prev,
+      usuarioId,
+      nomeVitrine: usuario?.nome ? `Vitrine ${usuario.nome}` : prev.nomeVitrine,
+      cidade: usuario?.cidade || prev.cidade,
+      estado: usuario?.estado || prev.estado || 'TO',
+      whatsapp: usuario?.whatsapp || prev.whatsapp
+    }));
+  }
+
+  async function criarVitrineCliente(e: FormEvent) {
+    e.preventDefault();
+
+    if (!novaVitrine.usuarioId) {
+      setMessage('Selecione o cliente que será vinculado à vitrine.');
+      return;
+    }
+
+    if (!novaVitrine.nomeVitrine.trim()) {
+      setMessage('Informe o nome da vitrine.');
+      return;
+    }
+
+    if (!novaVitrine.gratisIlimitada && novaVitrine.liberarGratis && !novaVitrine.gratisAte) {
+      setMessage('Informe a data final da gratuidade ou marque grátis ilimitada.');
+      return;
+    }
+
+    setCriando(true);
+    setMessage(null);
+
+    const { data, error } = await supabase.rpc('admin_criar_vitrine_cliente', {
+      cliente_uuid: novaVitrine.usuarioId,
+      nome_vitrine_text: novaVitrine.nomeVitrine.trim(),
+      descricao_text: novaVitrine.descricao.trim() || null,
+      cidade_text: novaVitrine.cidade || usuarioSelecionado?.cidade || null,
+      estado_text: novaVitrine.estado || usuarioSelecionado?.estado || 'TO',
+      whatsapp_text: novaVitrine.whatsapp || usuarioSelecionado?.whatsapp || null,
+      liberar_gratis: novaVitrine.liberarGratis,
+      gratis_ate_data: novaVitrine.liberarGratis && !novaVitrine.gratisIlimitada ? novaVitrine.gratisAte : null,
+      gratis_ilimitada: novaVitrine.gratisIlimitada
+    });
+
+    if (error) {
+      setMessage(error.message);
+    } else {
+      setMessage('Vitrine cadastrada e vinculada ao cliente.');
+      setNovaVitrine(formInicial());
+      await load();
+      if (data) setDatas((prev) => ({ ...prev, [String(data)]: novaVitrine.gratisAte || somarDias(30) }));
+    }
+
+    setCriando(false);
+  }
 
   async function atualizar(id: string, patch: Partial<Vitrine>) {
     setLoadingId(id);
@@ -247,12 +345,92 @@ function AdminVitrinesContent() {
         <div>
           <span className="badge"><BadgeDollarSign size={14} /> Vitrines mensais</span>
           <h1>Gerenciar vitrines</h1>
-          <p>Confirme mensalidades, dê lojinha gratuita, libere ilimitada ou ajuste até quando o vendedor pode usar.</p>
+          <p>Cadastre vitrines para clientes, vincule ao usuário responsável, confirme mensalidades ou libere cortesias.</p>
         </div>
         <Link className="btn btn-secondary" href="/admin">Voltar admin</Link>
       </div>
 
       {message && <div className="notice">{message}</div>}
+
+      <form className="card form" onSubmit={criarVitrineCliente} style={{ marginBottom: 20 }}>
+        <div className="section-head section-head-compact">
+          <div>
+            <span className="badge"><Plus size={14} /> Cadastrar para cliente</span>
+            <h2 style={{ marginBottom: 4 }}>Nova vitrine vinculada</h2>
+            <p className="muted">Use quando o cliente pedir a vitrine e você quiser cadastrar pelo admin.</p>
+          </div>
+        </div>
+
+        <label className="field">
+          <span className="label">Cliente responsável *</span>
+          <select className="select" value={novaVitrine.usuarioId} onChange={(e) => selecionarUsuario(e.target.value)}>
+            <option value="">Selecione o usuário</option>
+            {usuarios.map((usuario) => (
+              <option key={usuario.id} value={usuario.id} disabled={usuariosComVitrine.has(usuario.id)}>
+                {usuario.nome} • {usuario.email}{usuariosComVitrine.has(usuario.id) ? ' • já possui vitrine' : ''}
+              </option>
+            ))}
+          </select>
+        </label>
+
+        <div className="form-row">
+          <label className="field">
+            <span className="label">Nome da vitrine *</span>
+            <input className="input" value={novaVitrine.nomeVitrine} onChange={(e) => setNovaVitrine((prev) => ({ ...prev, nomeVitrine: e.target.value }))} placeholder="Ex: Chácara São José" />
+          </label>
+          <label className="field">
+            <span className="label">WhatsApp da vitrine</span>
+            <input className="input" value={novaVitrine.whatsapp} onChange={(e) => setNovaVitrine((prev) => ({ ...prev, whatsapp: e.target.value }))} placeholder="5563999999999" />
+          </label>
+        </div>
+
+        <label className="field">
+          <span className="label">Descrição</span>
+          <textarea className="textarea" value={novaVitrine.descricao} onChange={(e) => setNovaVitrine((prev) => ({ ...prev, descricao: e.target.value }))} placeholder="Produtos, animais, serviços ou informações do cliente." />
+        </label>
+
+        <div className="form-row">
+          <label className="field">
+            <span className="label">Estado</span>
+            <select className="select" value={novaVitrine.estado} onChange={(e) => setNovaVitrine((prev) => ({ ...prev, estado: e.target.value, cidade: '' }))}>
+              {ESTADOS.map((uf) => <option key={uf} value={uf}>{uf}</option>)}
+            </select>
+          </label>
+          <label className="field">
+            <span className="label">Cidade</span>
+            <select className="select" value={novaVitrine.cidade} onChange={(e) => setNovaVitrine((prev) => ({ ...prev, cidade: e.target.value }))}>
+              <option value="">Selecione a cidade</option>
+              {cidadesNovaVitrine.map((cidade) => <option key={cidade} value={cidade}>{cidade}</option>)}
+              {novaVitrine.cidade && !cidadesNovaVitrine.includes(novaVitrine.cidade) && <option value={novaVitrine.cidade}>{novaVitrine.cidade}</option>}
+            </select>
+          </label>
+        </div>
+
+        <div className="card" style={{ background: '#f8faf4' }}>
+          <strong>Liberação inicial</strong>
+          <p className="muted" style={{ marginTop: 6 }}>Você pode já deixar a vitrine pública como cortesia ou criar aguardando pagamento.</p>
+          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center', marginBottom: 10 }}>
+            <label style={{ display: 'inline-flex', gap: 8, alignItems: 'center', fontWeight: 800 }}>
+              <input type="checkbox" checked={novaVitrine.liberarGratis} onChange={(e) => setNovaVitrine((prev) => ({ ...prev, liberarGratis: e.target.checked }))} />
+              Liberar grátis agora
+            </label>
+            <label style={{ display: 'inline-flex', gap: 8, alignItems: 'center', fontWeight: 800 }}>
+              <input type="checkbox" checked={novaVitrine.gratisIlimitada} disabled={!novaVitrine.liberarGratis} onChange={(e) => setNovaVitrine((prev) => ({ ...prev, gratisIlimitada: e.target.checked }))} />
+              Grátis ilimitada
+            </label>
+          </div>
+          {novaVitrine.liberarGratis && !novaVitrine.gratisIlimitada && (
+            <label className="field">
+              <span className="label">Liberar grátis até</span>
+              <input className="input" type="date" value={novaVitrine.gratisAte} onChange={(e) => setNovaVitrine((prev) => ({ ...prev, gratisAte: e.target.value }))} />
+            </label>
+          )}
+        </div>
+
+        <button className="btn btn-primary" disabled={criando} aria-busy={criando}>
+          <Plus size={18} /> {criando ? 'Cadastrando vitrine...' : 'Cadastrar vitrine para cliente'}
+        </button>
+      </form>
 
       {!vitrines.length ? <EmptyState title="Nenhuma vitrine solicitada" /> : (
         <div className="grid grid-2">
