@@ -18,6 +18,7 @@ type DatasLiberacao = Record<string, string>;
 
 type NovaVitrineForm = {
   usuarioId: string;
+  buscaCliente: string;
   nomeVitrine: string;
   descricao: string;
   cidade: string;
@@ -41,6 +42,10 @@ function somarDias(dias: number) {
   const data = new Date();
   data.setDate(data.getDate() + dias);
   return data.toISOString().slice(0, 10);
+}
+
+function onlyNumbers(value?: string | null) {
+  return String(value || '').replace(/\D/g, '');
 }
 
 function money(value?: number | string | null) {
@@ -67,6 +72,7 @@ function detalhePlano(v: VitrineLinha) {
 function formInicial(): NovaVitrineForm {
   return {
     usuarioId: '',
+    buscaCliente: '',
     nomeVitrine: '',
     descricao: '',
     cidade: '',
@@ -90,6 +96,23 @@ function AdminVitrinesContent() {
   const usuarioSelecionado = usuarios.find((u) => u.id === novaVitrine.usuarioId) || null;
   const usuariosComVitrine = useMemo(() => new Set(vitrines.map((v) => v.usuario_id)), [vitrines]);
   const cidadesNovaVitrine = CIDADES_POR_ESTADO[novaVitrine.estado] || [];
+  const clientesFiltrados = useMemo(() => {
+    const termo = novaVitrine.buscaCliente.trim().toLowerCase();
+    const numeros = onlyNumbers(novaVitrine.buscaCliente);
+
+    if (!termo && !numeros) return usuarios.filter((usuario) => !usuariosComVitrine.has(usuario.id)).slice(0, 8);
+
+    return usuarios.filter((usuario) => {
+      const jaTemVitrine = usuariosComVitrine.has(usuario.id);
+      if (jaTemVitrine && usuario.id !== novaVitrine.usuarioId) return false;
+
+      const cpf = onlyNumbers(usuario.cpf);
+      const whatsapp = onlyNumbers(usuario.whatsapp);
+      const texto = `${usuario.nome || ''} ${usuario.email || ''} ${usuario.cidade || ''} ${usuario.estado || ''}`.toLowerCase();
+
+      return texto.includes(termo) || (numeros.length >= 3 && (cpf.includes(numeros) || whatsapp.includes(numeros)));
+    }).slice(0, 8);
+  }, [novaVitrine.buscaCliente, novaVitrine.usuarioId, usuarios, usuariosComVitrine]);
 
   async function load() {
     const [{ data }, { data: users }] = await Promise.all([
@@ -122,6 +145,7 @@ function AdminVitrinesContent() {
     setNovaVitrine((prev) => ({
       ...prev,
       usuarioId,
+      buscaCliente: usuario ? `${usuario.nome || 'Cliente'} • CPF ${usuario.cpf || 'sem CPF'} • ${usuario.email || ''}` : prev.buscaCliente,
       nomeVitrine: usuario?.nome ? `Vitrine ${usuario.nome}` : prev.nomeVitrine,
       cidade: usuario?.cidade || prev.cidade,
       estado: usuario?.estado || prev.estado || 'TO',
@@ -129,11 +153,15 @@ function AdminVitrinesContent() {
     }));
   }
 
+  function alterarBuscaCliente(valor: string) {
+    setNovaVitrine((prev) => ({ ...prev, buscaCliente: valor, usuarioId: '' }));
+  }
+
   async function criarVitrineCliente(e: FormEvent) {
     e.preventDefault();
 
     if (!novaVitrine.usuarioId) {
-      setMessage('Selecione o cliente que será vinculado à vitrine.');
+      setMessage('Digite o nome ou CPF e selecione o cliente que será vinculado à vitrine.');
       return;
     }
 
@@ -357,21 +385,54 @@ function AdminVitrinesContent() {
           <div>
             <span className="badge"><Plus size={14} /> Cadastrar para cliente</span>
             <h2 style={{ marginBottom: 4 }}>Nova vitrine vinculada</h2>
-            <p className="muted">Use quando o cliente pedir a vitrine e você quiser cadastrar pelo admin.</p>
+            <p className="muted">Digite o nome, CPF, e-mail ou WhatsApp do cliente e selecione o responsável.</p>
           </div>
         </div>
 
         <label className="field">
-          <span className="label">Cliente responsável *</span>
-          <select className="select" value={novaVitrine.usuarioId} onChange={(e) => selecionarUsuario(e.target.value)}>
-            <option value="">Selecione o usuário</option>
-            {usuarios.map((usuario) => (
-              <option key={usuario.id} value={usuario.id} disabled={usuariosComVitrine.has(usuario.id)}>
-                {usuario.nome} • {usuario.email}{usuariosComVitrine.has(usuario.id) ? ' • já possui vitrine' : ''}
-              </option>
-            ))}
-          </select>
+          <span className="label">Buscar cliente responsável *</span>
+          <input
+            className="input"
+            value={novaVitrine.buscaCliente}
+            onChange={(e) => alterarBuscaCliente(e.target.value)}
+            placeholder="Digite nome, CPF, e-mail ou WhatsApp"
+          />
         </label>
+
+        <div className="card" style={{ background: '#fffdf8', padding: 12 }}>
+          {usuarioSelecionado ? (
+            <div className="notice notice-success" style={{ marginBottom: 10 }}>
+              Selecionado: <strong>{usuarioSelecionado.nome}</strong> • CPF {usuarioSelecionado.cpf || '—'} • {usuarioSelecionado.email}
+            </div>
+          ) : (
+            <p className="muted" style={{ marginTop: 0 }}>Selecione um cliente da lista abaixo. Usuários que já têm vitrine ficam ocultos ou bloqueados.</p>
+          )}
+
+          <div style={{ display: 'grid', gap: 8, maxHeight: 280, overflowY: 'auto' }}>
+            {clientesFiltrados.map((usuario) => {
+              const jaTemVitrine = usuariosComVitrine.has(usuario.id);
+              const selecionado = usuario.id === novaVitrine.usuarioId;
+              return (
+                <button
+                  key={usuario.id}
+                  type="button"
+                  className={selecionado ? 'btn btn-primary btn-full' : 'btn btn-secondary btn-full'}
+                  disabled={jaTemVitrine && !selecionado}
+                  onClick={() => selecionarUsuario(usuario.id)}
+                  style={{ justifyContent: 'flex-start', textAlign: 'left' }}
+                >
+                  <UserRound size={17} />
+                  <span>
+                    <strong>{usuario.nome}</strong><br />
+                    CPF {usuario.cpf || '—'} • {usuario.email || 'sem e-mail'} • {usuario.whatsapp || 'sem WhatsApp'}
+                    {jaTemVitrine && !selecionado ? ' • já possui vitrine' : ''}
+                  </span>
+                </button>
+              );
+            })}
+            {!clientesFiltrados.length && <p className="muted" style={{ margin: 0 }}>Nenhum cliente encontrado para essa busca.</p>}
+          </div>
+        </div>
 
         <div className="form-row">
           <label className="field">
