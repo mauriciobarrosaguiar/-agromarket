@@ -6,6 +6,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { makeWhatsAppLink } from '@/lib/whatsapp';
 import { supabase } from '@/lib/supabase';
+import { getCanonicalSiteUrl } from '@/lib/site-url';
 
 type WhatsAppButtonProps = {
   phone: string;
@@ -20,8 +21,7 @@ type WhatsAppButtonProps = {
 function montarUrl(path?: string) {
   if (!path) return '';
   if (path.startsWith('http')) return path;
-  if (typeof window !== 'undefined') return `${window.location.origin}${path}`;
-  return `https://meuagromarket.com.br${path}`;
+  return `${getCanonicalSiteUrl()}${path}`;
 }
 
 export default function WhatsAppButton({ phone, title, full = false, label = 'Chamar no WhatsApp', urlPath, anuncioId, origem = 'anuncio' }: WhatsAppButtonProps) {

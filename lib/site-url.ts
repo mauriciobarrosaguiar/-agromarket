@@ -1,4 +1,4 @@
-const FALLBACK_SITE_URL = 'https://meuagromarket.com.br';
+const FALLBACK_SITE_URL = 'https://www.meuagromarket.com.br';
 
 function normalizarUrl(url?: string | null) {
   const valor = String(url || '').trim().replace(/\/$/, '');
@@ -13,6 +13,11 @@ export function getPublicSiteUrl() {
   const vercelUrl = normalizarUrl(process.env.NEXT_PUBLIC_VERCEL_URL || process.env.VERCEL_URL);
 
   return envUrl || windowUrl || vercelUrl || FALLBACK_SITE_URL;
+}
+
+export function getCanonicalSiteUrl() {
+  const envUrl = normalizarUrl(process.env.NEXT_PUBLIC_SITE_URL);
+  return envUrl || FALLBACK_SITE_URL;
 }
 
 export function getAuthRedirectUrl(path = '/login') {

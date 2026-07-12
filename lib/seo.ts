@@ -1,7 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 
 export const SITE_NAME = 'AgroMarket';
-export const DEFAULT_SITE_URL = 'https://agromarket-two.vercel.app';
+export const DEFAULT_SITE_URL = 'https://www.meuagromarket.com.br';
 export const DEFAULT_IMAGE = '/icon-192.png';
 
 export function getSiteUrl() {

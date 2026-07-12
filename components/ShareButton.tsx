@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { Check, Copy, MessageCircle, Share2, X } from 'lucide-react';
+import { getCanonicalSiteUrl } from '@/lib/site-url';
 
 type ShareButtonProps = {
   label: string;
@@ -20,9 +21,7 @@ function comParametroShare(url: string) {
 function montarUrl(path: string) {
   const base = path.startsWith('http')
     ? path
-    : typeof window !== 'undefined'
-      ? `${window.location.origin}${path}`
-      : `https://agromarket-two.vercel.app${path}`;
+    : `${getCanonicalSiteUrl()}${path}`;
 
   return comParametroShare(base);
 }

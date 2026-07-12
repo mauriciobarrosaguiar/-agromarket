@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 import AnuncioDetalheClient from './AnuncioDetalheClient';
-import { cleanText, createSeoSupabaseClient, DEFAULT_IMAGE, formatMoneySeo, getAbsoluteUrl, getSiteUrl, SITE_NAME } from '@/lib/seo';
+import { cleanText, createSeoSupabaseClient, formatMoneySeo, getAbsoluteUrl, getSiteUrl, SITE_NAME } from '@/lib/seo';
 
 type PageProps = {
   params: Promise<{ slug: string }>;
@@ -12,7 +12,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 
   const { data } = await supabase
     .from('anuncios')
-    .select('titulo, descricao, preco, preco_a_combinar, cidade, estado, bairro, slug, status, fotos_anuncios(url_foto, principal, ordem)')
+    .select('titulo, descricao, preco, preco_a_combinar, cidade, estado, bairro, slug, status, updated_at, fotos_anuncios(id, url_foto, principal, ordem)')
     .eq('slug', slug)
     .eq('status', 'aprovado')
     .maybeSingle();
@@ -27,13 +27,14 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 
   const anuncio = data as any;
   const fotos = [...(anuncio.fotos_anuncios || [])].sort((a: any, b: any) => (a.ordem || 0) - (b.ordem || 0));
-  const foto = fotos.find((f: any) => f.principal)?.url_foto || fotos[0]?.url_foto || DEFAULT_IMAGE;
+  const foto = fotos.find((f: any) => f.principal) || fotos[0] || null;
   const preco = formatMoneySeo(anuncio.preco, Boolean(anuncio.preco_a_combinar));
   const local = `${anuncio.bairro ? `${anuncio.bairro} - ` : ''}${anuncio.cidade} - ${anuncio.estado}`;
   const title = `${anuncio.titulo} - ${preco}`;
   const description = cleanText(`${preco} • ${local}. ${anuncio.descricao}`, 180);
   const url = getAbsoluteUrl(`/anuncio/${anuncio.slug}`);
-  const imageUrl = getAbsoluteUrl(foto);
+  const imageVersion = encodeURIComponent(String(foto?.id || anuncio.updated_at || anuncio.slug));
+  const imageUrl = getAbsoluteUrl(`/api/og/anuncio/${anuncio.slug}?v=${imageVersion}`);
 
   return {
     metadataBase: new URL(getSiteUrl()),
