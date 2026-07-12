@@ -20,6 +20,20 @@ function formatCpf(value: string) {
     .replace(/(\d{3})(\d{1,2})$/, '$1-$2');
 }
 
+function mensagemCadastro(errorMessage?: string) {
+  const texto = String(errorMessage || '').toLowerCase();
+
+  if (texto.includes('duplicate') || texto.includes('already exists') || texto.includes('violates unique')) {
+    return 'Esse CPF ou e-mail já está cadastrado. Tente entrar ou recuperar a senha.';
+  }
+
+  if (texto.includes('permission denied') || texto.includes('row-level security') || texto.includes('rls')) {
+    return 'Não foi possível finalizar seu cadastro agora. Atualize a página e tente novamente. Se continuar, fale com o suporte.';
+  }
+
+  return errorMessage || 'Erro ao finalizar cadastro. Tente novamente.';
+}
+
 export default function CadastroPage() {
   const [nome, setNome] = useState('');
   const [email, setEmail] = useState('');
@@ -77,8 +91,10 @@ export default function CadastroPage() {
       return;
     }
 
+    const emailNormalizado = email.trim().toLowerCase();
+
     const { data, error } = await supabase.auth.signUp({
-      email,
+      email: emailNormalizado,
       password: senha,
       options: {
         emailRedirectTo: getAuthRedirectUrl('/login')
@@ -91,10 +107,10 @@ export default function CadastroPage() {
       return;
     }
 
-    const { error: profileError } = await supabase.from('usuarios').upsert({
+    const { error: profileError } = await supabase.from('usuarios').insert({
       id: data.user.id,
       nome,
-      email: email.toLowerCase(),
+      email: emailNormalizado,
       whatsapp,
       cpf: cpfLimpo,
       data_nascimento: dataNascimento,
@@ -110,7 +126,7 @@ export default function CadastroPage() {
     });
 
     if (profileError) {
-      showMessage(profileError.message.includes('duplicate') ? 'Esse CPF já está cadastrado.' : profileError.message, 'error');
+      showMessage(mensagemCadastro(profileError.message), 'error');
     } else {
       showMessage('Cadastro criado com sucesso. Enviamos a confirmação para seu e-mail. Depois de confirmar, faça login.', 'success');
     }
