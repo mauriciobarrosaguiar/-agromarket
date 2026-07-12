@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { CheckCircle2, FileText, ShieldCheck, XCircle } from 'lucide-react';
+import { CheckCircle2, FileText, ShieldCheck, Trash2, XCircle } from 'lucide-react';
 import AuthGuard from '@/components/AuthGuard';
 import { supabase } from '@/lib/supabase';
 import type { Usuario } from '@/types';
@@ -18,9 +18,16 @@ function UsuariosContent() {
   const [usuarios, setUsuarios] = useState<Usuario[]>([]);
   const [docUrls, setDocUrls] = useState<Record<string, string>>({});
   const [message, setMessage] = useState<string | null>(null);
+  const [excluindoId, setExcluindoId] = useState<string | null>(null);
+  const [usuarioLogadoId, setUsuarioLogadoId] = useState<string | null>(null);
 
   async function load() {
-    const { data } = await supabase.from('usuarios').select('*').order('created_at', { ascending: false });
+    const [{ data: current }, { data }] = await Promise.all([
+      supabase.auth.getUser(),
+      supabase.from('usuarios').select('*').order('created_at', { ascending: false })
+    ]);
+    setUsuarioLogadoId(current.user?.id || null);
+
     const lista = (data || []) as Usuario[];
     setUsuarios(lista);
 
@@ -42,6 +49,56 @@ function UsuariosContent() {
   async function bloquear(id: string, status: string) {
     await supabase.from('usuarios').update({ status }).eq('id', id);
     await load();
+  }
+
+  async function excluirUsuario(usuario: Usuario) {
+    if (usuario.id === usuarioLogadoId) {
+      setMessage('Por segurança, você não pode excluir seu próprio usuário logado.');
+      return;
+    }
+
+    const confirmacao = window.confirm(
+      `Excluir definitivamente o usuário ${usuario.nome || usuario.email}?\n\n` +
+      'Isso remove o acesso/login, perfil e dados vinculados que usam exclusão em cascata, como anúncios e vitrines. Essa ação não pode ser desfeita.'
+    );
+
+    if (!confirmacao) return;
+
+    const textoConfirmacao = window.prompt('Digite EXCLUIR para confirmar a exclusão definitiva:');
+    if (textoConfirmacao !== 'EXCLUIR') {
+      setMessage('Exclusão cancelada. Confirmação não informada.');
+      return;
+    }
+
+    setExcluindoId(usuario.id);
+    setMessage(null);
+
+    const { data: sessionData } = await supabase.auth.getSession();
+    const token = sessionData.session?.access_token;
+
+    if (!token) {
+      setMessage('Sessão expirada. Entre novamente para excluir usuários.');
+      setExcluindoId(null);
+      return;
+    }
+
+    const resposta = await fetch(`/api/admin/usuarios/${usuario.id}`, {
+      method: 'DELETE',
+      headers: {
+        Authorization: `Bearer ${token}`
+      }
+    });
+
+    const resultado = await resposta.json().catch(() => ({}));
+
+    if (!resposta.ok) {
+      setMessage(resultado.error || 'Não foi possível excluir o usuário.');
+    } else {
+      setMessage(resultado.warning || resultado.message || 'Usuário excluído com sucesso.');
+      await load();
+    }
+
+    setExcluindoId(null);
   }
 
   async function aprovarDocumento(id: string) {
@@ -120,6 +177,9 @@ function UsuariosContent() {
                 <button className="btn btn-secondary" onClick={() => mudarTipo(u.id, 'admin')}>Tornar admin</button>
                 <button className="btn btn-secondary" onClick={() => mudarTipo(u.id, 'anunciante')}>Anunciante</button>
                 <button className="btn btn-danger" onClick={() => bloquear(u.id, u.status === 'bloqueado' ? 'ativo' : 'bloqueado')}>{u.status === 'bloqueado' ? 'Desbloquear' : 'Bloquear'}</button>
+                <button className="btn btn-danger" onClick={() => excluirUsuario(u)} disabled={excluindoId === u.id || u.id === usuarioLogadoId} title={u.id === usuarioLogadoId ? 'Você não pode excluir seu próprio usuário logado.' : 'Excluir usuário definitivamente'}>
+                  <Trash2 size={16} /> {excluindoId === u.id ? 'Excluindo...' : 'Excluir usuário'}
+                </button>
               </div>
             </div>
           </article>
@@ -130,5 +190,5 @@ function UsuariosContent() {
 }
 
 export default function UsuariosPage() {
-  return <AuthGuard adminOnly><main className="page"><div className="container"><div className="section-head"><div><h1>Usuários</h1><p>Aprove documentos manualmente antes de liberar lojinha.</p></div><Link className="btn btn-secondary" href="/admin">Voltar admin</Link></div><UsuariosContent /></div></main></AuthGuard>;
+  return <AuthGuard adminOnly><main className="page"><div className="container"><div className="section-head"><div><h1>Usuários</h1><p>Aprove documentos, bloqueie ou exclua usuários quando necessário.</p></div><Link className="btn btn-secondary" href="/admin">Voltar admin</Link></div><UsuariosContent /></div></main></AuthGuard>;
 }
