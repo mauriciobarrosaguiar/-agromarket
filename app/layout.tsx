@@ -4,7 +4,6 @@ import './globals.css';
 import './lovable-layout.css';
 import Header from '@/components/Header';
 import MobileBottomNav from '@/components/MobileBottomNav';
-import InstallAppButton from '@/components/InstallAppButton';
 import AdminAlertWatcher from '@/components/AdminAlertWatcher';
 import DocumentoStatusTextFixer from '@/components/DocumentoStatusTextFixer';
 import SupportButton from '@/components/SupportButton';
@@ -72,7 +71,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             <span>Feito pela MBA Labs • <a href="https://www.mbalabs.com.br" target="_blank" rel="noreferrer">www.mbalabs.com.br</a></span>
           </div>
         </footer>
-        <InstallAppButton />
         <MobileBottomNav />
         <AdminAlertWatcher />
         <DocumentoStatusTextFixer />

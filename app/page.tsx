@@ -7,7 +7,9 @@ import { BadgeCheck, MapPin, MessageCircle, PlusCircle, Search, ShieldCheck, Spa
 import { supabase, hasSupabaseEnv } from '@/lib/supabase';
 import type { Anuncio, Categoria, PatrocinadoHome, Vitrine } from '@/types';
 import AnuncioCard from '@/components/AnuncioCard';
+import CategoryIcon from '@/components/CategoryIcon';
 import EmptyState from '@/components/EmptyState';
+import InstallAppButton from '@/components/InstallAppButton';
 import PatrocinadoCarousel from '@/components/PatrocinadoCarousel';
 
 type Coordenadas = {
@@ -173,6 +175,7 @@ export default function HomePage() {
               <div className="hero-quick-actions">
                 <Link className="btn btn-amber" href="/anunciar"><PlusCircle size={18} /> {homeConfig.botao_anunciar}</Link>
                 <Link className="btn btn-glass" href="/anuncios"><MapPin size={18} /> {homeConfig.botao_perto}</Link>
+                <InstallAppButton variant="button" label="Baixar app" className="btn-glass" />
                 <Link className="btn btn-glass" href="/vitrines"><Store size={18} /> {homeConfig.botao_vitrines}</Link>
               </div>
             </div>
@@ -195,7 +198,7 @@ export default function HomePage() {
             <div className="category-grid-premium">
               {categorias.slice(0, 6).map((cat) => (
                 <Link key={cat.id} href={`/anuncios?categoria=${cat.id}`} className="category-card-premium">
-                  <span className="category-icon-premium">{categoriaIcone(cat)}</span>
+                  <CategoryIcon categoria={cat} className="category-icon-premium" size={26} />
                   <strong>{cat.nome}</strong>
                 </Link>
               ))}

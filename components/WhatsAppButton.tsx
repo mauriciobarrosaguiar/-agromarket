@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { Lock, MessageCircle, ShieldCheck, X } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { makeWhatsAppLink } from '@/lib/whatsapp';
 import { supabase } from '@/lib/supabase';
 
@@ -25,9 +26,14 @@ function montarUrl(path?: string) {
 
 export default function WhatsAppButton({ phone, title, full = false, label = 'Chamar no WhatsApp', urlPath, anuncioId, origem = 'anuncio' }: WhatsAppButtonProps) {
   const [open, setOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
   const [isLogged, setIsLogged] = useState<boolean | null>(null);
   const anuncioUrl = useMemo(() => montarUrl(urlPath), [urlPath]);
   const whatsLink = makeWhatsAppLink(phone, title, anuncioUrl);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => setIsLogged(Boolean(data.user)));
@@ -48,14 +54,78 @@ export default function WhatsAppButton({ phone, title, full = false, label = 'Ch
 
   async function continuarWhatsApp() {
     if (anuncioId) {
-      await supabase.rpc('registrar_clique_whatsapp_anuncio', {
-        anuncio_uuid: anuncioId,
-        origem_text: origem,
-        user_agent_text: typeof navigator !== 'undefined' ? navigator.userAgent : null
-      });
+      try {
+        await supabase.rpc('registrar_clique_whatsapp_anuncio', {
+          anuncio_uuid: anuncioId,
+          origem_text: origem,
+          user_agent_text: typeof navigator !== 'undefined' ? navigator.userAgent : null
+        });
+      } catch {
+        // O contato nao deve ser bloqueado se o registro do clique falhar.
+      }
     }
     setOpen(false);
   }
+
+  const modal = (
+    <div role="dialog" aria-modal="true" className="whatsapp-modal-backdrop" onClick={() => setOpen(false)}>
+      <div className="card whatsapp-modal-card" onClick={(event) => event.stopPropagation()}>
+        <div className="whatsapp-modal-head">
+          <div>
+            <h2 className="whatsapp-modal-title">
+              {isLogged ? <ShieldCheck size={24} /> : <Lock size={24} />}
+              {isLogged ? 'Negocie com segurança' : 'Entre para chamar o vendedor'}
+            </h2>
+            <p className="muted">
+              {isLogged ? 'Antes de chamar o vendedor, confira estes cuidados.' : 'Para proteger vendedores e compradores, o WhatsApp só aparece para usuários logados.'}
+            </p>
+          </div>
+
+          <button className="btn btn-secondary whatsapp-modal-close" type="button" onClick={() => setOpen(false)} aria-label="Fechar">
+            <X size={18} />
+          </button>
+        </div>
+
+        {!isLogged ? (
+          <>
+            <div className="whatsapp-modal-content">
+              <div className="notice">
+                Faça login ou crie sua conta para acessar o contato do vendedor e continuar a negociação pelo WhatsApp.
+              </div>
+            </div>
+
+            <div className="whatsapp-modal-actions">
+              <Link className="btn btn-primary btn-full" href="/login" onClick={() => setOpen(false)}>Entrar para ver WhatsApp</Link>
+              <Link className="btn btn-secondary btn-full" href="/cadastro" onClick={() => setOpen(false)}>Criar conta</Link>
+            </div>
+          </>
+        ) : (
+          <>
+            <div className="whatsapp-modal-content">
+              <div className="notice">
+                O AgroMarket apenas divulga anúncios e não participa da negociação, pagamento, entrega ou garantia do produto/serviço.
+              </div>
+
+              <ul className="whatsapp-safety-list">
+                <li>Confira fotos, quantidade, preço e estado do produto.</li>
+                <li>Evite pagar adiantado para pessoas desconhecidas.</li>
+                <li>Prefira combinar retirada em local seguro.</li>
+                <li>Em animais, confira saúde, origem e transporte adequado.</li>
+                <li>Desconfie de preço muito abaixo do normal.</li>
+              </ul>
+            </div>
+
+            <div className="whatsapp-modal-actions">
+              <a className="btn btn-whatsapp btn-full" href={whatsLink} target="_blank" rel="noreferrer" onClick={continuarWhatsApp}>
+                <MessageCircle size={18} /> Continuar para o WhatsApp
+              </a>
+              <Link className="btn btn-secondary btn-full" href="/seguranca" onClick={() => setOpen(false)}>Ver dicas de segurança</Link>
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  );
 
   return (
     <>
@@ -63,95 +133,7 @@ export default function WhatsAppButton({ phone, title, full = false, label = 'Ch
         <MessageCircle size={18} /> {label}
       </button>
 
-      {open && (
-        <div
-          role="dialog"
-          aria-modal="true"
-          onClick={() => setOpen(false)}
-          style={{
-            position: 'fixed',
-            inset: 0,
-            zIndex: 9999,
-            background: 'rgba(0,0,0,.72)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            padding: '16px',
-            overflowY: 'auto'
-          }}
-        >
-          <div
-            className="card form"
-            onClick={(e) => e.stopPropagation()}
-            style={{
-              width: 'min(520px, 100%)',
-              maxHeight: 'calc(100dvh - 32px)',
-              overflowY: 'auto',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: 14,
-              padding: 18,
-              margin: 'auto'
-            }}
-          >
-            <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'flex-start', flexShrink: 0 }}>
-              <div>
-                <h2 style={{ margin: 0, display: 'flex', gap: 8, alignItems: 'center', fontSize: 'clamp(22px, 4vw, 28px)', lineHeight: 1.05 }}>
-                  {isLogged ? <ShieldCheck size={24} /> : <Lock size={24} />} {isLogged ? 'Negocie com segurança' : 'Entre para chamar o vendedor'}
-                </h2>
-                <p className="muted" style={{ margin: '6px 0 0' }}>
-                  {isLogged ? 'Antes de chamar o vendedor, confira estes cuidados.' : 'Para proteger vendedores e compradores, o WhatsApp só aparece para usuários logados.'}
-                </p>
-              </div>
-              <button className="btn btn-secondary" type="button" onClick={() => setOpen(false)} aria-label="Fechar" style={{ width: 42, height: 42, padding: 0, flex: '0 0 auto' }}><X size={18} /></button>
-            </div>
-
-            {!isLogged ? (
-              <>
-                <div className="notice">
-                  Faça login ou crie sua conta para acessar o contato do vendedor e continuar a negociação pelo WhatsApp.
-                </div>
-                <div style={{ display: 'grid', gap: 10, flexShrink: 0 }}>
-                  <Link className="btn btn-primary btn-full" href="/login" onClick={() => setOpen(false)}>Entrar para ver WhatsApp</Link>
-                  <Link className="btn btn-secondary btn-full" href="/cadastro" onClick={() => setOpen(false)}>Criar conta</Link>
-                </div>
-              </>
-            ) : (
-              <>
-                <div className="notice" style={{ flexShrink: 0 }}>
-                  O AgroMarket apenas divulga anúncios e não participa da negociação, pagamento, entrega ou garantia do produto/serviço.
-                </div>
-
-                <ul style={{ margin: 0, paddingLeft: 20, lineHeight: 1.55, overflowWrap: 'anywhere' }}>
-                  <li>Confira fotos, quantidade, preço e estado do produto.</li>
-                  <li>Evite pagar adiantado para pessoas desconhecidas.</li>
-                  <li>Prefira combinar retirada em local seguro.</li>
-                  <li>Em animais, confira saúde, origem e transporte adequado.</li>
-                  <li>Desconfie de preço muito abaixo do normal.</li>
-                </ul>
-
-                <div
-                  style={{
-                    display: 'grid',
-                    gap: 10,
-                    position: 'sticky',
-                    bottom: -18,
-                    margin: '0 -18px -18px',
-                    padding: '12px 18px 18px',
-                    background: 'linear-gradient(180deg, rgba(255,253,247,.72), #fffdf7 28%)',
-                    flexShrink: 0
-                  }}
-                >
-                  <a className="btn btn-whatsapp btn-full" href={whatsLink} target="_blank" rel="noreferrer" onClick={continuarWhatsApp}>
-                    <MessageCircle size={18} /> Continuar para o WhatsApp
-                  </a>
-                  <Link className="btn btn-secondary btn-full" href="/seguranca" onClick={() => setOpen(false)}>Ver dicas de segurança</Link>
-                </div>
-              </>
-            )}
-          </div>
-        </div>
-      )}
+      {open && mounted ? createPortal(modal, document.body) : null}
     </>
   );
 }

@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { Home, LogOut, Menu, Plus, Search, Store, UserRound, X } from 'lucide-react';
+import InstallAppButton from '@/components/InstallAppButton';
 
 export default function Header() {
   const [email, setEmail] = useState<string | null>(null);
@@ -42,6 +43,7 @@ export default function Header() {
         </nav>
 
         <div className="actions header-actions-desktop">
+          <InstallAppButton variant="button" label="Baixar app" />
           <Link className="btn btn-amber header-cta" href="/anunciar"><Plus size={18} /> Anunciar grátis</Link>
           {email ? (
             <>
@@ -66,6 +68,7 @@ export default function Header() {
           <Link href="/anuncios" onClick={() => setMenuOpen(false)}>Buscar anúncios</Link>
           <Link href="/vitrines" onClick={() => setMenuOpen(false)}>Lojinhas</Link>
           <Link href="/anunciar" onClick={() => setMenuOpen(false)}>Anunciar grátis</Link>
+          <InstallAppButton variant="button" label="Baixar app" full />
           <Link href="/painel/perfil" onClick={() => setMenuOpen(false)}>Perfil</Link>
           {email ? (
             <button type="button" onClick={sair} disabled={saindo}>{saindo ? 'Saindo...' : 'Sair'}</button>
