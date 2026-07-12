@@ -22,7 +22,7 @@ function EditarContent() {
 
       const { data } = await supabase
         .from('anuncios')
-        .select('*, categorias(*), subcategorias(*)')
+        .select('*, categorias(*), subcategorias(*), fotos_anuncios(*)')
         .eq('id', params.id)
         .eq('usuario_id', userData.user.id)
         .maybeSingle();

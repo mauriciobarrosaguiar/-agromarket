@@ -17,7 +17,7 @@ function AdminEditarAnuncioContent() {
     async function load() {
       const { data } = await supabase
         .from('anuncios')
-        .select('*, categorias(*), subcategorias(*)')
+        .select('*, categorias(*), subcategorias(*), fotos_anuncios(*)')
         .eq('id', params.id)
         .maybeSingle();
 

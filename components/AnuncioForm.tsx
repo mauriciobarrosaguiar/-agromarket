@@ -2,12 +2,12 @@
 
 import { FormEvent, useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { MapPin } from 'lucide-react';
+import { MapPin, Trash2 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { makeUniqueSlug } from '@/lib/slug';
 import { uploadAnuncioFoto } from '@/lib/upload';
 import { CIDADES_POR_ESTADO, ESTADOS, TIPOS_ANUNCIO, UNIDADES } from '@/lib/constants';
-import type { Categoria, Anuncio, Subcategoria, TipoAnuncio, Usuario } from '@/types';
+import type { Categoria, Anuncio, FotoAnuncio, Subcategoria, TipoAnuncio, Usuario } from '@/types';
 
 const MAX_ACCURACY_METERS = 150;
 
@@ -79,6 +79,10 @@ function formatarMoeda(valor: string | number | null | undefined) {
   return numero.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 }
 
+function ordenarFotos(fotos?: FotoAnuncio[]) {
+  return [...(fotos || [])].sort((a, b) => (a.ordem || 0) - (b.ordem || 0));
+}
+
 async function comTempoLimite<T>(promise: PromiseLike<T>, ms: number, mensagem: string): Promise<T> {
   let timer: ReturnType<typeof setTimeout>;
   const timeout = new Promise<never>((_, reject) => {
@@ -108,6 +112,8 @@ export default function AnuncioForm({ anuncio, adminMode = false, redirectTo = '
   const [geoLoading, setGeoLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [savingStep, setSavingStep] = useState<string | null>(null);
+  const [fotosExistentes, setFotosExistentes] = useState<FotoAnuncio[]>([]);
+  const [fotosParaExcluir, setFotosParaExcluir] = useState<string[]>([]);
 
   const cidades = useMemo(() => {
     const lista = CIDADES_POR_ESTADO[state.estado] || [];
@@ -118,6 +124,11 @@ export default function AnuncioForm({ anuncio, adminMode = false, redirectTo = '
   const subcategoriasDaCategoria = useMemo(
     () => subcategorias.filter((sub) => sub.categoria_id === state.categoria_id),
     [subcategorias, state.categoria_id]
+  );
+
+  const fotosVisiveis = useMemo(
+    () => fotosExistentes.filter((foto) => !fotosParaExcluir.includes(foto.id)),
+    [fotosExistentes, fotosParaExcluir]
   );
 
   useEffect(() => {
@@ -155,7 +166,12 @@ export default function AnuncioForm({ anuncio, adminMode = false, redirectTo = '
   }, [anuncio]);
 
   useEffect(() => {
-    if (!anuncio) return;
+    if (!anuncio) {
+      setFotosExistentes([]);
+      setFotosParaExcluir([]);
+      return;
+    }
+
     setState({
       tipo_anuncio: anuncio.tipo_anuncio,
       categoria_id: anuncio.categoria_id,
@@ -177,6 +193,8 @@ export default function AnuncioForm({ anuncio, adminMode = false, redirectTo = '
       whatsapp: anuncio.whatsapp,
       nome_contato: anuncio.nome_contato
     });
+    setFotosExistentes(ordenarFotos(anuncio.fotos_anuncios));
+    setFotosParaExcluir([]);
   }, [anuncio]);
 
   function update<K extends keyof FormState>(key: K, value: FormState[K]) {
@@ -195,6 +213,14 @@ export default function AnuncioForm({ anuncio, adminMode = false, redirectTo = '
 
   function updateEstado(uf: string) {
     setState((prev) => ({ ...prev, estado: uf, cidade: '' }));
+  }
+
+  function alternarExclusaoFoto(fotoId: string) {
+    setFotosParaExcluir((prev) => (
+      prev.includes(fotoId)
+        ? prev.filter((id) => id !== fotoId)
+        : [...prev, fotoId]
+    ));
   }
 
   async function usarLocalizacaoAtual() {
@@ -288,6 +314,17 @@ export default function AnuncioForm({ anuncio, adminMode = false, redirectTo = '
         throw new Error('Adicione pelo menos uma foto. Não permitimos anúncio sem imagem.');
       }
 
+      const quantidadeNovasFotos = files?.length || 0;
+      const totalFotosDepoisDoSalvar = fotosVisiveis.length + quantidadeNovasFotos;
+
+      if (anuncio && totalFotosDepoisDoSalvar === 0) {
+        throw new Error('Mantenha pelo menos uma foto atual ou adicione uma nova antes de salvar.');
+      }
+
+      if (totalFotosDepoisDoSalvar > 5) {
+        throw new Error('O anúncio pode ter no máximo 5 fotos. Remova fotos atuais ou selecione menos imagens.');
+      }
+
       const precoNumero = state.preco_a_combinar || !state.preco ? null : parseDecimal(state.preco);
       const quantidadeNumero = state.quantidade ? parseDecimal(state.quantidade) : null;
       const latitudeNumero = parseCoordenada(state.latitude);
@@ -361,13 +398,15 @@ export default function AnuncioForm({ anuncio, adminMode = false, redirectTo = '
       }
 
       if (files && files.length > 0 && anuncioId) {
-        const list = Array.from(files).slice(0, 5);
+        const list = Array.from(files);
         let fotosEnviadas = 0;
+        const ordemBase = fotosVisiveis.length;
 
         for (let i = 0; i < list.length; i++) {
           setSavingStep(`Enviando foto ${i + 1} de ${list.length}...`);
+          const ordemDaFoto = ordemBase + i;
           const url = await comTempoLimite(
-            uploadAnuncioFoto(list[i], anuncioId, i),
+            uploadAnuncioFoto(list[i], anuncioId, ordemDaFoto),
             45000,
             'A foto demorou demais para enviar. Tente uma imagem menor ou uma internet melhor.'
           );
@@ -375,8 +414,8 @@ export default function AnuncioForm({ anuncio, adminMode = false, redirectTo = '
             supabase.from('fotos_anuncios').insert({
               anuncio_id: anuncioId,
               url_foto: url,
-              ordem: i,
-              principal: i === 0
+              ordem: ordemDaFoto,
+              principal: fotosVisiveis.length === 0 && i === 0
             }),
             15000,
             'Demorou demais para registrar a foto.'
@@ -387,6 +426,34 @@ export default function AnuncioForm({ anuncio, adminMode = false, redirectTo = '
 
         if (fotosEnviadas === 0) {
           throw new Error('Não foi possível enviar a foto. O anúncio não será salvo sem imagem.');
+        }
+      }
+
+      if (fotosParaExcluir.length > 0 && anuncioId) {
+        setSavingStep('Removendo fotos selecionadas...');
+        const { error: deletePhotosError } = await comTempoLimite(
+          supabase
+            .from('fotos_anuncios')
+            .delete()
+            .eq('anuncio_id', anuncioId)
+            .in('id', fotosParaExcluir),
+          15000,
+          'Demorou demais para remover as fotos.'
+        );
+        if (deletePhotosError) throw deletePhotosError;
+
+        const principalMantida = fotosVisiveis.some((foto) => foto.principal);
+        if (!principalMantida && fotosVisiveis.length > 0) {
+          const { error: capaError } = await comTempoLimite(
+            supabase
+              .from('fotos_anuncios')
+              .update({ principal: true })
+              .eq('id', fotosVisiveis[0].id)
+              .eq('anuncio_id', anuncioId),
+            15000,
+            'Demorou demais para atualizar a foto de capa.'
+          );
+          if (capaError) throw capaError;
         }
       }
 
@@ -540,10 +607,54 @@ export default function AnuncioForm({ anuncio, adminMode = false, redirectTo = '
         </label>
       </div>
 
+      {anuncio && (
+        <div className="card photo-editor-card">
+          <div className="photo-editor-head">
+            <div>
+              <h3>Fotos atuais do anúncio</h3>
+              <p className="muted">Marque uma foto para excluir. A remoção acontece somente ao salvar.</p>
+            </div>
+            <span className="badge">{fotosVisiveis.length}/5 fotos</span>
+          </div>
+
+          {fotosExistentes.length === 0 ? (
+            <div className="empty">Este anúncio ainda não tem foto cadastrada.</div>
+          ) : (
+            <div className="photo-edit-grid">
+              {fotosExistentes.map((foto, index) => {
+                const marcadaParaExcluir = fotosParaExcluir.includes(foto.id);
+
+                return (
+                  <div className={`photo-edit-card${marcadaParaExcluir ? ' photo-edit-card-removed' : ''}`} key={foto.id}>
+                    <div className="photo-edit-image-wrap">
+                      <img src={foto.url_foto} alt={`Foto ${index + 1} do anúncio`} />
+                      {foto.principal && <span className="badge photo-edit-badge">Capa</span>}
+                      {marcadaParaExcluir && <span className="photo-edit-removed-label">Será excluída</span>}
+                    </div>
+                    <button
+                      className={`btn ${marcadaParaExcluir ? 'btn-secondary' : 'btn-danger'} btn-full`}
+                      disabled={loading}
+                      type="button"
+                      onClick={() => alternarExclusaoFoto(foto.id)}
+                    >
+                      {marcadaParaExcluir ? 'Manter foto' : <><Trash2 size={16} /> Excluir foto</>}
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          {fotosParaExcluir.length > 0 && (
+            <div className="notice notice-info">As fotos marcadas serão removidas quando você salvar o anúncio.</div>
+          )}
+        </div>
+      )}
+
       <label className="field">
-        <span className="label">Fotos *</span>
+        <span className="label">{anuncio ? 'Adicionar novas fotos' : 'Fotos *'}</span>
         <input className="input" type="file" multiple accept="image/png,image/jpeg,image/webp" required={!anuncio} onChange={(e) => setFiles(e.target.files)} />
-        <span className="muted">Obrigatório: pelo menos 1 foto. Até 5 fotos no MVP. A primeira foto vira capa.</span>
+        <span className="muted">{anuncio ? 'Você pode adicionar novas fotos até completar 5 imagens no anúncio.' : 'Obrigatório: pelo menos 1 foto. Até 5 fotos no MVP. A primeira foto vira capa.'}</span>
       </label>
 
       <button className="btn btn-primary btn-full" disabled={loading} type="submit">
