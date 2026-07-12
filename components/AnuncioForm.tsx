@@ -92,7 +92,13 @@ async function comTempoLimite<T>(promise: PromiseLike<T>, ms: number, mensagem: 
   }
 }
 
-export default function AnuncioForm({ anuncio }: { anuncio?: Anuncio }) {
+type AnuncioFormProps = {
+  anuncio?: Anuncio;
+  adminMode?: boolean;
+  redirectTo?: string;
+};
+
+export default function AnuncioForm({ anuncio, adminMode = false, redirectTo = '/painel/anuncios' }: AnuncioFormProps) {
   const router = useRouter();
   const [state, setState] = useState<FormState>(initialState);
   const [categorias, setCategorias] = useState<Categoria[]>([]);
@@ -250,22 +256,24 @@ export default function AnuncioForm({ anuncio }: { anuncio?: Anuncio }) {
         throw new Error('Sua sessão não está ativa neste navegador. Entre novamente pelo botão Perfil e tente publicar de novo.');
       }
 
-      const { data: perfilSeguranca } = await supabase
-        .from('usuarios')
-        .select('foto_url,selfie_url,localizacao_validada,cadastro_completo,cpf,documento_numero')
-        .eq('id', user.id)
-        .maybeSingle();
+      if (!adminMode) {
+        const { data: perfilSeguranca } = await supabase
+          .from('usuarios')
+          .select('foto_url,selfie_url,localizacao_validada,cadastro_completo,cpf,documento_numero')
+          .eq('id', user.id)
+          .maybeSingle();
 
-      if (!perfilSeguranca?.cadastro_completo || !perfilSeguranca?.cpf || !perfilSeguranca?.documento_numero) {
-        throw new Error('Antes de anunciar, complete seu perfil com CPF e dados do documento.');
-      }
+        if (!perfilSeguranca?.cadastro_completo || !perfilSeguranca?.cpf || !perfilSeguranca?.documento_numero) {
+          throw new Error('Antes de anunciar, complete seu perfil com CPF e dados do documento.');
+        }
 
-      if (!perfilSeguranca?.selfie_url && !perfilSeguranca?.foto_url) {
-        throw new Error('Antes de anunciar, complete seu perfil com selfie/foto do divulgador.');
-      }
+        if (!perfilSeguranca?.selfie_url && !perfilSeguranca?.foto_url) {
+          throw new Error('Antes de anunciar, complete seu perfil com selfie/foto do divulgador.');
+        }
 
-      if (!perfilSeguranca?.localizacao_validada) {
-        throw new Error('Antes de anunciar, valide sua localização real no Perfil.');
+        if (!perfilSeguranca?.localizacao_validada) {
+          throw new Error('Antes de anunciar, valide sua localização real no Perfil.');
+        }
       }
 
       if (!state.titulo || !state.descricao || !state.categoria_id || !state.estado || !state.cidade || !state.whatsapp || !state.nome_contato) {
@@ -298,12 +306,14 @@ export default function AnuncioForm({ anuncio }: { anuncio?: Anuncio }) {
         throw new Error('Use o botão “Usar minha localização”. Não aceitamos localização digitada ou fictícia.');
       }
 
-      if (accuracyNumero === null || accuracyNumero > MAX_ACCURACY_METERS) {
+      const mantendoLocalizacaoExistente = Boolean(anuncio?.latitude && anuncio?.longitude && latitudeNumero !== null && longitudeNumero !== null && !state.localizacao_accuracy);
+
+      if (!mantendoLocalizacaoExistente && (accuracyNumero === null || accuracyNumero > MAX_ACCURACY_METERS)) {
         throw new Error('Capture novamente a localização com GPS de boa precisão para publicar o anúncio.');
       }
 
       const payload = {
-        usuario_id: user.id,
+        usuario_id: adminMode && anuncio ? anuncio.usuario_id : user.id,
         categoria_id: state.categoria_id,
         subcategoria_id: state.subcategoria_id || null,
         tipo_anuncio: state.tipo_anuncio,
@@ -323,16 +333,18 @@ export default function AnuncioForm({ anuncio }: { anuncio?: Anuncio }) {
         longitude: longitudeNumero,
         whatsapp: state.whatsapp.trim(),
         nome_contato: state.nome_contato.trim(),
-        status: 'pendente',
-        destaque: false
+        status: adminMode && anuncio ? anuncio.status : 'pendente',
+        destaque: adminMode && anuncio ? anuncio.destaque : false
       };
 
       let anuncioId = anuncio?.id;
 
       setSavingStep('Salvando anúncio...');
       if (anuncioId) {
+        const query = supabase.from('anuncios').update(payload).eq('id', anuncioId);
+        const updateQuery = adminMode ? query : query.eq('usuario_id', user.id);
         const { error } = await comTempoLimite(
-          supabase.from('anuncios').update(payload).eq('id', anuncioId),
+          updateQuery,
           20000,
           'Demorou demais para salvar. Verifique sua conexão e tente novamente.'
         );
@@ -378,7 +390,7 @@ export default function AnuncioForm({ anuncio }: { anuncio?: Anuncio }) {
         }
       }
 
-      router.push('/painel/anuncios');
+      router.push(redirectTo);
     } catch (err) {
       if (anuncioIdCriado) {
         await supabase.from('anuncios').delete().eq('id', anuncioIdCriado);
@@ -398,9 +410,17 @@ export default function AnuncioForm({ anuncio }: { anuncio?: Anuncio }) {
       {error && <div className="notice">{error}</div>}
       {savingStep && <div className="notice">{savingStep}</div>}
 
-      <div className="notice">
-        Ao publicar, use fotos reais, informe dados verdadeiros e não anuncie itens proibidos ou em situação irregular. Agora é obrigatório ter perfil com CPF/dados do documento, selfie tirada na hora e localização real validada. <a href="/painel/perfil" style={{ fontWeight: 900 }}>Completar perfil</a>
-      </div>
+      {!adminMode && (
+        <div className="notice">
+          Ao publicar, use fotos reais, informe dados verdadeiros e não anuncie itens proibidos ou em situação irregular. Agora é obrigatório ter perfil com CPF/dados do documento, selfie tirada na hora e localização real validada. <a href="/painel/perfil" style={{ fontWeight: 900 }}>Completar perfil</a>
+        </div>
+      )}
+
+      {anuncio && !adminMode && (
+        <div className="notice">
+          Ao salvar alterações, o anúncio volta para aprovação do administrador antes de aparecer novamente na busca.
+        </div>
+      )}
 
       <div className="form-row">
         <label className="field">
@@ -510,13 +530,13 @@ export default function AnuncioForm({ anuncio }: { anuncio?: Anuncio }) {
       <div className="form-row">
         <label className="field">
           <span className="label">Nome do contato *</span>
-          <input className="input" value={state.nome_contato} readOnly title="Esse nome vem do seu cadastro" />
-          <span className="muted">Vem do seu cadastro. Para alterar, vá em Perfil.</span>
+          <input className="input" value={state.nome_contato} readOnly={!adminMode} onChange={(e) => update('nome_contato', e.target.value)} title={adminMode ? 'Editável pelo admin' : 'Esse nome vem do seu cadastro'} />
+          <span className="muted">{adminMode ? 'Campo editável pelo administrador.' : 'Vem do seu cadastro. Para alterar, vá em Perfil.'}</span>
         </label>
         <label className="field">
           <span className="label">WhatsApp *</span>
-          <input className="input" value={state.whatsapp} readOnly title="Esse WhatsApp vem do seu cadastro" />
-          <span className="muted">Vem do seu cadastro. Para alterar, vá em Perfil.</span>
+          <input className="input" value={state.whatsapp} readOnly={!adminMode} onChange={(e) => update('whatsapp', e.target.value)} title={adminMode ? 'Editável pelo admin' : 'Esse WhatsApp vem do seu cadastro'} />
+          <span className="muted">{adminMode ? 'Campo editável pelo administrador.' : 'Vem do seu cadastro. Para alterar, vá em Perfil.'}</span>
         </label>
       </div>
 
@@ -527,7 +547,7 @@ export default function AnuncioForm({ anuncio }: { anuncio?: Anuncio }) {
       </label>
 
       <button className="btn btn-primary btn-full" disabled={loading} type="submit">
-        {loading ? (savingStep || 'Salvando...') : anuncio ? 'Salvar alterações' : 'Enviar anúncio para aprovação'}
+        {loading ? (savingStep || 'Salvando...') : adminMode ? 'Salvar como admin' : anuncio ? 'Salvar alterações e enviar para aprovação' : 'Enviar anúncio para aprovação'}
       </button>
     </form>
   );

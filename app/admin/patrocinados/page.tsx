@@ -98,6 +98,12 @@ function AdminPatrocinadosContent() {
     setForm((prev) => ({ ...prev, [key]: value }));
   }
 
+  function editar(item: PatrocinadoHome) {
+    setForm(toForm(item));
+    setMessage(`Editando patrocinado: ${item.titulo}`);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
   async function selecionarImagem(e: ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -309,7 +315,7 @@ function AdminPatrocinadosContent() {
                         {item.status === 'pendente_pagamento' && <button className="btn btn-secondary" type="button" onClick={() => marcarPagamentoConfirmado(item)}>Só marcar pago</button>}
                         {item.status === 'pendente' && <button className="btn btn-primary" type="button" onClick={() => aprovar(item)}><CheckCircle2 size={16} /> Aprovar</button>}
                         {['pendente_pagamento', 'pendente'].includes(String(item.status)) && <button className="btn btn-danger" type="button" onClick={() => recusar(item)}><XCircle size={16} /> Recusar</button>}
-                        <button className="btn btn-secondary" type="button" onClick={() => setForm(toForm(item))}>Editar</button>
+                        <button className="btn btn-secondary" type="button" onClick={() => editar(item)}>Editar</button>
                         {item.status === 'aprovado' && <button className="btn btn-secondary" type="button" onClick={() => alternar(item)}>{item.ativo ? 'Pausar' : 'Ativar'}</button>}
                         <button className="btn btn-danger" type="button" onClick={() => excluir(item.id)}><Trash2 size={16} /> Excluir</button>
                       </div>

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { CheckCircle2, Eye, Pause, Sparkles, XCircle } from 'lucide-react';
+import { CheckCircle2, Eye, Pause, Pencil, Sparkles, XCircle } from 'lucide-react';
 import AuthGuard from '@/components/AuthGuard';
 import { supabase } from '@/lib/supabase';
 import { formatMoney } from '@/lib/whatsapp';
@@ -109,6 +109,7 @@ function AdminAnunciosContent() {
 
               <div style={{ display: 'grid', gap: 8, marginTop: 14 }}>
                 <Link className="btn btn-secondary btn-full" href={`/anuncio/${ad.slug}`}><Eye size={16} /> Ver anúncio</Link>
+                <Link className="btn btn-secondary btn-full" href={`/admin/anuncios/editar/${ad.id}`}><Pencil size={16} /> Editar como admin</Link>
 
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
                   {podeAprovar && <button className="btn btn-primary" disabled={isLoading} onClick={() => status(ad, 'aprovado')}><CheckCircle2 size={16} /> Aprovar</button>}
