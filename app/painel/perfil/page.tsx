@@ -23,6 +23,36 @@ function formatCpf(value: string) {
     .replace(/(\d{3})(\d{1,2})$/, '$1-$2');
 }
 
+function textoObrigatorio(value?: string | null) {
+  return String(value || '').trim();
+}
+
+function dataParaInput(value?: string | null) {
+  const texto = textoObrigatorio(value);
+  if (!texto) return '';
+  if (/^\d{4}-\d{2}-\d{2}/.test(texto)) return texto.slice(0, 10);
+
+  const dataBR = texto.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+  if (dataBR) {
+    const [, dia, mes, ano] = dataBR;
+    return `${ano}-${mes}-${dia}`;
+  }
+
+  return '';
+}
+
+function prepararPerfilParaFormulario(data: Usuario): Usuario {
+  return {
+    ...data,
+    data_nascimento: dataParaInput(data.data_nascimento),
+    documento_numero: textoObrigatorio(data.documento_numero),
+    documento_orgao_emissor: textoObrigatorio(data.documento_orgao_emissor),
+    documento_uf: textoObrigatorio(data.documento_uf) || 'TO',
+    estado: textoObrigatorio(data.estado) || 'TO',
+    cidade: textoObrigatorio(data.cidade)
+  };
+}
+
 function documentoStatusLabel(status?: string | null) {
   if (status === 'aprovado') return 'Documento aprovado pelo administrador';
   if (status === 'pendente') return 'Documento enviado, aguardando análise';
@@ -62,7 +92,7 @@ function PerfilContent() {
       const { data: userData } = await supabase.auth.getUser();
       if (!userData.user) return;
       const { data } = await supabase.from('usuarios').select('*').eq('id', userData.user.id).single();
-      setPerfil(data as Usuario);
+      if (data) setPerfil(prepararPerfilParaFormulario(data as Usuario));
     }
     load();
   }, []);
@@ -196,13 +226,21 @@ function PerfilContent() {
 
     try {
       const cpfLimpo = onlyNumbers(perfil.cpf || '');
+      const nome = textoObrigatorio(perfil.nome);
+      const whatsapp = textoObrigatorio(perfil.whatsapp);
+      const cidade = textoObrigatorio(perfil.cidade);
+      const estado = textoObrigatorio(perfil.estado) || 'TO';
+      const dataNascimento = dataParaInput(perfil.data_nascimento);
+      const documentoNumero = textoObrigatorio(perfil.documento_numero);
+      const documentoOrgao = textoObrigatorio(perfil.documento_orgao_emissor);
+      const documentoUf = textoObrigatorio(perfil.documento_uf) || 'TO';
       let selfieUrl = perfil.selfie_url || perfil.foto_url || null;
       let documentoUrl = perfil.documento_url || null;
       let documentoStatus = perfil.documento_status || (documentoUrl ? 'pendente' : 'nao_enviado');
 
       const { data: usuarioAtual } = await supabase
         .from('usuarios')
-        .select('cpf, documento_numero, documento_orgao_emissor, documento_uf, documento_url, documento_status')
+        .select('cpf, data_nascimento, documento_numero, documento_orgao_emissor, documento_uf, documento_url, documento_status')
         .eq('id', perfil.id)
         .maybeSingle();
 
@@ -215,7 +253,7 @@ function PerfilContent() {
         documentoStatus = 'pendente';
       }
 
-      if (!perfil.nome || !perfil.whatsapp || !perfil.estado || !perfil.cidade) {
+      if (!nome || !whatsapp || !estado || !cidade) {
         throw new Error('Preencha nome, WhatsApp, estado e cidade.');
       }
 
@@ -223,7 +261,7 @@ function PerfilContent() {
         throw new Error('Informe um CPF válido com 11 números.');
       }
 
-      if (!perfil.data_nascimento || !perfil.documento_numero || !perfil.documento_orgao_emissor || !perfil.documento_uf) {
+      if (!dataNascimento || !documentoNumero || !documentoOrgao || !documentoUf) {
         throw new Error('Preencha os dados do documento.');
       }
 
@@ -242,9 +280,10 @@ function PerfilContent() {
       const mudouDadosDocumento = Boolean(
         usuarioAtual?.documento_status === 'aprovado' && (
           onlyNumbers(usuarioAtual?.cpf || '') !== cpfLimpo ||
-          usuarioAtual?.documento_numero !== perfil.documento_numero ||
-          usuarioAtual?.documento_orgao_emissor !== perfil.documento_orgao_emissor ||
-          usuarioAtual?.documento_uf !== perfil.documento_uf ||
+          dataParaInput(usuarioAtual?.data_nascimento) !== dataNascimento ||
+          textoObrigatorio(usuarioAtual?.documento_numero) !== documentoNumero ||
+          textoObrigatorio(usuarioAtual?.documento_orgao_emissor) !== documentoOrgao ||
+          (textoObrigatorio(usuarioAtual?.documento_uf) || 'TO') !== documentoUf ||
           usuarioAtual?.documento_url !== documentoUrl
         )
       );
@@ -253,16 +292,16 @@ function PerfilContent() {
       if (!documentoUrl) documentoStatus = 'nao_enviado';
 
       const { error } = await supabase.from('usuarios').update({
-        nome: perfil.nome,
-        whatsapp: perfil.whatsapp,
-        cidade: perfil.cidade,
-        estado: perfil.estado,
+        nome,
+        whatsapp,
+        cidade,
+        estado,
         cpf: cpfLimpo,
-        data_nascimento: perfil.data_nascimento,
+        data_nascimento: dataNascimento,
         documento_tipo: perfil.documento_tipo || 'cpf_rg',
-        documento_numero: perfil.documento_numero,
-        documento_orgao_emissor: perfil.documento_orgao_emissor,
-        documento_uf: perfil.documento_uf,
+        documento_numero: documentoNumero,
+        documento_orgao_emissor: documentoOrgao,
+        documento_uf: documentoUf,
         cadastro_completo: true,
         foto_url: selfieUrl,
         selfie_url: selfieUrl,
@@ -279,7 +318,25 @@ function PerfilContent() {
 
       if (error) throw error;
 
-      setPerfil({ ...perfil, cpf: cpfLimpo, foto_url: selfieUrl, selfie_url: selfieUrl, documento_url: documentoUrl, documento_status: documentoStatus, documento_motivo_recusa: documentoStatus === 'pendente' ? null : perfil.documento_motivo_recusa, cadastro_completo: true, localizacao_validada: true });
+      setPerfil({
+        ...perfil,
+        nome,
+        whatsapp,
+        cidade,
+        estado,
+        cpf: cpfLimpo,
+        data_nascimento: dataNascimento,
+        documento_numero: documentoNumero,
+        documento_orgao_emissor: documentoOrgao,
+        documento_uf: documentoUf,
+        foto_url: selfieUrl,
+        selfie_url: selfieUrl,
+        documento_url: documentoUrl,
+        documento_status: documentoStatus,
+        documento_motivo_recusa: documentoStatus === 'pendente' ? null : perfil.documento_motivo_recusa,
+        cadastro_completo: true,
+        localizacao_validada: true
+      });
       setSelfieFile(null);
       setDocumentoFile(null);
       setMessage(documentoStatus === 'aprovado'
