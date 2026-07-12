@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { BadgeDollarSign, CalendarClock, Gift, Infinity, UserRound } from 'lucide-react';
+import { BadgeDollarSign, CalendarClock, Gift, Infinity, Trash2, UserRound } from 'lucide-react';
 import AuthGuard from '@/components/AuthGuard';
 import { supabase } from '@/lib/supabase';
 import type { Vitrine, VitrinePagamento } from '@/types';
@@ -182,6 +182,65 @@ function AdminVitrinesContent() {
     await atualizar(vitrine.id, { vitrine_ativa: false, assinatura_status: 'vencida', gratis_ate: null } as Partial<Vitrine>);
   }
 
+  async function excluirVitrine(vitrine: VitrineLinha) {
+    const nome = vitrine.nome_vitrine || 'lojinha';
+    const confirmar = window.confirm(
+      `Excluir definitivamente a lojinha "${nome}"?\n\nEssa acao remove a vitrine, pagamentos e avaliacoes vinculadas. Os anuncios do vendedor nao serao excluidos.`
+    );
+
+    if (!confirmar) return;
+
+    const digitado = window.prompt(`Para confirmar, digite exatamente o nome da lojinha:\n${nome}`);
+    if (digitado !== nome) {
+      setMessage('Exclusao cancelada. O nome digitado nao confere com a lojinha.');
+      return;
+    }
+
+    setLoadingId(vitrine.id);
+    setMessage(null);
+
+    const now = new Date().toISOString();
+    const { error: patrocinadosError } = await supabase
+      .from('patrocinados_home')
+      .update({ vitrine_id: null, ativo: false, status: 'cancelado', updated_at: now })
+      .eq('vitrine_id', vitrine.id);
+
+    if (patrocinadosError) {
+      setMessage(patrocinadosError.message);
+      setLoadingId(null);
+      return;
+    }
+
+    const { error: avaliacoesError } = await supabase.from('vendedor_avaliacoes').delete().eq('vitrine_id', vitrine.id);
+    if (avaliacoesError) {
+      setMessage(avaliacoesError.message);
+      setLoadingId(null);
+      return;
+    }
+
+    const { error: pagamentosError } = await supabase.from('vitrine_pagamentos').delete().eq('vitrine_id', vitrine.id);
+    if (pagamentosError) {
+      setMessage(pagamentosError.message);
+      setLoadingId(null);
+      return;
+    }
+
+    const { error } = await supabase.from('vitrines').delete().eq('id', vitrine.id);
+    if (error) {
+      setMessage(error.message);
+    } else {
+      setMessage(`Lojinha "${nome}" excluida.`);
+      setDatas((prev) => {
+        const novo = { ...prev };
+        delete novo[vitrine.id];
+        return novo;
+      });
+      await load();
+    }
+
+    setLoadingId(null);
+  }
+
   return (
     <div className="section">
       <div className="section-head">
@@ -260,6 +319,7 @@ function AdminVitrinesContent() {
                   <button className="btn btn-secondary" disabled={loadingId === v.id} onClick={() => atualizar(v.id, { vitrine_ativa: !v.vitrine_ativa })}>{v.vitrine_ativa ? 'Desativar' : 'Ativar manual'}</button>
                   <button className="btn btn-secondary" disabled={loadingId === v.id} onClick={() => atualizar(v.id, { destaque: !v.destaque })}>{v.destaque ? 'Remover destaque' : 'Destacar'}</button>
                   <button className="btn btn-secondary" disabled={loadingId === v.id} onClick={() => atualizar(v.id, { verificado: !v.verificado })}>{v.verificado ? 'Remover verificado' : 'Verificar'}</button>
+                  <button className="btn btn-danger" disabled={loadingId === v.id} onClick={() => excluirVitrine(v)}><Trash2 size={16} /> Excluir lojinha</button>
                 </div>
               </div>
             );
