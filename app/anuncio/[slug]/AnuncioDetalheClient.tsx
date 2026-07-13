@@ -121,6 +121,7 @@ export default function AnuncioDetalheClient() {
   if (!anuncio) return <main className="page"><div className="container"><EmptyState title="Anúncio não encontrado" /></div></main>;
 
   const fotos = [...(anuncio.fotos_anuncios || [])].sort((a, b) => (a.ordem || 0) - (b.ordem || 0));
+  const fotoCapa = fotos.find((foto) => foto.principal)?.url_foto || fotos[0]?.url_foto || selectedFoto;
   const fotoAberta = fotoAbertaIndex !== null ? fotos[fotoAbertaIndex]?.url_foto : null;
   const precoTexto = formatMoney(anuncio.preco, anuncio.preco_a_combinar);
   const localTexto = `${anuncio.bairro ? `${anuncio.bairro} - ` : ''}${anuncio.cidade} - ${anuncio.estado}`;
@@ -216,7 +217,7 @@ export default function AnuncioDetalheClient() {
 
             <div style={{ display: 'grid', gap: 10, marginTop: 14 }}>
               <WhatsAppButton phone={anuncio.whatsapp} title={anuncio.titulo} urlPath={`/anuncio/${anuncio.slug}`} anuncioId={anuncio.id} full />
-              <ShareButton label="Compartilhar anúncio" title={anuncio.titulo} message={mensagemCompartilhar} path={`/anuncio/${anuncio.slug}`} full />
+              <ShareButton label="Compartilhar anúncio" title={anuncio.titulo} message={mensagemCompartilhar} path={`/anuncio/${anuncio.slug}`} imageUrl={fotoCapa} full />
               <button className="btn btn-danger btn-full" onClick={() => setDenunciaAberta(true)}><Flag size={18} /> Denunciar anúncio</button>
             </div>
           </section>
@@ -270,78 +271,15 @@ export default function AnuncioDetalheClient() {
           role="dialog"
           aria-modal="true"
           onClick={() => setFotoAbertaIndex(null)}
-          style={{
-            position: 'fixed',
-            inset: 0,
-            zIndex: 999,
-            background: 'rgba(0,0,0,.92)',
-            display: 'grid',
-            placeItems: 'center',
-            padding: 12
-          }}
+          style={{ position: 'fixed', inset: 0, zIndex: 999, background: 'rgba(0,0,0,.88)', display: 'grid', placeItems: 'center', padding: 12 }}
         >
-          <button
-            type="button"
-            className="btn btn-secondary"
-            onClick={(e) => { e.stopPropagation(); setFotoAbertaIndex(null); }}
-            style={{ position: 'fixed', top: 14, right: 14, zIndex: 1000 }}
-          >
-            <X size={18} /> Fechar
-          </button>
+          <button className="btn btn-secondary" type="button" onClick={() => setFotoAbertaIndex(null)} style={{ position: 'fixed', right: 12, top: 12, zIndex: 1001 }}><X size={18} /> Fechar</button>
 
-          {fotos.length > 1 && (
-            <>
-              <button
-                type="button"
-                className="btn btn-secondary"
-                onClick={(e) => { e.stopPropagation(); fotoAnterior(); }}
-                style={{ position: 'fixed', left: 12, top: '50%', transform: 'translateY(-50%)', zIndex: 1000, borderRadius: 999, padding: 12 }}
-                aria-label="Foto anterior"
-              >
-                <ChevronLeft size={26} />
-              </button>
+          {fotos.length > 1 && <button className="btn btn-secondary" type="button" onClick={(e) => { e.stopPropagation(); fotoAnterior(); }} style={{ position: 'fixed', left: 10, top: '50%', transform: 'translateY(-50%)', zIndex: 1001, padding: 10 }}><ChevronLeft size={24} /></button>}
 
-              <button
-                type="button"
-                className="btn btn-secondary"
-                onClick={(e) => { e.stopPropagation(); proximaFoto(); }}
-                style={{ position: 'fixed', right: 12, top: '50%', transform: 'translateY(-50%)', zIndex: 1000, borderRadius: 999, padding: 12 }}
-                aria-label="Próxima foto"
-              >
-                <ChevronRight size={26} />
-              </button>
-            </>
-          )}
+          <img src={fotoAberta} alt={anuncio.titulo} onClick={(e) => e.stopPropagation()} style={{ maxWidth: '96vw', maxHeight: '88vh', objectFit: 'contain', borderRadius: 18, background: '#111' }} />
 
-          <img
-            src={fotoAberta}
-            alt="Foto ampliada do anúncio"
-            onClick={(e) => e.stopPropagation()}
-            style={{ maxWidth: '100%', maxHeight: fotos.length > 1 ? '82vh' : '92vh', objectFit: 'contain', borderRadius: 12 }}
-          />
-
-          {fotos.length > 1 && (
-            <div
-              onClick={(e) => e.stopPropagation()}
-              style={{ position: 'fixed', left: 10, right: 10, bottom: 12, zIndex: 1000 }}
-            >
-              <div style={{ color: '#fff', textAlign: 'center', fontWeight: 800, marginBottom: 8 }}>
-                {(fotoAbertaIndex || 0) + 1} / {fotos.length}
-              </div>
-              <div style={{ display: 'flex', gap: 8, overflowX: 'auto', justifyContent: 'center' }}>
-                {fotos.map((foto, index) => (
-                  <button
-                    type="button"
-                    key={foto.id}
-                    onClick={() => setFotoAbertaIndex(index)}
-                    style={{ border: index === fotoAbertaIndex ? '3px solid #22c55e' : '2px solid rgba(255,255,255,.55)', padding: 0, borderRadius: 12, overflow: 'hidden', width: 62, height: 62, flex: '0 0 auto', background: '#111' }}
-                  >
-                    <img src={foto.url_foto} alt="Miniatura" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
+          {fotos.length > 1 && <button className="btn btn-secondary" type="button" onClick={(e) => { e.stopPropagation(); proximaFoto(); }} style={{ position: 'fixed', right: 10, top: '50%', transform: 'translateY(-50%)', zIndex: 1001, padding: 10 }}><ChevronRight size={24} /></button>}
         </div>
       )}
     </main>
