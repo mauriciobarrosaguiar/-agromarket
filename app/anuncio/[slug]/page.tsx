@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 import AnuncioDetalheClient from './AnuncioDetalheClient';
-import { cleanText, createSeoSupabaseClient, formatMoneySeo, getAbsoluteUrl, getSiteUrl, SITE_NAME } from '@/lib/seo';
+import { cleanText, createSeoSupabaseClient, DEFAULT_IMAGE, formatMoneySeo, getAbsoluteUrl, getSiteUrl, SITE_NAME } from '@/lib/seo';
 
 type PageProps = {
   params: Promise<{ slug: string }>;
@@ -12,7 +12,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 
   const { data } = await supabase
     .from('anuncios')
-    .select('titulo, descricao, preco, preco_a_combinar, cidade, estado, bairro, slug, status, updated_at, fotos_anuncios(id, url_foto, principal, ordem)')
+    .select('titulo, descricao, preco, preco_a_combinar, cidade, estado, bairro, slug, status, fotos_anuncios(id, url_foto, principal, ordem)')
     .eq('slug', slug)
     .eq('status', 'aprovado')
     .maybeSingle();
@@ -33,8 +33,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   const title = `${anuncio.titulo} - ${preco}`;
   const description = cleanText(`${preco} • ${local}. ${anuncio.descricao}`, 180);
   const url = getAbsoluteUrl(`/anuncio/${anuncio.slug}`);
-  const imageVersion = encodeURIComponent(String(foto?.id || anuncio.updated_at || anuncio.slug));
-  const imageUrl = getAbsoluteUrl(`/api/og/anuncio/${anuncio.slug}?v=${imageVersion}`);
+  const imageUrl = foto?.url_foto ? getAbsoluteUrl(foto.url_foto) : getAbsoluteUrl(DEFAULT_IMAGE);
 
   return {
     metadataBase: new URL(getSiteUrl()),
