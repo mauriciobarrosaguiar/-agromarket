@@ -6,6 +6,7 @@ import Header from '@/components/Header';
 import MobileBottomNav from '@/components/MobileBottomNav';
 import AdminAlertWatcher from '@/components/AdminAlertWatcher';
 import DocumentoStatusTextFixer from '@/components/DocumentoStatusTextFixer';
+import LocationAutoUpdater from '@/components/LocationAutoUpdater';
 import SupportButton from '@/components/SupportButton';
 
 export const metadata: Metadata = {
@@ -73,6 +74,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         </footer>
         <MobileBottomNav />
         <AdminAlertWatcher />
+        <LocationAutoUpdater />
         <DocumentoStatusTextFixer />
       </body>
     </html>
