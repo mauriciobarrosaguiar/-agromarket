@@ -121,12 +121,14 @@ export default function AnuncioDetalheClient() {
   if (!anuncio) return <main className="page"><div className="container"><EmptyState title="Anúncio não encontrado" /></div></main>;
 
   const fotos = [...(anuncio.fotos_anuncios || [])].sort((a, b) => (a.ordem || 0) - (b.ordem || 0));
-  const fotoCapa = fotos.find((foto) => foto.principal)?.url_foto || fotos[0]?.url_foto || selectedFoto;
+  const fotoCapa = fotos.find((foto) => foto.principal) || fotos[0] || null;
   const fotoAberta = fotoAbertaIndex !== null ? fotos[fotoAbertaIndex]?.url_foto : null;
   const precoTexto = formatMoney(anuncio.preco, anuncio.preco_a_combinar);
   const localTexto = `${anuncio.bairro ? `${anuncio.bairro} - ` : ''}${anuncio.cidade} - ${anuncio.estado}`;
   const descricaoCurta = anuncio.descricao.length > 140 ? `${anuncio.descricao.slice(0, 140)}...` : anuncio.descricao;
   const mensagemCompartilhar = `🌱 AgroMarket\n\n📢 ${anuncio.titulo}\n💰 ${precoTexto}\n📍 ${localTexto}\n\n${descricaoCurta}\n\nVeja o anúncio:`;
+  const shareVersion = String(fotoCapa?.id || anuncio.updated_at || anuncio.id);
+  const shareImagePath = `/api/og/anuncio/${anuncio.slug}?v=${encodeURIComponent(shareVersion)}`;
 
   function abrirFotoSelecionada() {
     if (!selectedFoto || !fotos.length) return;
@@ -217,7 +219,15 @@ export default function AnuncioDetalheClient() {
 
             <div style={{ display: 'grid', gap: 10, marginTop: 14 }}>
               <WhatsAppButton phone={anuncio.whatsapp} title={anuncio.titulo} urlPath={`/anuncio/${anuncio.slug}`} anuncioId={anuncio.id} full />
-              <ShareButton label="Compartilhar anúncio" title={anuncio.titulo} message={mensagemCompartilhar} path={`/anuncio/${anuncio.slug}`} imageUrl={fotoCapa} full />
+              <ShareButton
+                label="Compartilhar anúncio"
+                title={anuncio.titulo}
+                message={mensagemCompartilhar}
+                path={`/anuncio/${anuncio.slug}`}
+                cacheKey={shareVersion}
+                imagePath={shareImagePath}
+                full
+              />
               <button className="btn btn-danger btn-full" onClick={() => setDenunciaAberta(true)}><Flag size={18} /> Denunciar anúncio</button>
             </div>
           </section>

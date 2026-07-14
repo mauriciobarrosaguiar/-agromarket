@@ -28,8 +28,8 @@ export async function GET(_request: Request, context: RouteContext) {
   const foto = fotos.find((item: any) => item.principal)?.url_foto || fotos[0]?.url_foto || imagemFallback();
   const preco = anuncio ? formatMoneySeo(anuncio.preco, Boolean(anuncio.preco_a_combinar)) : 'AgroMarket';
   const local = anuncio ? `${anuncio.bairro ? `${anuncio.bairro} - ` : ''}${anuncio.cidade} - ${anuncio.estado}` : 'O agro da regiao em um so lugar';
-  const titulo = cleanText(anuncio?.titulo || SITE_NAME, 72);
-  const descricao = cleanText(anuncio?.descricao || 'Produtos e servicos do agro perto de voce.', 120);
+  const titulo = cleanText(anuncio?.titulo || SITE_NAME, 54);
+  const descricao = cleanText(anuncio?.descricao || 'Produtos e servicos do agro perto de voce.', 88);
 
   return new ImageResponse(
     (
@@ -38,97 +38,114 @@ export async function GET(_request: Request, context: RouteContext) {
           width: '100%',
           height: '100%',
           display: 'flex',
-          position: 'relative',
-          background: '#062b19',
-          color: '#ffffff',
+          background: '#f8f3e6',
+          color: '#062b19',
           overflow: 'hidden'
         }}
       >
-        <img
-          src={foto}
-          alt=""
-          style={{
-            position: 'absolute',
-            top: 0,
-            left: 0,
-            width: '100%',
-            height: '100%',
-            objectFit: 'cover'
-          }}
-        />
         <div
           style={{
-            position: 'absolute',
-            top: 0,
-            left: 0,
-            width: '100%',
+            width: 384,
             height: '100%',
-            background: 'linear-gradient(90deg, rgba(6,43,25,.94) 0%, rgba(6,43,25,.78) 42%, rgba(6,43,25,.12) 100%)'
-          }}
-        />
-        <div
-          style={{
-            position: 'absolute',
-            top: 48,
-            left: 58,
-            right: 58,
-            bottom: 48,
             display: 'flex',
             flexDirection: 'column',
-            justifyContent: 'space-between'
+            justifyContent: 'space-between',
+            background: '#062b19',
+            color: '#ffffff',
+            padding: '22px 26px'
           }}
         >
           <div style={{ display: 'flex', alignItems: 'center' }}>
             <div
               style={{
-                width: 76,
-                height: 76,
-                borderRadius: 38,
+                width: 42,
+                height: 42,
+                borderRadius: 21,
                 background: '#f6b526',
                 color: '#062b19',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                fontSize: 30,
+                fontSize: 18,
                 fontWeight: 900,
-                marginRight: 18
+                marginRight: 12
               }}
             >
               Ag
             </div>
             <div style={{ display: 'flex', flexDirection: 'column' }}>
-              <div style={{ fontSize: 38, fontWeight: 900 }}>{SITE_NAME}</div>
-              <div style={{ fontSize: 22, color: '#f6d16c' }}>Anuncio do agro perto de voce</div>
+              <div style={{ fontSize: 24, fontWeight: 900 }}>{SITE_NAME}</div>
+              <div style={{ fontSize: 13, color: '#f6d16c' }}>Anuncio do agro perto de voce</div>
             </div>
           </div>
 
-          <div style={{ display: 'flex', flexDirection: 'column', width: 720 }}>
-            <div style={{ fontSize: 68, lineHeight: 1.02, fontWeight: 900, marginBottom: 18 }}>{titulo}</div>
-            <div style={{ display: 'flex', alignItems: 'center', marginBottom: 18 }}>
-              <div
-                style={{
-                  display: 'flex',
-                  background: '#f6b526',
-                  color: '#062b19',
-                  borderRadius: 18,
-                  padding: '14px 22px',
-                  fontSize: 38,
-                  fontWeight: 900,
-                  marginRight: 18
-                }}
-              >
-                {preco}
-              </div>
-              <div style={{ fontSize: 26, color: '#ffffff', fontWeight: 800 }}>{local}</div>
+          <div style={{ display: 'flex', flexDirection: 'column' }}>
+            <div style={{ fontSize: 38, lineHeight: 1.02, fontWeight: 900, marginBottom: 12 }}>{titulo}</div>
+            <div
+              style={{
+                display: 'flex',
+                alignSelf: 'flex-start',
+                background: '#f6b526',
+                color: '#062b19',
+                borderRadius: 14,
+                padding: '7px 12px',
+                fontSize: 24,
+                fontWeight: 900,
+                marginBottom: 10
+              }}
+            >
+              {preco}
             </div>
-            <div style={{ fontSize: 26, lineHeight: 1.25, color: 'rgba(255,255,255,.88)' }}>{descricao}</div>
+            <div style={{ fontSize: 15, color: '#e8f4df', fontWeight: 800, marginBottom: 8 }}>{local}</div>
+            <div style={{ fontSize: 15, lineHeight: 1.25, color: 'rgba(255,255,255,.88)' }}>{descricao}</div>
+          </div>
+
+          <div style={{ fontSize: 13, color: '#f6d16c', fontWeight: 800 }}>meuagromarket.com.br</div>
+        </div>
+
+        <div
+          style={{
+            width: 216,
+            height: '100%',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: 18
+          }}
+        >
+          <img
+            src={foto}
+            alt=""
+            style={{
+              width: 178,
+              height: 178,
+              objectFit: 'cover',
+              borderRadius: 22,
+              border: '6px solid #ffffff'
+            }}
+          />
+          <div
+            style={{
+              display: 'flex',
+              marginTop: 12,
+              background: '#ffffff',
+              borderRadius: 16,
+              padding: '9px 12px',
+              color: '#14532d',
+              fontSize: 15,
+              fontWeight: 900,
+              textAlign: 'center'
+            }}
+          >
+            Contato direto pelo WhatsApp
           </div>
         </div>
       </div>
     ),
     {
-      width: 1200,
-      height: 630,
+      width: 600,
+      height: 315,
       headers: {
         'Cache-Control': 'public, max-age=300, s-maxage=86400, stale-while-revalidate=604800'
       }

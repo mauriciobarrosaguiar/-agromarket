@@ -10,42 +10,58 @@ type ShareButtonProps = {
   message: string;
   path: string;
   full?: boolean;
+  cacheKey?: string;
+  imagePath?: string | null;
   imageUrl?: string | null;
 };
 
-function comParametroShare(url: string) {
-  if (url.includes('share=whatsapp')) return url;
-  const separador = url.includes('?') ? '&' : '?';
-  return `${url}${separador}share=whatsapp`;
+function montarUrl(path: string, cacheKey?: string) {
+  const url = new URL(path.startsWith('http') ? path : `${getCanonicalSiteUrl()}${path}`);
+  url.searchParams.set('share', 'whatsapp');
+  if (cacheKey) url.searchParams.set('v', cacheKey);
+  return url.toString();
 }
 
-function montarUrl(path: string) {
-  const base = path.startsWith('http')
-    ? path
-    : `${getCanonicalSiteUrl()}${path}`;
-
-  return comParametroShare(base);
+function montarUrlImagem(path?: string | null, cacheKey?: string) {
+  if (!path) return '';
+  const url = new URL(path.startsWith('http') ? path : `${getCanonicalSiteUrl()}${path}`);
+  if (cacheKey && !url.searchParams.get('v')) url.searchParams.set('v', cacheKey);
+  return url.toString();
 }
 
-function nomeArquivoImagem(url: string) {
-  const ext = url.split('?')[0].split('.').pop()?.toLowerCase();
-  const extensao = ext && ['jpg', 'jpeg', 'png', 'webp'].includes(ext) ? ext : 'jpg';
-  return `agromarket-capa.${extensao}`;
+function nomeArquivoImagem(title: string, type?: string) {
+  const extensao = type?.includes('jpeg') ? 'jpg' : type?.split('/')[1] || 'png';
+  const nome = title.replace(/[^\w-]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 48) || 'agromarket';
+  return `${nome}.${extensao}`;
 }
 
-export default function ShareButton({ label, title, message, path, full = false, imageUrl }: ShareButtonProps) {
+function compartilhamentoCancelado(error: unknown) {
+  return error instanceof DOMException && error.name === 'AbortError';
+}
+
+export default function ShareButton({
+  label,
+  title,
+  message,
+  path,
+  full = false,
+  cacheKey,
+  imagePath,
+  imageUrl
+}: ShareButtonProps) {
   const [open, setOpen] = useState(false);
   const [copied, setCopied] = useState(false);
-  const [url, setUrl] = useState(montarUrl(path));
   const [sharingImage, setSharingImage] = useState(false);
   const [imageShareError, setImageShareError] = useState<string | null>(null);
+  const [url, setUrl] = useState(montarUrl(path, cacheKey));
 
   useEffect(() => {
-    setUrl(montarUrl(path));
-  }, [path]);
+    setUrl(montarUrl(path, cacheKey));
+  }, [path, cacheKey]);
 
   const textoFinal = useMemo(() => `${message.trim()}\n\n${url}`.trim(), [message, url]);
   const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(textoFinal)}`;
+  const resolvedImageUrl = useMemo(() => montarUrlImagem(imagePath || imageUrl, cacheKey), [imagePath, imageUrl, cacheKey]);
 
   async function copiar() {
     await navigator.clipboard.writeText(textoFinal);
@@ -53,16 +69,29 @@ export default function ShareButton({ label, title, message, path, full = false,
     setTimeout(() => setCopied(false), 1800);
   }
 
-  async function montarArquivoImagem() {
-    if (!imageUrl) return null;
+  async function compartilharNativo() {
+    if (navigator.share) {
+      try {
+        await navigator.share({ title, text: message, url });
+      } catch (error) {
+        if (compartilhamentoCancelado(error)) return;
+        await copiar();
+      }
+    } else {
+      await copiar();
+    }
+  }
 
-    const response = await fetch(imageUrl, { mode: 'cors' });
+  async function montarArquivoImagem() {
+    if (!resolvedImageUrl) return null;
+
+    const response = await fetch(resolvedImageUrl, { cache: 'reload' });
     if (!response.ok) throw new Error('Não consegui carregar a imagem da capa.');
 
     const blob = await response.blob();
     if (!blob.type.startsWith('image/')) throw new Error('A capa do anúncio não está em formato de imagem.');
 
-    return new File([blob], nomeArquivoImagem(imageUrl), { type: blob.type || 'image/jpeg' });
+    return new File([blob], nomeArquivoImagem(title, blob.type), { type: blob.type || 'image/png' });
   }
 
   async function compartilharComImagem() {
@@ -71,33 +100,22 @@ export default function ShareButton({ label, title, message, path, full = false,
 
     try {
       const arquivo = await montarArquivoImagem();
-      if (arquivo && navigator.share && navigator.canShare?.({ files: [arquivo] })) {
+      const podeEnviarArquivo = arquivo ? (!navigator.canShare || navigator.canShare({ files: [arquivo] })) : false;
+
+      if (arquivo && navigator.share && podeEnviarArquivo) {
         await navigator.share({ title, text: textoFinal, files: [arquivo] });
-      } else if (navigator.share) {
-        await navigator.share({ title, text: message, url });
-        setImageShareError('Seu navegador não permitiu enviar a imagem junto. Enviei o link com prévia da capa.');
       } else {
-        await copiar();
-        setImageShareError('Seu navegador não permite compartilhar imagem direto. Copiei o texto com link.');
+        await compartilharNativo();
+        if (resolvedImageUrl) {
+          setImageShareError('Seu navegador não permitiu anexar a imagem. Enviei o link com a prévia da capa.');
+        }
       }
     } catch (error) {
-      if (navigator.share) {
-        await navigator.share({ title, text: message, url });
-        setImageShareError('Não foi possível anexar a imagem. Enviei o link com a prévia da capa.');
-      } else {
-        await copiar();
-        setImageShareError(error instanceof Error ? error.message : 'Não foi possível compartilhar a imagem.');
-      }
-    }
-
-    setSharingImage(false);
-  }
-
-  async function compartilharNativo() {
-    if (navigator.share) {
-      await navigator.share({ title, text: message, url });
-    } else {
-      await copiar();
+      if (compartilhamentoCancelado(error)) return;
+      await compartilharNativo();
+      setImageShareError(error instanceof Error ? error.message : 'Não foi possível compartilhar a imagem.');
+    } finally {
+      setSharingImage(false);
     }
   }
 
@@ -123,11 +141,11 @@ export default function ShareButton({ label, title, message, path, full = false,
               <button className="btn btn-secondary" type="button" onClick={() => setOpen(false)}><X size={18} /></button>
             </div>
 
-            {imageUrl && (
+            {resolvedImageUrl && (
               <div className="card" style={{ background: '#f8faf4', padding: 10 }}>
                 <strong style={{ display: 'flex', gap: 8, alignItems: 'center' }}><ImageIcon size={17} /> Capa do anúncio</strong>
                 <p className="muted" style={{ margin: '4px 0 8px' }}>No botão do celular, o AgroMarket tenta enviar a imagem junto. No WhatsApp Web, a imagem aparece como prévia do link.</p>
-                <img src={imageUrl} alt="Capa do anúncio" style={{ width: '100%', maxHeight: 180, objectFit: 'contain', borderRadius: 14, background: '#eef3ea' }} />
+                <img src={resolvedImageUrl} alt="Capa do anúncio" style={{ width: '100%', maxHeight: 180, objectFit: 'contain', borderRadius: 14, background: '#eef3ea' }} />
               </div>
             )}
 
@@ -139,7 +157,7 @@ export default function ShareButton({ label, title, message, path, full = false,
             </label>
 
             <div style={{ display: 'grid', gap: 10 }}>
-              {imageUrl && (
+              {resolvedImageUrl && (
                 <button className="btn btn-primary btn-full" type="button" onClick={compartilharComImagem} disabled={sharingImage} aria-busy={sharingImage}>
                   <ImageIcon size={18} /> {sharingImage ? 'Preparando imagem...' : 'Compartilhar com imagem da capa'}
                 </button>
@@ -147,7 +165,7 @@ export default function ShareButton({ label, title, message, path, full = false,
               <a className="btn btn-whatsapp btn-full" href={whatsappUrl} target="_blank" rel="noreferrer">
                 <MessageCircle size={18} /> Compartilhar no WhatsApp
               </a>
-              <button className="btn btn-primary btn-full" type="button" onClick={compartilharNativo}>
+              <button className="btn btn-secondary btn-full" type="button" onClick={compartilharNativo}>
                 <Share2 size={18} /> Compartilhar pelo celular
               </button>
               <button className="btn btn-secondary btn-full" type="button" onClick={copiar}>

@@ -1,18 +1,24 @@
 import type { Metadata } from 'next';
 import AnuncioDetalheClient from './AnuncioDetalheClient';
-import { cleanText, createSeoSupabaseClient, DEFAULT_IMAGE, formatMoneySeo, getAbsoluteUrl, getSiteUrl, SITE_NAME } from '@/lib/seo';
+import { cleanText, createSeoSupabaseClient, formatMoneySeo, getAbsoluteUrl, getSiteUrl, SITE_NAME } from '@/lib/seo';
 
 type PageProps = {
   params: Promise<{ slug: string }>;
+  searchParams?: Promise<Record<string, string | string[] | undefined>>;
 };
 
-export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
+function primeiroParametro(value: string | string[] | undefined) {
+  return Array.isArray(value) ? value[0] : value;
+}
+
+export async function generateMetadata({ params, searchParams }: PageProps): Promise<Metadata> {
   const { slug } = await params;
+  const query = searchParams ? await searchParams : {};
   const supabase = createSeoSupabaseClient();
 
   const { data } = await supabase
     .from('anuncios')
-    .select('titulo, descricao, preco, preco_a_combinar, cidade, estado, bairro, slug, status, fotos_anuncios(id, url_foto, principal, ordem)')
+    .select('titulo, descricao, preco, preco_a_combinar, cidade, estado, bairro, slug, status, updated_at, fotos_anuncios(id, url_foto, principal, ordem)')
     .eq('slug', slug)
     .eq('status', 'aprovado')
     .maybeSingle();
@@ -32,26 +38,31 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   const local = `${anuncio.bairro ? `${anuncio.bairro} - ` : ''}${anuncio.cidade} - ${anuncio.estado}`;
   const title = `${anuncio.titulo} - ${preco}`;
   const description = cleanText(`${preco} • ${local}. ${anuncio.descricao}`, 180);
-  const url = getAbsoluteUrl(`/anuncio/${anuncio.slug}`);
-  const imageUrl = foto?.url_foto ? getAbsoluteUrl(foto.url_foto) : getAbsoluteUrl(DEFAULT_IMAGE);
+  const canonicalUrl = getAbsoluteUrl(`/anuncio/${anuncio.slug}`);
+  const requestedVersion = primeiroParametro(query.v);
+  const imageVersion = encodeURIComponent(String(requestedVersion || foto?.id || anuncio.updated_at || anuncio.slug));
+  const imageUrl = getAbsoluteUrl(`/api/og/anuncio/${anuncio.slug}?v=${imageVersion}`);
+  const sharedUrl = primeiroParametro(query.share) === 'whatsapp'
+    ? getAbsoluteUrl(`/anuncio/${anuncio.slug}?share=whatsapp&v=${imageVersion}`)
+    : canonicalUrl;
 
   return {
     metadataBase: new URL(getSiteUrl()),
     title: `${title} | ${SITE_NAME}`,
     description,
-    alternates: { canonical: url },
+    alternates: { canonical: canonicalUrl },
     openGraph: {
       title,
       description,
-      url,
+      url: sharedUrl,
       siteName: SITE_NAME,
       type: 'article',
       locale: 'pt_BR',
       images: [
         {
           url: imageUrl,
-          width: 1200,
-          height: 630,
+          width: 600,
+          height: 315,
           alt: anuncio.titulo
         }
       ]
