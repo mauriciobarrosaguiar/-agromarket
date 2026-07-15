@@ -132,8 +132,10 @@ export default function VitrineCupomRedeemer() {
     }
 
     const resultado = (data || {}) as AplicarCupomResultado;
+    const ativado = resultado.status === 'ativado';
+
     setMessage(
-      resultado.status === 'ativado'
+      ativado
         ? 'Cupom aplicado! Sua lojinha foi liberada.'
         : 'Cupom aplicado! O benefício foi reservado. Agora conclua a verificação do perfil.'
     );
@@ -142,7 +144,10 @@ export default function VitrineCupomRedeemer() {
     await load();
     setLoading(false);
 
-    window.setTimeout(() => window.location.reload(), 900);
+    window.setTimeout(() => {
+      if (ativado) window.location.reload();
+      else window.location.href = '/painel/perfil';
+    }, 900);
   }
 
   if (!deveExibir) return null;
