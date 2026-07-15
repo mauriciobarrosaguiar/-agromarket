@@ -17,11 +17,6 @@ function vitrineLiberada(vitrine: Vitrine | null) {
   return false;
 }
 
-function dataBR(value?: string | null) {
-  if (!value) return 'sem vencimento';
-  return new Date(`${value}T12:00:00`).toLocaleDateString('pt-BR');
-}
-
 export default function VitrineCupomRedeemer() {
   const pathname = usePathname();
   const [vitrine, setVitrine] = useState<Vitrine | null>(null);
@@ -53,14 +48,14 @@ export default function VitrineCupomRedeemer() {
     e.preventDefault();
     if (!vitrine) return;
     if (!codigo.trim()) {
-      setMessage('Digite o código do cupom.');
+      setMessage('Digite o cupom.');
       return;
     }
 
     setLoading(true);
     setMessage(null);
 
-    const { data, error } = await supabase.rpc('aplicar_cupom_vitrine', {
+    const { error } = await supabase.rpc('aplicar_cupom_vitrine', {
       codigo_text: codigo.trim(),
       vitrine_uuid: vitrine.id
     });
@@ -68,10 +63,9 @@ export default function VitrineCupomRedeemer() {
     if (error) {
       setMessage(error.message);
     } else {
-      const resultado = data as { gratis_ate?: string | null; ilimitado?: boolean } | null;
-      setMessage(resultado?.ilimitado ? 'Cupom aplicado. Sua lojinha foi liberada grátis sem vencimento.' : `Cupom aplicado. Sua lojinha foi liberada grátis até ${dataBR(resultado?.gratis_ate)}.`);
+      setMessage('Cupom aplicado.');
       await load();
-      window.setTimeout(() => window.location.reload(), 1200);
+      window.setTimeout(() => window.location.reload(), 800);
     }
 
     setLoading(false);
@@ -93,19 +87,16 @@ export default function VitrineCupomRedeemer() {
         border: '2px solid rgba(22,101,52,.18)'
       }}
     >
-      <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'flex-start' }}>
-        <div>
-          <strong style={{ display: 'flex', gap: 8, alignItems: 'center' }}><Gift size={18} /> Tem cupom de lojinha grátis?</strong>
-          <p className="muted" style={{ margin: '4px 0 10px' }}>Digite o código antes de gerar ou pagar o Pix.</p>
-        </div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'center', marginBottom: 8 }}>
+        <strong style={{ display: 'flex', gap: 8, alignItems: 'center' }}><Gift size={18} /> Cupom</strong>
         <button className="btn btn-secondary" type="button" onClick={() => setFechado(true)} style={{ padding: 8 }} aria-label="Fechar cupom"><X size={16} /></button>
       </div>
 
       {message && <div className="notice" style={{ marginBottom: 10 }}>{message}</div>}
 
       <form onSubmit={aplicarCupom} style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 8 }}>
-        <input className="input" value={codigo} onChange={(e) => setCodigo(e.target.value.toUpperCase())} placeholder="Ex: LOJINHA15" />
-        <button className="btn btn-primary" disabled={loading} type="submit">{loading ? 'Aplicando...' : 'Aplicar'}</button>
+        <input className="input" value={codigo} onChange={(e) => setCodigo(e.target.value.toUpperCase())} placeholder="Cupom" />
+        <button className="btn btn-primary" disabled={loading} type="submit">{loading ? '...' : 'Aplicar'}</button>
       </form>
     </div>
   );
