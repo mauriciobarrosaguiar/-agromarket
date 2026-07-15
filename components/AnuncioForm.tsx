@@ -2,7 +2,7 @@
 
 import { FormEvent, useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Camera, CheckCircle2, MapPin, Trash2 } from 'lucide-react';
+import { Camera, MapPin, Trash2 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { makeUniqueSlug } from '@/lib/slug';
 import { uploadAnuncioFoto } from '@/lib/upload';
@@ -220,7 +220,6 @@ export default function AnuncioForm({ anuncio, adminMode = false, redirectTo = '
       (pos) => {
         const accuracy = Math.round(pos.coords.accuracy || 999999);
         setState((prev) => ({ ...prev, latitude: String(pos.coords.latitude), longitude: String(pos.coords.longitude), localizacao_accuracy: String(accuracy) }));
-        if (accuracy > MAX_ACCURACY_METERS) setError(`Localização capturada, mas com precisão baixa (${accuracy}m). O anúncio pode ser enviado mesmo assim, usando cidade/estado.`);
         setGeoLoading(false);
       },
       () => { setError('Não consegui pegar sua localização agora. Você pode continuar usando cidade e estado.'); setGeoLoading(false); },
@@ -339,14 +338,13 @@ export default function AnuncioForm({ anuncio, adminMode = false, redirectTo = '
     <form className="form" onSubmit={submit}>
       {error && <div className="notice">{error}</div>}
       {savingStep && <div className="notice">{savingStep}</div>}
-      {!adminMode && <div className="notice notice-success"><CheckCircle2 size={18} /> Cadastro enxuto: preencha produto, foto, cidade e WhatsApp. Documento e selfie ficam para lojinha/verificação, não bloqueiam anúncio simples.</div>}
       {anuncio && !adminMode && <div className="notice">Ao salvar alterações, o anúncio volta para aprovação do administrador.</div>}
 
       <div className="card" style={{ background: '#f8faf4' }}>
         <h3 style={{ marginTop: 0 }}>1. O que você vai anunciar?</h3>
         <div className="form-row"><label className="field"><span className="label">Categoria *</span><select className="select" value={state.categoria_id} onChange={(e) => updateCategoria(e.target.value)}><option value="">Selecione</option>{categorias.map((cat) => <option key={cat.id} value={cat.id}>{cat.nome}</option>)}</select></label><label className="field"><span className="label">Subcategoria</span><select className="select" value={state.subcategoria_id} onChange={(e) => update('subcategoria_id', e.target.value)} disabled={!state.categoria_id}><option value="">{state.categoria_id ? 'Opcional' : 'Escolha a categoria primeiro'}</option>{subcategoriasDaCategoria.map((sub) => <option key={sub.id} value={sub.id}>{sub.nome}</option>)}</select></label></div>
         <label className="field"><span className="label">Título *</span><input className="input" value={state.titulo} onChange={(e) => update('titulo', e.target.value)} placeholder="Ex: Leitão caipira 12 a 15 kg" /></label>
-        <label className="field"><span className="label">Descrição *</span><textarea className="textarea" value={state.descricao} onChange={(e) => update('descricao', e.target.value)} placeholder="Explique de forma simples: estado do produto, quantidade, retirada/entrega e observações." /></label>
+        <label className="field"><span className="label">Descrição *</span><textarea className="textarea" value={state.descricao} onChange={(e) => update('descricao', e.target.value)} placeholder="Explique o produto, serviço ou vaga." /></label>
         <label className="field"><span className="label">Tipo de anúncio</span><select className="select" value={state.tipo_anuncio} onChange={(e) => update('tipo_anuncio', e.target.value as TipoAnuncio)}>{TIPOS_ANUNCIO.map((tipo) => <option key={tipo.value} value={tipo.value}>{tipo.label}</option>)}</select></label>
       </div>
 
@@ -361,14 +359,13 @@ export default function AnuncioForm({ anuncio, adminMode = false, redirectTo = '
         <div className="form-row"><label className="field"><span className="label">Estado *</span><select className="select" value={state.estado} onChange={(e) => updateEstado(e.target.value)}><option value="">Selecione</option>{ESTADOS.map((uf) => <option key={uf} value={uf}>{uf}</option>)}</select></label><label className="field"><span className="label">Cidade *</span><select className="select" value={state.cidade} onChange={(e) => update('cidade', e.target.value)} disabled={!state.estado}><option value="">{state.estado ? 'Selecione' : 'Escolha o estado primeiro'}</option>{cidades.map((nomeCidade) => <option key={nomeCidade} value={nomeCidade}>{nomeCidade}</option>)}</select></label></div>
         <label className="field"><span className="label">Bairro</span><input className="input" value={state.bairro} onChange={(e) => update('bairro', e.target.value)} placeholder="Opcional" /></label>
         <div className="form-row"><label className="field"><span className="label">Nome do contato *</span><input className="input" value={state.nome_contato} readOnly={!adminMode} onChange={(e) => update('nome_contato', e.target.value)} title={adminMode ? 'Editável pelo admin' : 'Vem do seu cadastro'} /></label><label className="field"><span className="label">WhatsApp *</span><input className="input" value={state.whatsapp} readOnly={!adminMode} onChange={(e) => update('whatsapp', e.target.value)} title={adminMode ? 'Editável pelo admin' : 'Vem do seu cadastro'} /></label></div>
-        <button className="btn btn-secondary btn-full" type="button" onClick={usarLocalizacaoAtual} disabled={geoLoading}><MapPin size={18} /> {geoLoading ? 'Atualizando localização...' : state.latitude && state.longitude ? 'Atualizar localização automática' : 'Usar minha localização automática'}</button>
-        {state.latitude && state.longitude && <div className="notice" style={{ marginTop: 12 }}>Localização capturada. Precisão: {state.localizacao_accuracy || '?'}m.</div>}
+        <button className="btn btn-secondary btn-full" type="button" onClick={usarLocalizacaoAtual} disabled={geoLoading}><MapPin size={18} /> {geoLoading ? 'Atualizando...' : state.latitude && state.longitude ? 'Localização atualizada' : 'Usar localização'}</button>
       </div>
 
       <div className="card" style={{ background: '#f8faf4' }}>
         <h3 style={{ marginTop: 0 }}>4. Fotos</h3>
-        {anuncio && <div className="photo-editor-card"><div className="photo-editor-head"><div><h3>Fotos atuais</h3><p className="muted">Marque uma foto para excluir. A remoção acontece somente ao salvar.</p></div><span className="badge">{fotosVisiveis.length}/5 fotos</span></div>{fotosExistentes.length > 0 && <div className="photo-edit-grid">{fotosExistentes.map((foto, index) => { const marcadaParaExcluir = fotosParaExcluir.includes(foto.id); return <div className={`photo-edit-card${marcadaParaExcluir ? ' photo-edit-card-removed' : ''}`} key={foto.id}><div className="photo-edit-image-wrap"><img src={foto.url_foto} alt={`Foto ${index + 1}`} />{foto.principal && <span className="badge photo-edit-badge">Capa</span>}{marcadaParaExcluir && <span className="photo-edit-removed-label">Será excluída</span>}</div><button className={`btn ${marcadaParaExcluir ? 'btn-secondary' : 'btn-danger'} btn-full`} disabled={loading} type="button" onClick={() => alternarExclusaoFoto(foto.id)}>{marcadaParaExcluir ? 'Manter foto' : <><Trash2 size={16} /> Excluir foto</>}</button></div>; })}</div>}</div>}
-        <label className="field"><span className="label">{anuncio ? 'Adicionar novas fotos' : 'Fotos *'}</span><input className="input" type="file" multiple accept="image/png,image/jpeg,image/webp" required={!anuncio} onChange={(e) => setFiles(e.target.files)} /><span className="muted"><Camera size={15} /> Até 5 fotos. A primeira foto vira capa.</span></label>
+        {anuncio && <div className="photo-editor-card"><div className="photo-editor-head"><div><h3>Fotos atuais</h3></div><span className="badge">{fotosVisiveis.length}/5 fotos</span></div>{fotosExistentes.length > 0 && <div className="photo-edit-grid">{fotosExistentes.map((foto, index) => { const marcadaParaExcluir = fotosParaExcluir.includes(foto.id); return <div className={`photo-edit-card${marcadaParaExcluir ? ' photo-edit-card-removed' : ''}`} key={foto.id}><div className="photo-edit-image-wrap"><img src={foto.url_foto} alt={`Foto ${index + 1}`} />{foto.principal && <span className="badge photo-edit-badge">Capa</span>}{marcadaParaExcluir && <span className="photo-edit-removed-label">Será excluída</span>}</div><button className={`btn ${marcadaParaExcluir ? 'btn-secondary' : 'btn-danger'} btn-full`} disabled={loading} type="button" onClick={() => alternarExclusaoFoto(foto.id)}>{marcadaParaExcluir ? 'Manter foto' : <><Trash2 size={16} /> Excluir foto</>}</button></div>; })}</div>}</div>}
+        <label className="field"><span className="label">{anuncio ? 'Adicionar novas fotos' : 'Fotos *'}</span><input className="input" type="file" multiple accept="image/png,image/jpeg,image/webp" required={!anuncio} onChange={(e) => setFiles(e.target.files)} /><span className="muted"><Camera size={15} /> Até 5 fotos.</span></label>
       </div>
 
       <button className="btn btn-primary btn-full" disabled={loading} type="submit">{loading ? (savingStep || 'Salvando...') : adminMode ? 'Salvar como admin' : anuncio ? 'Salvar alterações e enviar para aprovação' : 'Enviar anúncio para aprovação'}</button>
