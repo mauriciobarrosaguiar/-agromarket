@@ -2,7 +2,7 @@
 
 import { FormEvent, useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { MapPin, Trash2 } from 'lucide-react';
+import { Camera, CheckCircle2, MapPin, Trash2 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { makeUniqueSlug } from '@/lib/slug';
 import { uploadAnuncioFoto } from '@/lib/upload';
@@ -24,8 +24,6 @@ type FormState = {
   cidade: string;
   estado: string;
   bairro: string;
-  endereco: string;
-  referencia: string;
   latitude: string;
   longitude: string;
   localizacao_accuracy: string;
@@ -46,8 +44,6 @@ const initialState: FormState = {
   cidade: '',
   estado: 'TO',
   bairro: '',
-  endereco: '',
-  referencia: '',
   latitude: '',
   longitude: '',
   localizacao_accuracy: '',
@@ -158,7 +154,10 @@ export default function AnuncioForm({ anuncio, adminMode = false, redirectTo = '
         nome_contato: userProfile.nome || prev.nome_contato,
         whatsapp: userProfile.whatsapp || prev.whatsapp,
         estado: userProfile.estado || prev.estado || 'TO',
-        cidade: userProfile.cidade || prev.cidade
+        cidade: userProfile.cidade || prev.cidade,
+        latitude: userProfile.latitude ? String(userProfile.latitude) : prev.latitude,
+        longitude: userProfile.longitude ? String(userProfile.longitude) : prev.longitude,
+        localizacao_accuracy: userProfile.localizacao_accuracy ? String(Math.round(userProfile.localizacao_accuracy)) : prev.localizacao_accuracy
       }));
     }
 
@@ -185,11 +184,9 @@ export default function AnuncioForm({ anuncio, adminMode = false, redirectTo = '
       cidade: anuncio.cidade,
       estado: anuncio.estado,
       bairro: anuncio.bairro || '',
-      endereco: '',
-      referencia: '',
       latitude: anuncio.latitude ? String(anuncio.latitude) : '',
       longitude: anuncio.longitude ? String(anuncio.longitude) : '',
-      localizacao_accuracy: '',
+      localizacao_accuracy: anuncio.localizacao_accuracy ? String(anuncio.localizacao_accuracy) : '',
       whatsapp: anuncio.whatsapp,
       nome_contato: anuncio.nome_contato
     });
@@ -227,7 +224,7 @@ export default function AnuncioForm({ anuncio, adminMode = false, redirectTo = '
     setError(null);
 
     if (!navigator.geolocation) {
-      setError('Seu navegador não permitiu pegar localização automática.');
+      setError('Seu navegador não permitiu pegar localização automática. Você ainda pode enviar o anúncio escolhendo cidade e estado.');
       return;
     }
 
@@ -235,26 +232,22 @@ export default function AnuncioForm({ anuncio, adminMode = false, redirectTo = '
     navigator.geolocation.getCurrentPosition(
       (pos) => {
         const accuracy = Math.round(pos.coords.accuracy || 999999);
-
-        if (accuracy > MAX_ACCURACY_METERS) {
-          setError(`Localização recusada: precisão baixa (${accuracy}m). Ative GPS, desative economia de bateria e tente em local aberto.`);
-          setGeoLoading(false);
-          return;
-        }
-
         setState((prev) => ({
           ...prev,
           latitude: String(pos.coords.latitude),
           longitude: String(pos.coords.longitude),
           localizacao_accuracy: String(accuracy)
         }));
+        if (accuracy > MAX_ACCURACY_METERS) {
+          setError(`Localização capturada, mas com precisão baixa (${accuracy}m). O anúncio pode ser enviado mesmo assim, usando cidade/estado.`);
+        }
         setGeoLoading(false);
       },
       () => {
-        setError('Não consegui pegar sua localização. Verifique a permissão do GPS.');
+        setError('Não consegui pegar sua localização agora. Você pode continuar usando cidade e estado.');
         setGeoLoading(false);
       },
-      { enableHighAccuracy: true, timeout: 20000, maximumAge: 0 }
+      { enableHighAccuracy: true, timeout: 15000, maximumAge: 60000 }
     );
   }
 
@@ -282,36 +275,12 @@ export default function AnuncioForm({ anuncio, adminMode = false, redirectTo = '
         throw new Error('Sua sessão não está ativa neste navegador. Entre novamente pelo botão Perfil e tente publicar de novo.');
       }
 
-      if (!adminMode) {
-        const { data: perfilSeguranca } = await supabase
-          .from('usuarios')
-          .select('foto_url,selfie_url,localizacao_validada,cadastro_completo,cpf,documento_numero')
-          .eq('id', user.id)
-          .maybeSingle();
-
-        if (!perfilSeguranca?.cadastro_completo || !perfilSeguranca?.cpf || !perfilSeguranca?.documento_numero) {
-          throw new Error('Antes de anunciar, complete seu perfil com CPF e dados do documento.');
-        }
-
-        if (!perfilSeguranca?.selfie_url && !perfilSeguranca?.foto_url) {
-          throw new Error('Antes de anunciar, complete seu perfil com selfie/foto do divulgador.');
-        }
-
-        if (!perfilSeguranca?.localizacao_validada) {
-          throw new Error('Antes de anunciar, valide sua localização real no Perfil.');
-        }
-      }
-
       if (!state.titulo || !state.descricao || !state.categoria_id || !state.estado || !state.cidade || !state.whatsapp || !state.nome_contato) {
-        throw new Error('Preencha os campos obrigatórios.');
-      }
-
-      if (!state.subcategoria_id && subcategoriasDaCategoria.length > 0) {
-        throw new Error('Selecione uma subcategoria para organizar melhor o anúncio.');
+        throw new Error('Preencha os campos obrigatórios: categoria, título, descrição, cidade, WhatsApp e contato.');
       }
 
       if (!anuncio && (!files || files.length === 0)) {
-        throw new Error('Adicione pelo menos uma foto. Não permitimos anúncio sem imagem.');
+        throw new Error('Adicione pelo menos uma foto para publicar o anúncio.');
       }
 
       const quantidadeNovasFotos = files?.length || 0;
@@ -329,7 +298,6 @@ export default function AnuncioForm({ anuncio, adminMode = false, redirectTo = '
       const quantidadeNumero = state.quantidade ? parseDecimal(state.quantidade) : null;
       const latitudeNumero = parseCoordenada(state.latitude);
       const longitudeNumero = parseCoordenada(state.longitude);
-      const accuracyNumero = state.localizacao_accuracy ? Number(state.localizacao_accuracy) : null;
 
       if (!state.preco_a_combinar && state.preco && precoNumero === null) {
         throw new Error('Informe um preço válido. Exemplo: R$ 28,00.');
@@ -337,16 +305,6 @@ export default function AnuncioForm({ anuncio, adminMode = false, redirectTo = '
 
       if (state.quantidade && quantidadeNumero === null) {
         throw new Error('A quantidade deve conter somente números.');
-      }
-
-      if (latitudeNumero === null || longitudeNumero === null) {
-        throw new Error('Use o botão “Usar minha localização”. Não aceitamos localização digitada ou fictícia.');
-      }
-
-      const mantendoLocalizacaoExistente = Boolean(anuncio?.latitude && anuncio?.longitude && latitudeNumero !== null && longitudeNumero !== null && !state.localizacao_accuracy);
-
-      if (!mantendoLocalizacaoExistente && (accuracyNumero === null || accuracyNumero > MAX_ACCURACY_METERS)) {
-        throw new Error('Capture novamente a localização com GPS de boa precisão para publicar o anúncio.');
       }
 
       const payload = {
@@ -380,11 +338,7 @@ export default function AnuncioForm({ anuncio, adminMode = false, redirectTo = '
       if (anuncioId) {
         const query = supabase.from('anuncios').update(payload).eq('id', anuncioId);
         const updateQuery = adminMode ? query : query.eq('usuario_id', user.id);
-        const { error } = await comTempoLimite(
-          updateQuery,
-          20000,
-          'Demorou demais para salvar. Verifique sua conexão e tente novamente.'
-        );
+        const { error } = await comTempoLimite(updateQuery, 20000, 'Demorou demais para salvar. Verifique sua conexão e tente novamente.');
         if (error) throw error;
       } else {
         const { data, error } = await comTempoLimite(
@@ -405,11 +359,7 @@ export default function AnuncioForm({ anuncio, adminMode = false, redirectTo = '
         for (let i = 0; i < list.length; i++) {
           setSavingStep(`Enviando foto ${i + 1} de ${list.length}...`);
           const ordemDaFoto = ordemBase + i;
-          const url = await comTempoLimite(
-            uploadAnuncioFoto(list[i], anuncioId, ordemDaFoto),
-            45000,
-            'A foto demorou demais para enviar. Tente uma imagem menor ou uma internet melhor.'
-          );
+          const url = await comTempoLimite(uploadAnuncioFoto(list[i], anuncioId, ordemDaFoto), 45000, 'A foto demorou demais para enviar. Tente uma imagem menor ou uma internet melhor.');
           const { error: photoError } = await comTempoLimite(
             supabase.from('fotos_anuncios').insert({
               anuncio_id: anuncioId,
@@ -424,19 +374,13 @@ export default function AnuncioForm({ anuncio, adminMode = false, redirectTo = '
           fotosEnviadas++;
         }
 
-        if (fotosEnviadas === 0) {
-          throw new Error('Não foi possível enviar a foto. O anúncio não será salvo sem imagem.');
-        }
+        if (fotosEnviadas === 0) throw new Error('Não foi possível enviar a foto. O anúncio não será salvo sem imagem.');
       }
 
       if (fotosParaExcluir.length > 0 && anuncioId) {
         setSavingStep('Removendo fotos selecionadas...');
         const { error: deletePhotosError } = await comTempoLimite(
-          supabase
-            .from('fotos_anuncios')
-            .delete()
-            .eq('anuncio_id', anuncioId)
-            .in('id', fotosParaExcluir),
+          supabase.from('fotos_anuncios').delete().eq('anuncio_id', anuncioId).in('id', fotosParaExcluir),
           15000,
           'Demorou demais para remover as fotos.'
         );
@@ -445,11 +389,7 @@ export default function AnuncioForm({ anuncio, adminMode = false, redirectTo = '
         const principalMantida = fotosVisiveis.some((foto) => foto.principal);
         if (!principalMantida && fotosVisiveis.length > 0) {
           const { error: capaError } = await comTempoLimite(
-            supabase
-              .from('fotos_anuncios')
-              .update({ principal: true })
-              .eq('id', fotosVisiveis[0].id)
-              .eq('anuncio_id', anuncioId),
+            supabase.from('fotos_anuncios').update({ principal: true }).eq('id', fotosVisiveis[0].id).eq('anuncio_id', anuncioId),
             15000,
             'Demorou demais para atualizar a foto de capa.'
           );
@@ -459,10 +399,7 @@ export default function AnuncioForm({ anuncio, adminMode = false, redirectTo = '
 
       router.push(redirectTo);
     } catch (err) {
-      if (anuncioIdCriado) {
-        await supabase.from('anuncios').delete().eq('id', anuncioIdCriado);
-      }
-
+      if (anuncioIdCriado) await supabase.from('anuncios').delete().eq('id', anuncioIdCriado);
       const message = err instanceof Error ? err.message : 'Erro ao salvar anúncio.';
       setError(message);
       window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -478,184 +415,101 @@ export default function AnuncioForm({ anuncio, adminMode = false, redirectTo = '
       {savingStep && <div className="notice">{savingStep}</div>}
 
       {!adminMode && (
-        <div className="notice">
-          Ao publicar, use fotos reais, informe dados verdadeiros e não anuncie itens proibidos ou em situação irregular. Agora é obrigatório ter perfil com CPF/dados do documento, selfie tirada na hora e localização real validada. <a href="/painel/perfil" style={{ fontWeight: 900 }}>Completar perfil</a>
+        <div className="notice notice-success">
+          <CheckCircle2 size={18} /> Cadastro enxuto: preencha o produto, foto, cidade e WhatsApp. Documento e selfie ficam para lojinha/verificação, não bloqueiam anúncio simples.
         </div>
       )}
 
-      {anuncio && !adminMode && (
-        <div className="notice">
-          Ao salvar alterações, o anúncio volta para aprovação do administrador antes de aparecer novamente na busca.
-        </div>
-      )}
-
-      <div className="form-row">
-        <label className="field">
-          <span className="label">Categoria *</span>
-          <select className="select" value={state.categoria_id} onChange={(e) => updateCategoria(e.target.value)}>
-            <option value="">Selecione</option>
-            {categorias.map((cat) => <option key={cat.id} value={cat.id}>{cat.nome}</option>)}
-          </select>
-        </label>
-        <label className="field">
-          <span className="label">Subcategoria *</span>
-          <select className="select" value={state.subcategoria_id} onChange={(e) => update('subcategoria_id', e.target.value)} disabled={!state.categoria_id}>
-            <option value="">{state.categoria_id ? 'Selecione' : 'Escolha a categoria primeiro'}</option>
-            {subcategoriasDaCategoria.map((sub) => <option key={sub.id} value={sub.id}>{sub.nome}</option>)}
-          </select>
-        </label>
-      </div>
-
-      <label className="field">
-        <span className="label">Tipo de anúncio *</span>
-        <select className="select" value={state.tipo_anuncio} onChange={(e) => update('tipo_anuncio', e.target.value as TipoAnuncio)}>
-          {TIPOS_ANUNCIO.map((tipo) => <option key={tipo.value} value={tipo.value}>{tipo.label}</option>)}
-        </select>
-        <span className="muted">O tipo é preenchido pela categoria, mas você pode ajustar se necessário.</span>
-      </label>
-
-      <label className="field">
-        <span className="label">Título *</span>
-        <input className="input" value={state.titulo} onChange={(e) => update('titulo', e.target.value)} placeholder="Ex: Leitão caipira 12 a 15 kg" />
-      </label>
-
-      <label className="field">
-        <span className="label">Descrição *</span>
-        <textarea className="textarea" value={state.descricao} onChange={(e) => update('descricao', e.target.value)} placeholder="Explique o produto, serviço ou vaga com detalhes." />
-      </label>
-
-      <div className="form-row">
-        <label className="field">
-          <span className="label">Preço</span>
-          <input
-            className="input"
-            value={state.preco}
-            disabled={state.preco_a_combinar}
-            inputMode="decimal"
-            onChange={(e) => update('preco', limparDecimal(e.target.value))}
-            onBlur={() => update('preco', formatarMoeda(state.preco))}
-            placeholder="Ex: R$ 28,00"
-          />
-        </label>
-        <label className="field" style={{ justifyContent: 'end' }}>
-          <span className="checkbox-row"><input type="checkbox" checked={state.preco_a_combinar} onChange={(e) => update('preco_a_combinar', e.target.checked)} /> Preço a combinar</span>
-        </label>
-      </div>
-
-      <div className="form-row">
-        <label className="field">
-          <span className="label">Quantidade</span>
-          <input
-            className="input"
-            value={state.quantidade}
-            inputMode="decimal"
-            onChange={(e) => update('quantidade', limparDecimal(e.target.value))}
-            placeholder="Ex: 10"
-          />
-        </label>
-        <label className="field">
-          <span className="label">Unidade</span>
-          <select className="select" value={state.unidade} onChange={(e) => update('unidade', e.target.value)}>
-            {UNIDADES.map((u) => <option key={u} value={u}>{u}</option>)}
-          </select>
-        </label>
-      </div>
-
-      <div className="form-row">
-        <label className="field">
-          <span className="label">Estado *</span>
-          <select className="select" value={state.estado} onChange={(e) => updateEstado(e.target.value)}>
-            <option value="">Selecione o estado</option>
-            {ESTADOS.map((uf) => <option key={uf} value={uf}>{uf}</option>) }
-          </select>
-        </label>
-        <label className="field">
-          <span className="label">Cidade *</span>
-          <select className="select" value={state.cidade} onChange={(e) => update('cidade', e.target.value)} disabled={!state.estado}>
-            <option value="">{state.estado ? 'Selecione a cidade' : 'Escolha o estado primeiro'}</option>
-            {cidades.map((nomeCidade) => <option key={nomeCidade} value={nomeCidade}>{nomeCidade}</option>)}
-          </select>
-        </label>
-      </div>
-
-      <label className="field">
-        <span className="label">Bairro</span>
-        <input className="input" value={state.bairro} onChange={(e) => update('bairro', e.target.value)} placeholder="Opcional" />
-      </label>
+      {anuncio && !adminMode && <div className="notice">Ao salvar alterações, o anúncio volta para aprovação do administrador.</div>}
 
       <div className="card" style={{ background: '#f8faf4' }}>
-        <h3 style={{ marginTop: 0 }}>Localização real do anúncio *</h3>
-        <p className="muted">A localização não pode ser digitada. Use o GPS do celular para evitar localização fictícia. O endereço exato não será exibido publicamente.</p>
-        <button className="btn btn-secondary btn-full" type="button" onClick={usarLocalizacaoAtual} disabled={geoLoading}>
-          <MapPin size={18} /> {geoLoading ? 'Validando GPS...' : state.latitude && state.longitude ? 'Localização real capturada' : 'Usar minha localização'}
-        </button>
-        {state.latitude && state.longitude && (
-          <div className="notice" style={{ marginTop: 12 }}>Localização salva com precisão de {state.localizacao_accuracy || '?'}m para ordenação por proximidade.</div>
-        )}
-      </div>
-
-      <div className="form-row">
-        <label className="field">
-          <span className="label">Nome do contato *</span>
-          <input className="input" value={state.nome_contato} readOnly={!adminMode} onChange={(e) => update('nome_contato', e.target.value)} title={adminMode ? 'Editável pelo admin' : 'Esse nome vem do seu cadastro'} />
-          <span className="muted">{adminMode ? 'Campo editável pelo administrador.' : 'Vem do seu cadastro. Para alterar, vá em Perfil.'}</span>
-        </label>
-        <label className="field">
-          <span className="label">WhatsApp *</span>
-          <input className="input" value={state.whatsapp} readOnly={!adminMode} onChange={(e) => update('whatsapp', e.target.value)} title={adminMode ? 'Editável pelo admin' : 'Esse WhatsApp vem do seu cadastro'} />
-          <span className="muted">{adminMode ? 'Campo editável pelo administrador.' : 'Vem do seu cadastro. Para alterar, vá em Perfil.'}</span>
-        </label>
-      </div>
-
-      {anuncio && (
-        <div className="card photo-editor-card">
-          <div className="photo-editor-head">
-            <div>
-              <h3>Fotos atuais do anúncio</h3>
-              <p className="muted">Marque uma foto para excluir. A remoção acontece somente ao salvar.</p>
-            </div>
-            <span className="badge">{fotosVisiveis.length}/5 fotos</span>
-          </div>
-
-          {fotosExistentes.length === 0 ? (
-            <div className="empty">Este anúncio ainda não tem foto cadastrada.</div>
-          ) : (
-            <div className="photo-edit-grid">
-              {fotosExistentes.map((foto, index) => {
-                const marcadaParaExcluir = fotosParaExcluir.includes(foto.id);
-
-                return (
-                  <div className={`photo-edit-card${marcadaParaExcluir ? ' photo-edit-card-removed' : ''}`} key={foto.id}>
-                    <div className="photo-edit-image-wrap">
-                      <img src={foto.url_foto} alt={`Foto ${index + 1} do anúncio`} />
-                      {foto.principal && <span className="badge photo-edit-badge">Capa</span>}
-                      {marcadaParaExcluir && <span className="photo-edit-removed-label">Será excluída</span>}
-                    </div>
-                    <button
-                      className={`btn ${marcadaParaExcluir ? 'btn-secondary' : 'btn-danger'} btn-full`}
-                      disabled={loading}
-                      type="button"
-                      onClick={() => alternarExclusaoFoto(foto.id)}
-                    >
-                      {marcadaParaExcluir ? 'Manter foto' : <><Trash2 size={16} /> Excluir foto</>}
-                    </button>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-
-          {fotosParaExcluir.length > 0 && (
-            <div className="notice notice-info">As fotos marcadas serão removidas quando você salvar o anúncio.</div>
-          )}
+        <h3 style={{ marginTop: 0 }}>1. O que você vai anunciar?</h3>
+        <div className="form-row">
+          <label className="field">
+            <span className="label">Categoria *</span>
+            <select className="select" value={state.categoria_id} onChange={(e) => updateCategoria(e.target.value)}>
+              <option value="">Selecione</option>
+              {categorias.map((cat) => <option key={cat.id} value={cat.id}>{cat.nome}</option>)}
+            </select>
+          </label>
+          <label className="field">
+            <span className="label">Subcategoria</span>
+            <select className="select" value={state.subcategoria_id} onChange={(e) => update('subcategoria_id', e.target.value)} disabled={!state.categoria_id}>
+              <option value="">{state.categoria_id ? 'Opcional' : 'Escolha a categoria primeiro'}</option>
+              {subcategoriasDaCategoria.map((sub) => <option key={sub.id} value={sub.id}>{sub.nome}</option>)}
+            </select>
+          </label>
         </div>
-      )}
 
-      <label className="field">
-        <span className="label">{anuncio ? 'Adicionar novas fotos' : 'Fotos *'}</span>
-        <input className="input" type="file" multiple accept="image/png,image/jpeg,image/webp" required={!anuncio} onChange={(e) => setFiles(e.target.files)} />
-        <span className="muted">{anuncio ? 'Você pode adicionar novas fotos até completar 5 imagens no anúncio.' : 'Obrigatório: pelo menos 1 foto. Até 5 fotos no MVP. A primeira foto vira capa.'}</span>
-      </label>
+        <label className="field">
+          <span className="label">Título *</span>
+          <input className="input" value={state.titulo} onChange={(e) => update('titulo', e.target.value)} placeholder="Ex: Leitão caipira 12 a 15 kg" />
+        </label>
+
+        <label className="field">
+          <span className="label">Descrição *</span>
+          <textarea className="textarea" value={state.descricao} onChange={(e) => update('descricao', e.target.value)} placeholder="Explique de forma simples: estado do produto, quantidade, retirada/entrega e observações." />
+        </label>
+
+        <label className="field">
+          <span className="label">Tipo de anúncio</span>
+          <select className="select" value={state.tipo_anuncio} onChange={(e) => update('tipo_anuncio', e.target.value as TipoAnuncio)}>
+            {TIPOS_ANUNCIO.map((tipo) => <option key={tipo.value} value={tipo.value}>{tipo.label}</option>)}
+          </select>
+        </label>
+      </div>
+
+      <div className="card" style={{ background: '#f8faf4' }}>
+        <h3 style={{ marginTop: 0 }}>2. Preço e quantidade</h3>
+        <div className="form-row">
+          <label className="field">
+            <span className="label">Preço</span>
+            <input className="input" value={state.preco} disabled={state.preco_a_combinar} inputMode="decimal" onChange={(e) => update('preco', limparDecimal(e.target.value))} onBlur={() => update('preco', formatarMoeda(state.preco))} placeholder="Ex: R$ 28,00" />
+          </label>
+          <label className="field" style={{ justifyContent: 'end' }}>
+            <span className="checkbox-row"><input type="checkbox" checked={state.preco_a_combinar} onChange={(e) => update('preco_a_combinar', e.target.checked)} /> Preço a combinar</span>
+          </label>
+        </div>
+        <div className="form-row">
+          <label className="field"><span className="label">Quantidade</span><input className="input" value={state.quantidade} inputMode="decimal" onChange={(e) => update('quantidade', limparDecimal(e.target.value))} placeholder="Ex: 10" /></label>
+          <label className="field"><span className="label">Unidade</span><select className="select" value={state.unidade} onChange={(e) => update('unidade', e.target.value)}>{UNIDADES.map((u) => <option key={u} value={u}>{u}</option>)}</select></label>
+        </div>
+      </div>
+
+      <div className="card" style={{ background: '#f8faf4' }}>
+        <h3 style={{ marginTop: 0 }}>3. Local e contato</h3>
+        <div className="form-row">
+          <label className="field"><span className="label">Estado *</span><select className="select" value={state.estado} onChange={(e) => updateEstado(e.target.value)}><option value="">Selecione</option>{ESTADOS.map((uf) => <option key={uf} value={uf}>{uf}</option>)}</select></label>
+          <label className="field"><span className="label">Cidade *</span><select className="select" value={state.cidade} onChange={(e) => update('cidade', e.target.value)} disabled={!state.estado}><option value="">{state.estado ? 'Selecione' : 'Escolha o estado primeiro'}</option>{cidades.map((nomeCidade) => <option key={nomeCidade} value={nomeCidade}>{nomeCidade}</option>)}</select></label>
+        </div>
+        <label className="field"><span className="label">Bairro</span><input className="input" value={state.bairro} onChange={(e) => update('bairro', e.target.value)} placeholder="Opcional" /></label>
+        <div className="form-row">
+          <label className="field"><span className="label">Nome do contato *</span><input className="input" value={state.nome_contato} readOnly={!adminMode} onChange={(e) => update('nome_contato', e.target.value)} title={adminMode ? 'Editável pelo admin' : 'Vem do seu cadastro'} /></label>
+          <label className="field"><span className="label">WhatsApp *</span><input className="input" value={state.whatsapp} readOnly={!adminMode} onChange={(e) => update('whatsapp', e.target.value)} title={adminMode ? 'Editável pelo admin' : 'Vem do seu cadastro'} /></label>
+        </div>
+        <button className="btn btn-secondary btn-full" type="button" onClick={usarLocalizacaoAtual} disabled={geoLoading}>
+          <MapPin size={18} /> {geoLoading ? 'Atualizando localização...' : state.latitude && state.longitude ? 'Atualizar localização automática' : 'Usar minha localização automática'}
+        </button>
+        {state.latitude && state.longitude && <div className="notice" style={{ marginTop: 12 }}>Localização capturada. Precisão: {state.localizacao_accuracy || '?'}m.</div>}
+      </div>
+
+      <div className="card" style={{ background: '#f8faf4' }}>
+        <h3 style={{ marginTop: 0 }}>4. Fotos</h3>
+        {anuncio && (
+          <div className="photo-editor-card">
+            <div className="photo-editor-head"><div><h3>Fotos atuais</h3><p className="muted">Marque uma foto para excluir. A remoção acontece somente ao salvar.</p></div><span className="badge">{fotosVisiveis.length}/5 fotos</span></div>
+            {fotosExistentes.length > 0 && <div className="photo-edit-grid">{fotosExistentes.map((foto, index) => {
+              const marcadaParaExcluir = fotosParaExcluir.includes(foto.id);
+              return <div className={`photo-edit-card${marcadaParaExcluir ? ' photo-edit-card-removed' : ''}`} key={foto.id}><div className="photo-edit-image-wrap"><img src={foto.url_foto} alt={`Foto ${index + 1}`} />{foto.principal && <span className="badge photo-edit-badge">Capa</span>}{marcadaParaExcluir && <span className="photo-edit-removed-label">Será excluída</span>}</div><button className={`btn ${marcadaParaExcluir ? 'btn-secondary' : 'btn-danger'} btn-full`} disabled={loading} type="button" onClick={() => alternarExclusaoFoto(foto.id)}>{marcadaParaExcluir ? 'Manter foto' : <><Trash2 size={16} /> Excluir foto</>}</button></div>;
+            })}</div>}
+          </div>
+        )}
+        <label className="field">
+          <span className="label">{anuncio ? 'Adicionar novas fotos' : 'Fotos *'}</span>
+          <input className="input" type="file" multiple accept="image/png,image/jpeg,image/webp" required={!anuncio} onChange={(e) => setFiles(e.target.files)} />
+          <span className="muted"><Camera size={15} /> Até 5 fotos. A primeira foto vira capa.</span>
+        </label>
+      </div>
 
       <button className="btn btn-primary btn-full" disabled={loading} type="submit">
         {loading ? (savingStep || 'Salvando...') : adminMode ? 'Salvar como admin' : anuncio ? 'Salvar alterações e enviar para aprovação' : 'Enviar anúncio para aprovação'}
