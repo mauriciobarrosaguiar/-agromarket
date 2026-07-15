@@ -20,17 +20,19 @@ function vitrineLiberada(vitrine: Vitrine | null) {
 export default function VitrineCupomRedeemer() {
   const pathname = usePathname();
   const [vitrine, setVitrine] = useState<Vitrine | null>(null);
+  const [logado, setLogado] = useState(false);
   const [codigo, setCodigo] = useState('');
   const [message, setMessage] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [fechado, setFechado] = useState(false);
 
-  const deveExibir = pathname === '/painel/vitrine' && vitrine && !vitrineLiberada(vitrine) && !fechado;
+  const deveExibir = pathname === '/painel/vitrine' && logado && !vitrineLiberada(vitrine) && !fechado;
 
   async function load() {
     if (pathname !== '/painel/vitrine') return;
     const { data: userData } = await supabase.auth.getUser();
     const userId = userData.user?.id;
+    setLogado(Boolean(userId));
     if (!userId) return;
 
     const { data } = await supabase
@@ -46,7 +48,6 @@ export default function VitrineCupomRedeemer() {
 
   async function aplicarCupom(e: FormEvent) {
     e.preventDefault();
-    if (!vitrine) return;
     if (!codigo.trim()) {
       setMessage('Digite o cupom.');
       return;
@@ -55,10 +56,11 @@ export default function VitrineCupomRedeemer() {
     setLoading(true);
     setMessage(null);
 
-    const { error } = await supabase.rpc('aplicar_cupom_vitrine', {
-      codigo_text: codigo.trim(),
-      vitrine_uuid: vitrine.id
-    });
+    const rpc = vitrine
+      ? supabase.rpc('aplicar_cupom_vitrine', { codigo_text: codigo.trim(), vitrine_uuid: vitrine.id })
+      : supabase.rpc('criar_vitrine_com_cupom', { codigo_text: codigo.trim() });
+
+    const { error } = await rpc;
 
     if (error) {
       setMessage(error.message);
