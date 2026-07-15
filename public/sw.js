@@ -1,4 +1,4 @@
-const CACHE_NAME = 'agromarket-v36';
+const CACHE_NAME = 'agromarket-v37';
 const STATIC_ASSETS = ['/manifest.json', '/icon-192.png', '/icon-512.png'];
 
 self.addEventListener('install', (event) => {
