@@ -9,17 +9,17 @@ type Verificacao = {
 };
 
 function textoDocumento(status?: string | null) {
-  if (status === 'aprovado') return 'Documento aprovado pelo administrador';
-  if (status === 'pendente') return 'Documento aguardando aprovação do administrador';
-  if (status === 'recusado') return 'Documento recusado pelo administrador';
-  return 'Documento ainda não enviado/aprovado';
+  if (status === 'aprovado') return 'Documento aprovado';
+  if (status === 'pendente') return 'Documento em análise';
+  if (status === 'recusado') return 'Documento recusado';
+  return 'Documento não enviado';
 }
 
 function textoSelfie(status?: string | null) {
-  if (status === 'aprovada') return 'Selfie aprovada pelo administrador';
-  if (status === 'pendente') return 'Selfie aguardando aprovação do administrador';
-  if (status === 'recusada') return 'Selfie recusada pelo administrador';
-  return 'Selfie ainda não enviada/aprovada';
+  if (status === 'aprovada') return 'Selfie aprovada';
+  if (status === 'pendente') return 'Selfie em análise';
+  if (status === 'recusada') return 'Selfie recusada';
+  return 'Selfie não enviada';
 }
 
 function replaceTextNodes(root: Node, replacements: Record<string, string>) {
@@ -36,7 +36,7 @@ function replaceTextNodes(root: Node, replacements: Record<string, string>) {
     if (replacement) {
       node.nodeValue = (node.nodeValue || '').replace(current, replacement);
       const element = node.parentElement?.closest('div, p, span, strong') as HTMLElement | null;
-      if (element && (replacement.includes('recusad') || replacement.includes('aguardando') || replacement.includes('ainda não'))) {
+      if (element && (replacement.includes('recusad') || replacement.includes('análise') || replacement.includes('não enviado') || replacement.includes('não enviada'))) {
         element.style.color = '#9a3412';
       }
     }
@@ -54,7 +54,7 @@ function ajustarBotoes(verificacao: Verificacao) {
       botao.disabled = true;
       botao.style.opacity = '0.62';
       botao.style.cursor = 'not-allowed';
-      botao.title = 'Documento e selfie precisam ser aprovados pelo administrador.';
+      botao.title = 'Complete a verificação do perfil.';
     }
   });
 }
@@ -68,15 +68,19 @@ function corrigirTela(verificacao: Verificacao | null) {
   const selfieTexto = textoSelfie(verificacao.selfie_status);
 
   replaceTextNodes(document.body, {
+    'Documento aprovado e localização da lojinha': 'Verificação da lojinha',
+    'Enviar uma foto qualquer não libera a lojinha. O documento fica em análise e precisa ser aprovado manualmente pelo administrador.': 'Complete a verificação para liberar sua lojinha.',
+    'Verificação obrigatória': 'Verificação da lojinha',
     'Documento aprovado pelo administrador': docTexto,
     'Documento aguardando aprovação do administrador': docTexto,
-    'Documento recusado pelo administrador': docTexto,
     'Documento ainda não enviado/aprovado': docTexto,
+    'Arquivo do documento enviado': verificacao.documento_status ? 'Documento enviado' : 'Documento não enviado',
     'Selfie/foto do responsável': selfieTexto,
     'Selfie aprovada pelo administrador': selfieTexto,
     'Selfie aguardando aprovação do administrador': selfieTexto,
     'Selfie recusada pelo administrador': selfieTexto,
-    'Selfie ainda não enviada/aprovada': selfieTexto
+    'Selfie ainda não enviada/aprovada': selfieTexto,
+    'Localização real validada por GPS preciso': 'Localização validada'
   });
 
   ajustarBotoes(verificacao);
