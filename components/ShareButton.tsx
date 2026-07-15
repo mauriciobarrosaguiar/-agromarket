@@ -29,6 +29,18 @@ function montarUrlImagem(path?: string | null, cacheKey?: string) {
   return url.toString();
 }
 
+function montarUrlImagemParaDownload(imagePath?: string | null, imageUrl?: string | null, cacheKey?: string) {
+  const valor = imagePath || imageUrl;
+  if (!valor) return '';
+
+  const baseAtual = typeof window !== 'undefined' ? window.location.origin : getCanonicalSiteUrl();
+  const usarOrigemAtual = Boolean(imagePath && !imagePath.startsWith('http'));
+  const url = new URL(usarOrigemAtual ? imagePath! : valor, baseAtual);
+
+  if (cacheKey && !url.searchParams.get('v')) url.searchParams.set('v', cacheKey);
+  return url.toString();
+}
+
 function nomeArquivoImagem(title: string, type?: string) {
   const extensao = type?.includes('jpeg') ? 'jpg' : type?.split('/')[1] || 'png';
   const nome = title.replace(/[^\w-]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 48) || 'agromarket';
@@ -37,6 +49,14 @@ function nomeArquivoImagem(title: string, type?: string) {
 
 function compartilhamentoCancelado(error: unknown) {
   return error instanceof DOMException && error.name === 'AbortError';
+}
+
+function mensagemErroImagem(error: unknown) {
+  if (error instanceof TypeError) {
+    return 'Não foi possível anexar a imagem neste navegador. O link foi compartilhado normalmente.';
+  }
+  if (error instanceof Error && error.message) return error.message;
+  return 'Não foi possível anexar a imagem. O link foi compartilhado normalmente.';
 }
 
 export default function ShareButton({
@@ -83,9 +103,14 @@ export default function ShareButton({
   }
 
   async function montarArquivoImagem() {
-    if (!resolvedImageUrl) return null;
+    const downloadUrl = montarUrlImagemParaDownload(imagePath, imageUrl, cacheKey);
+    if (!downloadUrl) return null;
 
-    const response = await fetch(resolvedImageUrl, { cache: 'reload' });
+    const response = await fetch(downloadUrl, {
+      cache: 'no-store',
+      credentials: 'same-origin'
+    });
+
     if (!response.ok) throw new Error('Não consegui carregar a imagem da capa.');
 
     const blob = await response.blob();
@@ -107,13 +132,13 @@ export default function ShareButton({
       } else {
         await compartilharNativo();
         if (resolvedImageUrl) {
-          setImageShareError('Seu navegador não permitiu anexar a imagem. Enviei o link com a prévia da capa.');
+          setImageShareError('Seu navegador não permitiu anexar a imagem. O link foi compartilhado com a prévia da capa.');
         }
       }
     } catch (error) {
       if (compartilhamentoCancelado(error)) return;
       await compartilharNativo();
-      setImageShareError(error instanceof Error ? error.message : 'Não foi possível compartilhar a imagem.');
+      setImageShareError(mensagemErroImagem(error));
     } finally {
       setSharingImage(false);
     }
@@ -143,9 +168,7 @@ export default function ShareButton({
 
             {resolvedImageUrl && (
               <div className="card" style={{ background: '#f8faf4', padding: 10 }}>
-                <strong style={{ display: 'flex', gap: 8, alignItems: 'center' }}><ImageIcon size={17} /> Capa do anúncio</strong>
-                <p className="muted" style={{ margin: '4px 0 8px' }}>No botão do celular, o AgroMarket tenta enviar a imagem junto. No WhatsApp Web, a imagem aparece como prévia do link.</p>
-                <img src={resolvedImageUrl} alt="Capa do anúncio" style={{ width: '100%', maxHeight: 180, objectFit: 'contain', borderRadius: 14, background: '#eef3ea' }} />
+                <img src={resolvedImageUrl} alt="Prévia do anúncio" style={{ width: '100%', maxHeight: 180, objectFit: 'contain', borderRadius: 14, background: '#eef3ea' }} />
               </div>
             )}
 
