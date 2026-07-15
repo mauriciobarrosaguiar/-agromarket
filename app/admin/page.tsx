@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { AlertTriangle, BadgeDollarSign, BellRing, CheckCircle2, DatabaseBackup, FileText, LayoutDashboard, Megaphone, MessageCircle, Settings, ShieldCheck, Store, Tags, Users } from 'lucide-react';
+import { AlertTriangle, BadgeDollarSign, BellRing, CheckCircle2, DatabaseBackup, FileText, Gift, LayoutDashboard, Megaphone, MessageCircle, Settings, ShieldCheck, Store, Tags, Users } from 'lucide-react';
 import AuthGuard from '@/components/AuthGuard';
 import StatCard from '@/components/StatCard';
 import { supabase } from '@/lib/supabase';
@@ -64,10 +64,11 @@ function AdminContent() {
     },
     {
       titulo: 'Comercial e monetização',
-      descricao: 'Preços, planos, patrocinados e relatórios para clientes.',
+      descricao: 'Preços, planos, cupons, patrocinados e relatórios para clientes.',
       itens: [
         { href: '/admin/monetizacao', titulo: 'Planos e pagamentos', texto: 'Editar preços, Asaas, Efí e gateways.', icon: BadgeDollarSign, destaque: false },
         { href: '/admin/vitrines', titulo: 'Vitrines', texto: `${vitrines.length} vitrine(s) cadastrada(s)`, icon: Store, destaque: false },
+        { href: '/admin/cupons', titulo: 'Cupons de lojinha', texto: 'Liberar vitrines grátis por código antes do Pix.', icon: Gift, destaque: false },
         { href: '/admin/patrocinados', titulo: 'Patrocinados da home', texto: `${patrocinadosPagamento} aguardando pagamento • ${patrocinadosAprovar} para aprovar • ${bannersAtivos} ativo(s)`, icon: Megaphone, destaque: patrocinadosPendentes > 0 },
         { href: '/admin/whatsapp-cliques', titulo: 'Cliques no WhatsApp', texto: `${cliques.length} clique(s) registrados para relatório`, icon: MessageCircle, destaque: false }
       ]
@@ -96,6 +97,7 @@ function AdminContent() {
             <Link className="btn btn-primary" href="/admin/configuracoes"><Settings size={18} /> Configurações</Link>
             <Link className="btn btn-primary" href="/admin/documentos"><FileText size={18} /> Aprovar documentos</Link>
             <Link className="btn btn-primary" href="/admin/monetizacao"><BadgeDollarSign size={18} /> Planos e pagamentos</Link>
+            <Link className="btn btn-secondary" href="/admin/cupons"><Gift size={18} /> Cupons</Link>
             <Link className="btn btn-secondary" href="/admin/patrocinados"><Megaphone size={18} /> Patrocinados</Link>
             <Link className="btn btn-secondary" href="/admin/whatsapp-cliques"><MessageCircle size={18} /> Relatório WhatsApp</Link>
             <Link className="btn btn-secondary" href="/admin/seguranca"><ShieldCheck size={18} /> Backup e segurança</Link>
