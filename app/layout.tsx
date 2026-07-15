@@ -7,6 +7,7 @@ import MobileBottomNav from '@/components/MobileBottomNav';
 import AdminAlertWatcher from '@/components/AdminAlertWatcher';
 import DocumentoStatusTextFixer from '@/components/DocumentoStatusTextFixer';
 import LocationAutoUpdater from '@/components/LocationAutoUpdater';
+import VitrineCupomRedeemer from '@/components/VitrineCupomRedeemer';
 import SupportButton from '@/components/SupportButton';
 
 export const metadata: Metadata = {
@@ -75,6 +76,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <MobileBottomNav />
         <AdminAlertWatcher />
         <LocationAutoUpdater />
+        <VitrineCupomRedeemer />
         <DocumentoStatusTextFixer />
       </body>
     </html>
