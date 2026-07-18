@@ -41,6 +41,22 @@ function getBearerToken(request: Request) {
   return match?.[1] || '';
 }
 
+function webhookAutorizado(request: Request) {
+  const secret = process.env.ADMIN_PUSH_WEBHOOK_SECRET;
+  if (!secret) return false;
+  return request.headers.get('x-agromarket-secret') === secret;
+}
+
+async function validarChamada(request: Request, supabase: ReturnType<typeof createClient>) {
+  if (webhookAutorizado(request)) return true;
+
+  const token = getBearerToken(request);
+  if (!token) return false;
+
+  const { data: userData, error: userError } = await supabase.auth.getUser(token);
+  return Boolean(!userError && userData.user);
+}
+
 function configurarWebPush() {
   const publicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
   const privateKey = process.env.VAPID_PRIVATE_KEY;
@@ -56,7 +72,15 @@ function tituloPadrao(kind?: string) {
   if (kind === 'vitrine_pendente') return 'Nova lojinha solicitada';
   if (kind === 'pagamento_vitrine') return 'Nova mensalidade de lojinha';
   if (kind === 'patrocinado_pendente') return 'Novo patrocinado para aprovar';
+  if (kind === 'documento_pendente') return 'Novo documento para conferir';
   return 'Novo anúncio para aprovar';
+}
+
+function urlPadrao(kind?: string) {
+  if (kind === 'vitrine_pendente' || kind === 'pagamento_vitrine') return '/admin/vitrines';
+  if (kind === 'patrocinado_pendente') return '/admin/patrocinados';
+  if (kind === 'documento_pendente') return '/admin/usuarios';
+  return '/admin/pendentes';
 }
 
 export async function POST(request: Request) {
@@ -65,11 +89,8 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: false, error: 'Supabase service role não configurado.' }, { status: 500 });
   }
 
-  const token = getBearerToken(request);
-  if (!token) return NextResponse.json({ ok: false, error: 'Sessão ausente.' }, { status: 401 });
-
-  const { data: userData, error: userError } = await supabase.auth.getUser(token);
-  if (userError || !userData.user) return NextResponse.json({ ok: false, error: 'Sessão inválida.' }, { status: 401 });
+  const autorizado = await validarChamada(request, supabase);
+  if (!autorizado) return NextResponse.json({ ok: false, error: 'Chamada não autorizada.' }, { status: 401 });
 
   if (!configurarWebPush()) {
     return NextResponse.json({ ok: true, disabled: true, message: 'VAPID não configurado.' });
@@ -79,7 +100,7 @@ export async function POST(request: Request) {
   const payload = JSON.stringify({
     title: body.title || 'AgroMarket',
     body: body.body || tituloPadrao(body.kind),
-    url: body.url || '/admin/pendentes',
+    url: body.url || urlPadrao(body.kind),
     tag: body.tag || body.kind || 'agromarket-admin-pending'
   });
 
