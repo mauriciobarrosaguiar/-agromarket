@@ -13,6 +13,7 @@ type ShareButtonProps = {
   cacheKey?: string;
   imagePath?: string | null;
   imageUrl?: string | null;
+  coverImageUrl?: string | null;
 };
 
 type ShareMode = 'sem_link' | 'com_link';
@@ -24,14 +25,22 @@ function montarUrl(path: string, cacheKey?: string) {
   return url.toString();
 }
 
-function nomeArquivoImagem(title: string) {
+function resolverUrlAbsoluta(value?: string | null) {
+  if (!value) return '';
+  if (value.startsWith('http')) return value;
+  const baseAtual = typeof window !== 'undefined' ? window.location.origin : getCanonicalSiteUrl();
+  return new URL(value, baseAtual).toString();
+}
+
+function nomeArquivoImagem(title: string, type?: string) {
+  const extensao = type?.includes('jpeg') ? 'jpg' : type?.split('/')[1]?.split(';')[0] || 'png';
   const nome = title
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '')
     .replace(/[^\w-]+/g, '-')
     .replace(/^-+|-+$/g, '')
     .slice(0, 48) || 'anuncio-agromarket';
-  return `${nome}.png`;
+  return `${nome}.${extensao}`;
 }
 
 function compartilhamentoCancelado(error: unknown) {
@@ -111,8 +120,60 @@ function arredondarRetangulo(ctx: CanvasRenderingContext2D, x: number, y: number
   ctx.closePath();
 }
 
-function gerarCanvasDoAnuncio(params: { title: string; message: string; url: string; mode: ShareMode }) {
-  const { title, message, url, mode } = params;
+function desenharImagemCortada(ctx: CanvasRenderingContext2D, image: HTMLImageElement, x: number, y: number, width: number, height: number) {
+  const ratio = Math.max(width / image.naturalWidth, height / image.naturalHeight);
+  const drawWidth = image.naturalWidth * ratio;
+  const drawHeight = image.naturalHeight * ratio;
+  const offsetX = x + (width - drawWidth) / 2;
+  const offsetY = y + (height - drawHeight) / 2;
+  ctx.drawImage(image, offsetX, offsetY, drawWidth, drawHeight);
+}
+
+async function carregarImagemComoElemento(url?: string | null) {
+  const absoluta = resolverUrlAbsoluta(url);
+  if (!absoluta) return null;
+
+  try {
+    const response = await fetch(absoluta, { cache: 'no-store', mode: 'cors' });
+    if (!response.ok) return null;
+    const blob = await response.blob();
+    if (!blob.type.startsWith('image/')) return null;
+    const objectUrl = URL.createObjectURL(blob);
+
+    return await new Promise<HTMLImageElement | null>((resolve) => {
+      const img = new Image();
+      img.onload = () => {
+        URL.revokeObjectURL(objectUrl);
+        resolve(img);
+      };
+      img.onerror = () => {
+        URL.revokeObjectURL(objectUrl);
+        resolve(null);
+      };
+      img.src = objectUrl;
+    });
+  } catch {
+    return null;
+  }
+}
+
+async function arquivoDaFotoOriginal(params: { title: string; coverImageUrl?: string | null }) {
+  const url = resolverUrlAbsoluta(params.coverImageUrl);
+  if (!url) return null;
+
+  try {
+    const response = await fetch(url, { cache: 'no-store', mode: 'cors' });
+    if (!response.ok) return null;
+    const blob = await response.blob();
+    if (!blob.type.startsWith('image/')) return null;
+    return new File([blob], nomeArquivoImagem(params.title, blob.type), { type: blob.type || 'image/jpeg' });
+  } catch {
+    return null;
+  }
+}
+
+async function gerarCanvasDoAnuncio(params: { title: string; message: string; url: string; mode: ShareMode; coverImageUrl?: string | null }) {
+  const { title, message, url, mode, coverImageUrl } = params;
   const canvas = document.createElement('canvas');
   canvas.width = 1080;
   canvas.height = 1350;
@@ -130,6 +191,7 @@ function gerarCanvasDoAnuncio(params: { title: string; message: string; url: str
     })
     .join(' ');
 
+  const foto = await carregarImagemComoElemento(coverImageUrl);
   const green = '#062b19';
   const green2 = '#0b4d2b';
   const yellow = '#f6b526';
@@ -139,31 +201,17 @@ function gerarCanvasDoAnuncio(params: { title: string; message: string; url: str
   ctx.fillStyle = cream;
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-  const grad = ctx.createLinearGradient(0, 0, 1080, 760);
-  grad.addColorStop(0, '#062b19');
-  grad.addColorStop(0.58, '#0b4d2b');
-  grad.addColorStop(1, '#2d7a47');
-  ctx.fillStyle = grad;
-  ctx.fillRect(0, 0, 1080, 620);
-
-  ctx.fillStyle = 'rgba(246,181,38,.14)';
-  ctx.beginPath();
-  ctx.arc(910, 120, 260, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.fillStyle = 'rgba(255,255,255,.08)';
-  ctx.beginPath();
-  ctx.arc(120, 590, 220, 0, Math.PI * 2);
-  ctx.fill();
-
+  ctx.fillStyle = green;
+  ctx.fillRect(0, 0, 1080, 180);
   ctx.fillStyle = yellow;
   ctx.beginPath();
-  ctx.arc(98, 92, 50, 0, Math.PI * 2);
+  ctx.arc(98, 90, 50, 0, Math.PI * 2);
   ctx.fill();
   ctx.fillStyle = green;
   ctx.font = '900 38px Arial';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.fillText('Ag', 98, 92);
+  ctx.fillText('Ag', 98, 90);
 
   ctx.textAlign = 'left';
   ctx.fillStyle = '#ffffff';
@@ -173,23 +221,39 @@ function gerarCanvasDoAnuncio(params: { title: string; message: string; url: str
   ctx.font = '700 25px Arial';
   ctx.fillText('Compre e venda no agro perto de você', 174, 124);
 
-  ctx.fillStyle = '#ffffff';
-  ctx.font = '900 72px Arial';
-  const linhasTituloTopo = quebrarTexto(ctx, titulo, 910, 3);
-  linhasTituloTopo.forEach((linha, index) => ctx.fillText(linha, 72, 238 + index * 82));
+  const fotoX = 54;
+  const fotoY = 220;
+  const fotoW = 972;
+  const fotoH = 620;
+  arredondarRetangulo(ctx, fotoX, fotoY, fotoW, fotoH, 42);
+  ctx.save();
+  ctx.clip();
+  if (foto) {
+    desenharImagemCortada(ctx, foto, fotoX, fotoY, fotoW, fotoH);
+  } else {
+    const grad = ctx.createLinearGradient(0, fotoY, 1080, fotoY + fotoH);
+    grad.addColorStop(0, '#0b4d2b');
+    grad.addColorStop(1, '#2d7a47');
+    ctx.fillStyle = grad;
+    ctx.fillRect(fotoX, fotoY, fotoW, fotoH);
+    ctx.fillStyle = '#ffffff';
+    ctx.font = '900 70px Arial';
+    quebrarTexto(ctx, titulo, 820, 3).forEach((linha, index) => ctx.fillText(linha, fotoX + 64, fotoY + 220 + index * 78));
+  }
+  ctx.restore();
+  ctx.lineWidth = 12;
+  ctx.strokeStyle = '#ffffff';
+  arredondarRetangulo(ctx, fotoX, fotoY, fotoW, fotoH, 42);
+  ctx.stroke();
 
-  arredondarRetangulo(ctx, 72, 490, 360, 92, 24);
+  arredondarRetangulo(ctx, 72, 760, 360, 92, 24);
   ctx.fillStyle = yellow;
   ctx.fill();
   ctx.fillStyle = green;
   ctx.font = '900 45px Arial';
-  ctx.fillText(preco, 100, 550);
+  ctx.fillText(preco, 100, 820);
 
-  ctx.fillStyle = '#e8f4df';
-  ctx.font = '800 34px Arial';
-  ctx.fillText(local, 72, 650);
-
-  arredondarRetangulo(ctx, 54, 720, 972, 430, 38);
+  arredondarRetangulo(ctx, 54, 895, 972, 290, 38);
   ctx.fillStyle = '#ffffff';
   ctx.fill();
   ctx.strokeStyle = '#e5decf';
@@ -197,47 +261,41 @@ function gerarCanvasDoAnuncio(params: { title: string; message: string; url: str
   ctx.stroke();
 
   ctx.fillStyle = green;
-  ctx.font = '900 64px Arial';
-  const linhasTitulo = quebrarTexto(ctx, titulo, 860, 2);
-  linhasTitulo.forEach((linha, index) => ctx.fillText(linha, 94, 815 + index * 72));
+  ctx.font = '900 58px Arial';
+  const linhasTitulo = quebrarTexto(ctx, titulo, 850, 2);
+  linhasTitulo.forEach((linha, index) => ctx.fillText(linha, 94, 985 + index * 64));
 
   ctx.fillStyle = muted;
-  ctx.font = '600 38px Arial';
-  const linhasDescricao = quebrarTexto(ctx, descricao || 'Anúncio disponível no AgroMarket com negociação direta pelo WhatsApp.', 880, 4);
-  linhasDescricao.forEach((linha, index) => ctx.fillText(linha, 94, 970 + index * 50));
+  ctx.font = '600 30px Arial';
+  ctx.fillText(local, 94, 1102);
+  ctx.font = '600 31px Arial';
+  const linhasDescricao = quebrarTexto(ctx, descricao || 'Anúncio disponível no AgroMarket com negociação direta pelo WhatsApp.', 880, 2);
+  linhasDescricao.forEach((linha, index) => ctx.fillText(linha, 94, 1152 + index * 42));
 
-  arredondarRetangulo(ctx, 72, 1184, 462, 90, 28);
+  arredondarRetangulo(ctx, 72, 1220, 462, 82, 28);
   ctx.fillStyle = green2;
   ctx.fill();
   ctx.fillStyle = '#ffffff';
-  ctx.font = '900 33px Arial';
-  ctx.fillText('Contato direto pelo WhatsApp', 106, 1242);
+  ctx.font = '900 31px Arial';
+  ctx.fillText('Contato direto pelo WhatsApp', 106, 1272);
 
-  if (mode === 'com_link') {
-    arredondarRetangulo(ctx, 558, 1184, 450, 90, 28);
-    ctx.fillStyle = yellow;
-    ctx.fill();
-    ctx.fillStyle = green;
-    ctx.font = '900 32px Arial';
-    ctx.fillText('Veja no AgroMarket', 600, 1224);
-    ctx.font = '700 22px Arial';
-    ctx.fillText(url.replace(/^https?:\/\//, '').slice(0, 33), 600, 1254);
-  } else {
-    arredondarRetangulo(ctx, 558, 1184, 450, 90, 28);
-    ctx.fillStyle = '#edf6ec';
-    ctx.fill();
-    ctx.fillStyle = green;
-    ctx.font = '900 31px Arial';
-    ctx.fillText('Anúncio sem link', 636, 1228);
-    ctx.font = '700 23px Arial';
-    ctx.fillText('Divulgação direta', 660, 1258);
-  }
+  arredondarRetangulo(ctx, 558, 1220, 450, 82, 28);
+  ctx.fillStyle = mode === 'com_link' ? yellow : '#edf6ec';
+  ctx.fill();
+  ctx.fillStyle = green;
+  ctx.font = '900 30px Arial';
+  ctx.fillText(mode === 'com_link' ? 'Veja no AgroMarket' : 'Anúncio sem link', mode === 'com_link' ? 600 : 635, 1256);
+  ctx.font = '700 21px Arial';
+  ctx.fillText(mode === 'com_link' ? url.replace(/^https?:\/\//, '').slice(0, 34) : 'Divulgação direta', mode === 'com_link' ? 600 : 660, 1284);
 
   return canvas;
 }
 
-async function gerarArquivoImagem(params: { title: string; message: string; url: string; mode: ShareMode }) {
-  const canvas = gerarCanvasDoAnuncio(params);
+async function gerarArquivoImagem(params: { title: string; message: string; url: string; mode: ShareMode; coverImageUrl?: string | null }) {
+  const fotoOriginal = await arquivoDaFotoOriginal({ title: params.title, coverImageUrl: params.coverImageUrl });
+  if (fotoOriginal) return fotoOriginal;
+
+  const canvas = await gerarCanvasDoAnuncio(params);
   const blob = await new Promise<Blob>((resolve, reject) => {
     canvas.toBlob((result) => {
       if (result) resolve(result);
@@ -245,7 +303,7 @@ async function gerarArquivoImagem(params: { title: string; message: string; url:
     }, 'image/png', 0.95);
   });
 
-  return new File([blob], nomeArquivoImagem(params.title), { type: 'image/png' });
+  return new File([blob], nomeArquivoImagem(params.title, 'image/png'), { type: 'image/png' });
 }
 
 export default function ShareButton({
@@ -254,7 +312,10 @@ export default function ShareButton({
   message,
   path,
   full = false,
-  cacheKey
+  cacheKey,
+  imagePath,
+  imageUrl,
+  coverImageUrl
 }: ShareButtonProps) {
   const [open, setOpen] = useState(false);
   const [copiedMode, setCopiedMode] = useState<ShareMode | null>(null);
@@ -272,13 +333,25 @@ export default function ShareButton({
 
   useEffect(() => {
     if (!open) return;
-    try {
-      const canvas = gerarCanvasDoAnuncio({ title, message, url, mode: 'sem_link' });
-      setPreviewUrl(canvas.toDataURL('image/png', 0.9));
-    } catch {
-      setPreviewUrl('');
+    const previewDireto = resolverUrlAbsoluta(coverImageUrl || imageUrl || imagePath);
+    if (previewDireto) {
+      setPreviewUrl(previewDireto);
+      return;
     }
-  }, [open, title, message, url]);
+
+    let cancelado = false;
+    gerarCanvasDoAnuncio({ title, message, url, mode: 'sem_link', coverImageUrl })
+      .then((canvas) => {
+        if (!cancelado) setPreviewUrl(canvas.toDataURL('image/png', 0.9));
+      })
+      .catch(() => {
+        if (!cancelado) setPreviewUrl('');
+      });
+
+    return () => {
+      cancelado = true;
+    };
+  }, [open, title, message, url, coverImageUrl, imageUrl, imagePath]);
 
   async function copiar(mode: ShareMode) {
     const texto = mode === 'sem_link' ? textoSemLink : textoComLink;
@@ -294,7 +367,7 @@ export default function ShareButton({
     const texto = mode === 'sem_link' ? textoSemLink : textoComLink;
 
     try {
-      const arquivo = await gerarArquivoImagem({ title, message, url, mode });
+      const arquivo = await gerarArquivoImagem({ title, message, url, mode, coverImageUrl });
       const podeEnviarArquivo = !navigator.canShare || navigator.canShare({ files: [arquivo] });
 
       if (navigator.share && podeEnviarArquivo) {
@@ -305,21 +378,21 @@ export default function ShareButton({
 
       baixarArquivo(arquivo);
       await copiarTexto(texto);
-      setImageShareError('Seu celular não permitiu anexar automaticamente. A imagem foi baixada e o texto foi copiado. Agora é só abrir o WhatsApp e enviar.');
+      setImageShareError('Seu celular não permitiu anexar automaticamente. A foto do anúncio foi baixada e o texto foi copiado. Agora é só abrir o WhatsApp e enviar.');
     } catch (error) {
       if (compartilhamentoCancelado(error)) return;
       await copiarTexto(texto);
-      setImageShareError('Não consegui gerar a imagem agora. O texto foi copiado para você colar no WhatsApp.');
+      setImageShareError('Não consegui carregar a foto do anúncio agora. O texto foi copiado para você colar no WhatsApp.');
     } finally {
       setSharingMode(null);
     }
   }
 
   async function baixarImagem(mode: ShareMode) {
-    const arquivo = await gerarArquivoImagem({ title, message, url, mode });
+    const arquivo = await gerarArquivoImagem({ title, message, url, mode, coverImageUrl });
     baixarArquivo(arquivo);
     await copiar(mode);
-    setImageShareError('Imagem baixada e texto copiado. Agora é só enviar no WhatsApp.');
+    setImageShareError('Foto do anúncio baixada e texto copiado. Agora é só enviar no WhatsApp.');
   }
 
   return (
@@ -346,36 +419,36 @@ export default function ShareButton({
 
             {previewUrl ? (
               <div className="card" style={{ background: '#f8faf4', padding: 10 }}>
-                <img src={previewUrl} alt="Prévia grande do anúncio" style={{ width: '100%', maxHeight: 360, objectFit: 'contain', borderRadius: 14, background: '#eef3ea' }} />
+                <img src={previewUrl} alt="Foto principal do anúncio" style={{ width: '100%', maxHeight: 360, objectFit: 'cover', borderRadius: 14, background: '#eef3ea' }} />
               </div>
             ) : (
-              <div className="notice">A imagem será gerada no seu celular ao compartilhar.</div>
+              <div className="notice">A foto do anúncio será carregada ao compartilhar.</div>
             )}
 
             {imageShareError && <div className="notice">{imageShareError}</div>}
 
             <div className="card" style={{ background: '#f8faf4' }}>
               <strong>Opção 1: somente anúncio</strong>
-              <p className="muted" style={{ marginTop: 4 }}>Envia imagem + descrição, sem link.</p>
+              <p className="muted" style={{ marginTop: 4 }}>Envia a foto do anúncio + descrição, sem link.</p>
               <div style={{ display: 'grid', gap: 8, marginTop: 10 }}>
                 <button className="btn btn-primary btn-full" type="button" onClick={() => compartilhar('sem_link')} disabled={Boolean(sharingMode)} aria-busy={sharingMode === 'sem_link'}>
                   <ImageIcon size={18} /> {sharingMode === 'sem_link' ? 'Preparando...' : 'Compartilhar sem link'}
                 </button>
                 <button className="btn btn-secondary btn-full" type="button" onClick={() => baixarImagem('sem_link')} disabled={Boolean(sharingMode)}>
-                  <Download size={18} /> Baixar imagem sem link
+                  <Download size={18} /> Baixar foto sem link
                 </button>
               </div>
             </div>
 
             <div className="card" style={{ background: '#fff8e1' }}>
               <strong>Opção 2: anúncio + link do app</strong>
-              <p className="muted" style={{ marginTop: 4 }}>Envia imagem + descrição + link do anúncio.</p>
+              <p className="muted" style={{ marginTop: 4 }}>Envia a foto do anúncio + descrição + link do anúncio.</p>
               <div style={{ display: 'grid', gap: 8, marginTop: 10 }}>
                 <button className="btn btn-amber btn-full" type="button" onClick={() => compartilhar('com_link')} disabled={Boolean(sharingMode)} aria-busy={sharingMode === 'com_link'}>
                   <ImageIcon size={18} /> {sharingMode === 'com_link' ? 'Preparando...' : 'Compartilhar com link'}
                 </button>
                 <button className="btn btn-secondary btn-full" type="button" onClick={() => baixarImagem('com_link')} disabled={Boolean(sharingMode)}>
-                  <Download size={18} /> Baixar imagem com link
+                  <Download size={18} /> Baixar foto com link
                 </button>
               </div>
             </div>
