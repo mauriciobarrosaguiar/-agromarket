@@ -125,10 +125,10 @@ export default function AnuncioDetalheClient() {
   const fotoAberta = fotoAbertaIndex !== null ? fotos[fotoAbertaIndex]?.url_foto : null;
   const precoTexto = formatMoney(anuncio.preco, anuncio.preco_a_combinar);
   const localTexto = `${anuncio.bairro ? `${anuncio.bairro} - ` : ''}${anuncio.cidade} - ${anuncio.estado}`;
-  const descricaoCurta = anuncio.descricao.length > 140 ? `${anuncio.descricao.slice(0, 140)}...` : anuncio.descricao;
-  const mensagemCompartilhar = `🌱 AgroMarket\n\n📢 ${anuncio.titulo}\n💰 ${precoTexto}\n📍 ${localTexto}\n\n${descricaoCurta}\n\nVeja o anúncio:`;
+  const descricaoCurta = anuncio.descricao.length > 170 ? `${anuncio.descricao.slice(0, 170)}...` : anuncio.descricao;
+  const mensagemCompartilhar = `🌱 AgroMarket\n\n📢 ${anuncio.titulo}\n💰 ${precoTexto}\n📍 ${localTexto}\n\n${descricaoCurta}`;
   const shareVersion = String(fotoCapa?.id || anuncio.updated_at || anuncio.id);
-  const shareImagePath = `/api/og/anuncio/${anuncio.slug}?v=${encodeURIComponent(shareVersion)}`;
+  const shareImagePath = `/api/og/anuncio/${anuncio.slug}?formato=compartilhar&v=${encodeURIComponent(shareVersion)}`;
 
   function abrirFotoSelecionada() {
     if (!selectedFoto || !fotos.length) return;
