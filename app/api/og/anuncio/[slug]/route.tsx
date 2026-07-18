@@ -1,5 +1,5 @@
 import { ImageResponse } from 'next/og';
-import { cleanText, createSeoSupabaseClient, DEFAULT_IMAGE, formatMoneySeo, getAbsoluteUrl, SITE_NAME } from '@/lib/seo';
+import { cleanText, createSeoSupabaseClient, formatMoneySeo, SITE_NAME } from '@/lib/seo';
 
 export const runtime = 'edge';
 export const dynamic = 'force-dynamic';
@@ -8,19 +8,13 @@ type RouteContext = {
   params: Promise<{ slug: string }>;
 };
 
-function imagemFallback() {
-  return getAbsoluteUrl(DEFAULT_IMAGE);
-}
-
 function prepararDados(anuncio: any) {
-  const fotos = [...(anuncio?.fotos_anuncios || [])].sort((a: any, b: any) => (a.ordem || 0) - (b.ordem || 0));
-  const foto = fotos.find((item: any) => item.principal)?.url_foto || fotos[0]?.url_foto || imagemFallback();
   const preco = anuncio ? formatMoneySeo(anuncio.preco, Boolean(anuncio.preco_a_combinar)) : 'AgroMarket';
   const local = anuncio ? `${anuncio.bairro ? `${anuncio.bairro} - ` : ''}${anuncio.cidade} - ${anuncio.estado}` : 'O agro da regiao em um so lugar';
   const titulo = cleanText(anuncio?.titulo || SITE_NAME, 62);
   const descricao = cleanText(anuncio?.descricao || 'Produtos e servicos do agro perto de voce.', 170);
 
-  return { foto, preco, local, titulo, descricao };
+  return { preco, local, titulo, descricao };
 }
 
 function Logo({ escuro = false }: { escuro?: boolean }) {
@@ -51,7 +45,30 @@ function Logo({ escuro = false }: { escuro?: boolean }) {
   );
 }
 
-function ImagemVertical({ titulo, preco, local, descricao, foto }: { titulo: string; preco: string; local: string; descricao: string; foto: string }) {
+function FotoDecorativa({ titulo }: { titulo: string }) {
+  return (
+    <div
+      style={{
+        width: '100%',
+        height: '100%',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        background: 'linear-gradient(135deg, #0b4d2b 0%, #256d3f 55%, #f6b526 100%)',
+        color: '#ffffff',
+        textAlign: 'center',
+        padding: 34
+      }}
+    >
+      <div style={{ fontSize: 82, marginBottom: 18 }}>🌱</div>
+      <div style={{ fontSize: 44, lineHeight: 1.08, fontWeight: 900 }}>{titulo}</div>
+      <div style={{ marginTop: 22, fontSize: 26, fontWeight: 800, color: '#fde68a' }}>Anuncio do agro perto de voce</div>
+    </div>
+  );
+}
+
+function ImagemVertical({ titulo, preco, local, descricao }: { titulo: string; preco: string; local: string; descricao: string }) {
   return (
     <div
       style={{
@@ -73,27 +90,24 @@ function ImagemVertical({ titulo, preco, local, descricao, foto }: { titulo: str
         <div
           style={{
             width: '100%',
-            height: 560,
+            height: 500,
             borderRadius: 46,
             overflow: 'hidden',
             border: '14px solid #ffffff',
-            boxShadow: '0 26px 70px rgba(6,43,25,.18)',
             background: '#dfe8d6'
           }}
         >
-          <img src={foto} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+          <FotoDecorativa titulo={titulo} />
         </div>
       </div>
 
-      <div style={{ padding: '36px 56px 0', display: 'flex', gap: 28 }}>
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
-          <div style={{ fontSize: 78, lineHeight: 0.98, fontWeight: 900, letterSpacing: -3, marginBottom: 24 }}>{titulo}</div>
-          <div style={{ display: 'flex', gap: 18, alignItems: 'center', marginBottom: 20 }}>
-            <div style={{ display: 'flex', background: '#f6b526', color: '#062b19', borderRadius: 24, padding: '16px 28px', fontSize: 52, fontWeight: 900 }}>{preco}</div>
-            <div style={{ display: 'flex', color: '#24583e', fontSize: 32, fontWeight: 900 }}>{local}</div>
-          </div>
-          <div style={{ fontSize: 35, lineHeight: 1.22, color: '#244533', fontWeight: 600 }}>{descricao}</div>
+      <div style={{ padding: '36px 56px 0', display: 'flex', flexDirection: 'column' }}>
+        <div style={{ fontSize: 78, lineHeight: 0.98, fontWeight: 900, letterSpacing: -3, marginBottom: 24 }}>{titulo}</div>
+        <div style={{ display: 'flex', gap: 18, alignItems: 'center', marginBottom: 20 }}>
+          <div style={{ display: 'flex', background: '#f6b526', color: '#062b19', borderRadius: 24, padding: '16px 28px', fontSize: 52, fontWeight: 900 }}>{preco}</div>
+          <div style={{ display: 'flex', color: '#24583e', fontSize: 32, fontWeight: 900 }}>{local}</div>
         </div>
+        <div style={{ fontSize: 35, lineHeight: 1.22, color: '#244533', fontWeight: 600 }}>{descricao}</div>
       </div>
 
       <div style={{ margin: 'auto 56px 46px', display: 'flex', gap: 22 }}>
@@ -104,7 +118,7 @@ function ImagemVertical({ titulo, preco, local, descricao, foto }: { titulo: str
   );
 }
 
-function ImagemHorizontal({ titulo, preco, local, descricao, foto }: { titulo: string; preco: string; local: string; descricao: string; foto: string }) {
+function ImagemHorizontal({ titulo, preco, local, descricao }: { titulo: string; preco: string; local: string; descricao: string }) {
   return (
     <div
       style={{
@@ -118,7 +132,7 @@ function ImagemHorizontal({ titulo, preco, local, descricao, foto }: { titulo: s
     >
       <div
         style={{
-          width: 610,
+          width: 650,
           height: '100%',
           display: 'flex',
           flexDirection: 'column',
@@ -165,18 +179,19 @@ function ImagemHorizontal({ titulo, preco, local, descricao, foto }: { titulo: s
           padding: 44
         }}
       >
-        <img
-          src={foto}
-          alt=""
+        <div
           style={{
-            width: 470,
-            height: 390,
+            width: 430,
+            height: 340,
             objectFit: 'cover',
             borderRadius: 38,
             border: '12px solid #ffffff',
-            boxShadow: '0 24px 60px rgba(6,43,25,.18)'
+            overflow: 'hidden',
+            display: 'flex'
           }}
-        />
+        >
+          <FotoDecorativa titulo={titulo} />
+        </div>
         <div
           style={{
             display: 'flex',
@@ -205,7 +220,7 @@ export async function GET(request: Request, context: RouteContext) {
 
   const { data } = await supabase
     .from('anuncios')
-    .select('titulo, descricao, preco, preco_a_combinar, cidade, estado, bairro, slug, status, fotos_anuncios(url_foto, principal, ordem)')
+    .select('titulo, descricao, preco, preco_a_combinar, cidade, estado, bairro, slug, status')
     .eq('slug', slug)
     .eq('status', 'aprovado')
     .maybeSingle();
