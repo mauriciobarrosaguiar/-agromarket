@@ -226,6 +226,7 @@ export default function AnuncioDetalheClient() {
                 path={`/anuncio/${anuncio.slug}`}
                 cacheKey={shareVersion}
                 imagePath={shareImagePath}
+                coverImageUrl={fotoCapa?.url_foto || null}
                 full
               />
               <button className="btn btn-danger btn-full" onClick={() => setDenunciaAberta(true)}><Flag size={18} /> Denunciar anúncio</button>
