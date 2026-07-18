@@ -61,8 +61,8 @@ export async function generateMetadata({ params, searchParams }: PageProps): Pro
       images: [
         {
           url: imageUrl,
-          width: 600,
-          height: 315,
+          width: 1200,
+          height: 630,
           alt: anuncio.titulo
         }
       ]
