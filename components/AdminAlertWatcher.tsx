@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { BellRing, X } from 'lucide-react';
+import { BellRing, Smartphone, X } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 
@@ -15,6 +15,8 @@ type PendingCounts = {
 };
 
 const STORAGE_KEY = 'agromarket_admin_alerts_enabled';
+const PUSH_STORAGE_KEY = 'agromarket_admin_push_enabled';
+const VAPID_PUBLIC_KEY = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY || '';
 
 function totalPendencias(counts: PendingCounts) {
   return counts.anuncios + counts.destaques + counts.patrocinados + counts.documentos + counts.denuncias;
@@ -40,6 +42,15 @@ function mensagemNovidades(atual: PendingCounts, anterior: PendingCounts) {
   return partes.join(' • ');
 }
 
+function urlBase64ToUint8Array(base64String: string) {
+  const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
+  const base64 = `${base64String}${padding}`.replace(/-/g, '+').replace(/_/g, '/');
+  const rawData = window.atob(base64);
+  const outputArray = new Uint8Array(rawData.length);
+  for (let i = 0; i < rawData.length; ++i) outputArray[i] = rawData.charCodeAt(i);
+  return outputArray;
+}
+
 function tocarAlerta() {
   try {
     const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
@@ -47,50 +58,84 @@ function tocarAlerta() {
       const audio = new AudioContextClass();
       const oscillator = audio.createOscillator();
       const gain = audio.createGain();
-
       oscillator.type = 'sine';
       oscillator.frequency.setValueAtTime(880, audio.currentTime);
       oscillator.frequency.setValueAtTime(660, audio.currentTime + 0.16);
       gain.gain.setValueAtTime(0.0001, audio.currentTime);
       gain.gain.exponentialRampToValueAtTime(0.18, audio.currentTime + 0.02);
       gain.gain.exponentialRampToValueAtTime(0.0001, audio.currentTime + 0.42);
-
       oscillator.connect(gain);
       gain.connect(audio.destination);
       oscillator.start();
       oscillator.stop(audio.currentTime + 0.45);
     }
-  } catch {
-    // Alguns navegadores bloqueiam áudio sem interação do usuário.
-  }
+  } catch {}
 
-  if ('vibrate' in navigator) {
-    navigator.vibrate([250, 120, 250]);
-  }
+  if ('vibrate' in navigator) navigator.vibrate([250, 120, 250]);
 }
 
 function notificarSistema(texto: string) {
   if (!('Notification' in window) || Notification.permission !== 'granted') return;
-
   const notification = new Notification('AgroMarket', {
     body: texto,
     icon: '/icon-192.png',
     tag: 'agromarket-admin-alert'
   });
-
   notification.onclick = () => {
     window.focus();
     window.location.href = '/painel';
   };
 }
 
+async function registrarPushNoServidor() {
+  if (!VAPID_PUBLIC_KEY) throw new Error('Configure NEXT_PUBLIC_VAPID_PUBLIC_KEY na Vercel.');
+  if (!('serviceWorker' in navigator)) throw new Error('Este navegador não suporta service worker.');
+  if (!('PushManager' in window)) throw new Error('Este navegador não suporta notificações push.');
+  if (!('Notification' in window)) throw new Error('Este navegador não suporta notificações.');
+
+  const permissao = Notification.permission === 'granted' ? 'granted' : await Notification.requestPermission();
+  if (permissao !== 'granted') throw new Error('Permissão de notificação não liberada.');
+
+  await navigator.serviceWorker.register('/push-sw.js');
+  const registration = await navigator.serviceWorker.ready;
+  let subscription = await registration.pushManager.getSubscription();
+
+  if (!subscription) {
+    subscription = await registration.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY)
+    });
+  }
+
+  const { data } = await supabase.auth.getSession();
+  const token = data.session?.access_token;
+  if (!token) throw new Error('Sessão expirada. Entre novamente.');
+
+  const response = await fetch('/api/push/subscribe', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`
+    },
+    body: JSON.stringify(subscription.toJSON())
+  });
+
+  const result = await response.json().catch(() => ({}));
+  if (!response.ok || result?.ok === false) throw new Error(result?.error || 'Não foi possível salvar o celular para notificações.');
+
+  localStorage.setItem(PUSH_STORAGE_KEY, 'true');
+  return true;
+}
+
 export default function AdminAlertWatcher() {
   const pathname = usePathname();
   const [isAdmin, setIsAdmin] = useState(false);
   const [enabled, setEnabled] = useState(false);
+  const [pushEnabled, setPushEnabled] = useState(false);
   const [counts, setCounts] = useState<PendingCounts>({ anuncios: 0, destaques: 0, patrocinados: 0, documentos: 0, denuncias: 0 });
   const [toast, setToast] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [pushLoading, setPushLoading] = useState(false);
   const lastCountsRef = useRef<PendingCounts | null>(null);
   const initializedRef = useRef(false);
 
@@ -113,7 +158,6 @@ export default function AdminAlertWatcher() {
 
     const anterior = lastCountsRef.current;
     const novidade = anterior ? mensagemNovidades(atual, anterior) : '';
-
     setCounts(atual);
     lastCountsRef.current = atual;
 
@@ -147,7 +191,9 @@ export default function AdminAlertWatcher() {
 
       if (admin) {
         const ativo = localStorage.getItem(STORAGE_KEY) === 'true';
+        const pushAtivo = localStorage.getItem(PUSH_STORAGE_KEY) === 'true';
         setEnabled(ativo);
+        setPushEnabled(pushAtivo);
         await fetchCounts(true);
       } else {
         setLoading(false);
@@ -159,12 +205,10 @@ export default function AdminAlertWatcher() {
 
   useEffect(() => {
     if (!isAdmin) return;
-
     const interval = window.setInterval(() => fetchCounts(false), 30000);
     const onVisibility = () => {
       if (!document.hidden) fetchCounts(false);
     };
-
     document.addEventListener('visibilitychange', onVisibility);
     return () => {
       window.clearInterval(interval);
@@ -173,61 +217,70 @@ export default function AdminAlertWatcher() {
   }, [fetchCounts, isAdmin]);
 
   async function ativarAlertas() {
-    if ('Notification' in window && Notification.permission === 'default') {
-      await Notification.requestPermission();
-    }
-
     localStorage.setItem(STORAGE_KEY, 'true');
     setEnabled(true);
     initializedRef.current = true;
     tocarAlerta();
     await fetchCounts(true);
-    setToast('Alertas ativados. Vou avisar quando chegar nova solicitação.');
+    setToast('Alertas ativados. Vou avisar quando chegar nova solicitação enquanto o app estiver aberto.');
     setTimeout(() => setToast(null), 7000);
+  }
+
+  async function ativarPush() {
+    setPushLoading(true);
+    try {
+      await registrarPushNoServidor();
+      localStorage.setItem(STORAGE_KEY, 'true');
+      setEnabled(true);
+      setPushEnabled(true);
+      setToast('Notificações push ativadas. Agora você pode receber alertas mesmo com o app fechado.');
+      setTimeout(() => setToast(null), 8000);
+    } catch (err) {
+      setToast(err instanceof Error ? err.message : 'Não consegui ativar as notificações push.');
+      setTimeout(() => setToast(null), 10000);
+    } finally {
+      setPushLoading(false);
+    }
   }
 
   if (!isAdmin || loading) return null;
 
   const total = totalPendencias(counts);
   const mostrarControles = pathname.startsWith('/admin') || pathname.startsWith('/painel');
-
   if (!mostrarControles) return null;
 
   return (
     <>
-      {!enabled && (
-        <button
-          type="button"
-          className="btn btn-primary"
-          onClick={ativarAlertas}
-          style={{ position: 'fixed', right: 12, top: 82, zIndex: 850, boxShadow: '0 12px 30px rgba(22,101,52,.18)', padding: '9px 12px' }}
-        >
-          <BellRing size={16} /> Ativar alertas
-        </button>
-      )}
+      <div style={{ position: 'fixed', right: 12, top: 82, zIndex: 850, display: 'grid', gap: 8, width: 'min(330px, calc(100vw - 24px))' }}>
+        {!pushEnabled && (
+          <button type="button" className="btn btn-primary" onClick={ativarPush} disabled={pushLoading} style={{ boxShadow: '0 12px 30px rgba(22,101,52,.18)', padding: '9px 12px' }}>
+            <Smartphone size={16} /> {pushLoading ? 'Ativando...' : 'Ativar alertas com app fechado'}
+          </button>
+        )}
 
-      {enabled && total > 0 && (
-        <div
-          className="card"
-          style={{ position: 'fixed', right: 12, top: 82, zIndex: 840, padding: 12, maxWidth: 320, boxShadow: '0 18px 45px rgba(0,0,0,.16)' }}
-        >
-          <strong style={{ display: 'flex', gap: 8, alignItems: 'center' }}><BellRing size={18} /> {total} pendência(s)</strong>
-          <p className="muted" style={{ margin: '4px 0 10px' }}>{resumoPendencias(counts)}</p>
-          <div style={{ display: 'grid', gap: 8 }}>
-            {counts.anuncios > 0 && <Link className="btn btn-primary btn-full" href="/admin/pendentes">Aprovar anúncios ({counts.anuncios})</Link>}
-            {counts.destaques > 0 && <Link className="btn btn-primary btn-full" href="/admin/destaques">Aprovar destaques ({counts.destaques})</Link>}
-            {counts.patrocinados > 0 && <Link className="btn btn-primary btn-full" href="/admin/patrocinados">Ver patrocinados ({counts.patrocinados})</Link>}
-            {counts.documentos > 0 && <Link className="btn btn-primary btn-full" href="/admin/usuarios">Ver documentos ({counts.documentos})</Link>}
-            {counts.denuncias > 0 && <Link className="btn btn-primary btn-full" href="/admin/denuncias">Ver denúncias ({counts.denuncias})</Link>}
+        {!enabled && (
+          <button type="button" className="btn btn-secondary" onClick={ativarAlertas} style={{ boxShadow: '0 12px 30px rgba(22,101,52,.12)', padding: '9px 12px' }}>
+            <BellRing size={16} /> Ativar alertas no app
+          </button>
+        )}
+
+        {enabled && total > 0 && (
+          <div className="card" style={{ padding: 12, boxShadow: '0 18px 45px rgba(0,0,0,.16)' }}>
+            <strong style={{ display: 'flex', gap: 8, alignItems: 'center' }}><BellRing size={18} /> {total} pendência(s)</strong>
+            <p className="muted" style={{ margin: '4px 0 10px' }}>{resumoPendencias(counts)}</p>
+            <div style={{ display: 'grid', gap: 8 }}>
+              {counts.anuncios > 0 && <Link className="btn btn-primary btn-full" href="/admin/pendentes">Aprovar anúncios ({counts.anuncios})</Link>}
+              {counts.destaques > 0 && <Link className="btn btn-primary btn-full" href="/admin/destaques">Aprovar destaques ({counts.destaques})</Link>}
+              {counts.patrocinados > 0 && <Link className="btn btn-primary btn-full" href="/admin/patrocinados">Ver patrocinados ({counts.patrocinados})</Link>}
+              {counts.documentos > 0 && <Link className="btn btn-primary btn-full" href="/admin/usuarios">Ver documentos ({counts.documentos})</Link>}
+              {counts.denuncias > 0 && <Link className="btn btn-primary btn-full" href="/admin/denuncias">Ver denúncias ({counts.denuncias})</Link>}
+            </div>
           </div>
-        </div>
-      )}
+        )}
+      </div>
 
       {toast && (
-        <div
-          className="card"
-          style={{ position: 'fixed', left: 12, right: 12, top: 82, zIndex: 900, padding: 14, border: '2px solid #16a34a', boxShadow: '0 20px 55px rgba(0,0,0,.2)' }}
-        >
+        <div className="card" style={{ position: 'fixed', left: 12, right: 12, top: 82, zIndex: 900, padding: 14, border: '2px solid #16a34a', boxShadow: '0 20px 55px rgba(0,0,0,.2)' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'start' }}>
             <div>
               <strong style={{ display: 'flex', gap: 8, alignItems: 'center' }}><BellRing size={18} /> Novo alerta AgroMarket</strong>
