@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { Check, Copy, Image as ImageIcon, MessageCircle, Share2, X } from 'lucide-react';
+import { Check, Copy, Download, Image as ImageIcon, Share2, X } from 'lucide-react';
 import { getCanonicalSiteUrl } from '@/lib/site-url';
 
 type ShareButtonProps = {
@@ -53,14 +53,6 @@ function compartilhamentoCancelado(error: unknown) {
   return error instanceof DOMException && error.name === 'AbortError';
 }
 
-function mensagemErroImagem(error: unknown) {
-  if (error instanceof TypeError) {
-    return 'Não foi possível anexar a imagem neste navegador. A imagem será baixada e o texto copiado.';
-  }
-  if (error instanceof Error && error.message) return error.message;
-  return 'Não foi possível anexar a imagem. A imagem será baixada e o texto copiado.';
-}
-
 function limparChamadaDeLink(texto: string) {
   return texto
     .trim()
@@ -103,16 +95,16 @@ export default function ShareButton({
   const [copiedMode, setCopiedMode] = useState<ShareMode | null>(null);
   const [sharingMode, setSharingMode] = useState<ShareMode | null>(null);
   const [imageShareError, setImageShareError] = useState<string | null>(null);
+  const [previewErro, setPreviewErro] = useState(false);
   const [url, setUrl] = useState(montarUrl(path, cacheKey));
 
   useEffect(() => {
     setUrl(montarUrl(path, cacheKey));
+    setPreviewErro(false);
   }, [path, cacheKey]);
 
   const textoSemLink = useMemo(() => montarTextoCompartilhamento(message, url, 'sem_link'), [message, url]);
   const textoComLink = useMemo(() => montarTextoCompartilhamento(message, url, 'com_link'), [message, url]);
-  const whatsappSemLinkUrl = `https://wa.me/?text=${encodeURIComponent(textoSemLink)}`;
-  const whatsappComLinkUrl = `https://wa.me/?text=${encodeURIComponent(textoComLink)}`;
   const resolvedImageUrl = useMemo(() => montarUrlImagem(imagePath || imageUrl, cacheKey), [imagePath, imageUrl, cacheKey]);
 
   async function copiar(mode: ShareMode) {
@@ -120,17 +112,6 @@ export default function ShareButton({
     await copiarTexto(texto);
     setCopiedMode(mode);
     setTimeout(() => setCopiedMode(null), 1800);
-  }
-
-  async function compartilharNativo(mode: ShareMode) {
-    const texto = mode === 'sem_link' ? textoSemLink : textoComLink;
-
-    if (navigator.share) {
-      await navigator.share(mode === 'com_link' ? { title, text: texto, url } : { title, text: texto });
-      return;
-    }
-
-    await copiarTexto(texto);
   }
 
   async function montarArquivoImagem() {
@@ -168,28 +149,31 @@ export default function ShareButton({
 
       if (navigator.share) {
         await navigator.share(mode === 'com_link' ? { title, text: texto, url } : { title, text: texto });
-      } else {
-        await copiarTexto(texto);
+        setOpen(false);
+        return;
       }
 
-      if (arquivo) {
-        baixarArquivo(arquivo);
-        setImageShareError('Seu navegador não permitiu anexar a imagem automaticamente. Baixei a imagem e copiei o texto para você colar no WhatsApp.');
-      }
+      if (arquivo) baixarArquivo(arquivo);
+      await copiarTexto(texto);
+      setImageShareError('Seu navegador não anexou a imagem automaticamente. Baixei a imagem e copiei o texto. Agora cole no WhatsApp.');
     } catch (error) {
       if (compartilhamentoCancelado(error)) return;
 
-      try {
-        const arquivo = await montarArquivoImagem();
-        if (arquivo) baixarArquivo(arquivo);
-        await copiarTexto(texto);
-        setImageShareError(`${mensagemErroImagem(error)} Texto copiado.`);
-      } catch {
-        await copiarTexto(texto);
-        setImageShareError('Não consegui anexar a imagem agora. O texto foi copiado para você colar no WhatsApp.');
-      }
+      await copiarTexto(texto);
+      setImageShareError('Não consegui anexar a imagem neste teste. Copiei o texto. Tente novamente após o deploy terminar ou envie a imagem manualmente.');
     } finally {
       setSharingMode(null);
+    }
+  }
+
+  async function baixarImagem() {
+    setImageShareError(null);
+    try {
+      const arquivo = await montarArquivoImagem();
+      if (!arquivo) throw new Error('Sem imagem disponível.');
+      baixarArquivo(arquivo);
+    } catch {
+      setImageShareError('Não consegui baixar a imagem agora. Aguarde o deploy ou tente novamente.');
     }
   }
 
@@ -215,43 +199,40 @@ export default function ShareButton({
               <button className="btn btn-secondary" type="button" onClick={() => setOpen(false)}><X size={18} /></button>
             </div>
 
-            {resolvedImageUrl && (
+            {resolvedImageUrl && !previewErro ? (
               <div className="card" style={{ background: '#f8faf4', padding: 10 }}>
-                <img src={resolvedImageUrl} alt="Prévia grande do anúncio" style={{ width: '100%', maxHeight: 360, objectFit: 'contain', borderRadius: 14, background: '#eef3ea' }} />
+                <img
+                  src={resolvedImageUrl}
+                  alt="Prévia grande do anúncio"
+                  onError={() => setPreviewErro(true)}
+                  style={{ width: '100%', maxHeight: 360, objectFit: 'contain', borderRadius: 14, background: '#eef3ea' }}
+                />
               </div>
+            ) : (
+              <div className="notice">A prévia da imagem ainda não carregou. O botão abaixo tenta enviar a imagem grande; se não der, copia o texto para você.</div>
             )}
 
             {imageShareError && <div className="notice">{imageShareError}</div>}
 
             <div className="card" style={{ background: '#f8faf4' }}>
               <strong>Opção 1: somente anúncio</strong>
-              <p className="muted" style={{ marginTop: 4 }}>Envia a imagem grande + descrição, sem link.</p>
-              <div style={{ display: 'grid', gap: 8, marginTop: 10 }}>
-                <button className="btn btn-primary btn-full" type="button" onClick={() => compartilhar('sem_link')} disabled={Boolean(sharingMode)} aria-busy={sharingMode === 'sem_link'}>
-                  <ImageIcon size={18} /> {sharingMode === 'sem_link' ? 'Preparando...' : 'Compartilhar sem link'}
-                </button>
-                <a className="btn btn-whatsapp btn-full" href={whatsappSemLinkUrl} target="_blank" rel="noreferrer">
-                  <MessageCircle size={18} /> WhatsApp sem link
-                </a>
-              </div>
+              <p className="muted" style={{ marginTop: 4 }}>Envia imagem + descrição, sem link. Depois escolha o WhatsApp na tela de compartilhamento do celular.</p>
+              <button className="btn btn-primary btn-full" style={{ marginTop: 10 }} type="button" onClick={() => compartilhar('sem_link')} disabled={Boolean(sharingMode)} aria-busy={sharingMode === 'sem_link'}>
+                <ImageIcon size={18} /> {sharingMode === 'sem_link' ? 'Preparando...' : 'Compartilhar sem link'}
+              </button>
             </div>
 
             <div className="card" style={{ background: '#fff8e1' }}>
               <strong>Opção 2: anúncio + link do app</strong>
-              <p className="muted" style={{ marginTop: 4 }}>Envia a imagem grande + descrição + link do anúncio.</p>
-              <div style={{ display: 'grid', gap: 8, marginTop: 10 }}>
-                <button className="btn btn-amber btn-full" type="button" onClick={() => compartilhar('com_link')} disabled={Boolean(sharingMode)} aria-busy={sharingMode === 'com_link'}>
-                  <ImageIcon size={18} /> {sharingMode === 'com_link' ? 'Preparando...' : 'Compartilhar com link'}
-                </button>
-                <a className="btn btn-whatsapp btn-full" href={whatsappComLinkUrl} target="_blank" rel="noreferrer">
-                  <MessageCircle size={18} /> WhatsApp com link
-                </a>
-              </div>
+              <p className="muted" style={{ marginTop: 4 }}>Envia imagem + descrição + link do anúncio.</p>
+              <button className="btn btn-amber btn-full" style={{ marginTop: 10 }} type="button" onClick={() => compartilhar('com_link')} disabled={Boolean(sharingMode)} aria-busy={sharingMode === 'com_link'}>
+                <ImageIcon size={18} /> {sharingMode === 'com_link' ? 'Preparando...' : 'Compartilhar com link'}
+              </button>
             </div>
 
             <label className="field">
               <span className="label">Texto sem link</span>
-              <textarea className="textarea" readOnly value={textoSemLink} style={{ minHeight: 140 }} />
+              <textarea className="textarea" readOnly value={textoSemLink} style={{ minHeight: 120 }} />
             </label>
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
@@ -262,6 +243,12 @@ export default function ShareButton({
                 {copiedMode === 'com_link' ? <Check size={18} /> : <Copy size={18} />} {copiedMode === 'com_link' ? 'Copiado' : 'Copiar com link'}
               </button>
             </div>
+
+            {resolvedImageUrl && (
+              <button className="btn btn-secondary btn-full" type="button" onClick={baixarImagem}>
+                <Download size={18} /> Baixar imagem do anúncio
+              </button>
+            )}
           </div>
         </div>
       )}
