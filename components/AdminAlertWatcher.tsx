@@ -10,6 +10,8 @@ type PendingCounts = {
   anuncios: number;
   destaques: number;
   patrocinados: number;
+  vitrines: number;
+  pagamentos: number;
   documentos: number;
   denuncias: number;
 };
@@ -19,7 +21,7 @@ const PUSH_STORAGE_KEY = 'agromarket_admin_push_enabled';
 const VAPID_PUBLIC_KEY = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY || '';
 
 function totalPendencias(counts: PendingCounts) {
-  return counts.anuncios + counts.destaques + counts.patrocinados + counts.documentos + counts.denuncias;
+  return counts.anuncios + counts.destaques + counts.patrocinados + counts.vitrines + counts.pagamentos + counts.documentos + counts.denuncias;
 }
 
 function resumoPendencias(counts: PendingCounts) {
@@ -27,6 +29,8 @@ function resumoPendencias(counts: PendingCounts) {
   if (counts.anuncios) partes.push(`${counts.anuncios} anúncio(s)`);
   if (counts.destaques) partes.push(`${counts.destaques} destaque(s)`);
   if (counts.patrocinados) partes.push(`${counts.patrocinados} patrocinado(s)`);
+  if (counts.vitrines) partes.push(`${counts.vitrines} lojinha(s)`);
+  if (counts.pagamentos) partes.push(`${counts.pagamentos} pagamento(s) de vitrine`);
   if (counts.documentos) partes.push(`${counts.documentos} documento(s)`);
   if (counts.denuncias) partes.push(`${counts.denuncias} denúncia(s)`);
   return partes.length ? partes.join(', ') : 'Nenhuma pendência';
@@ -37,6 +41,8 @@ function mensagemNovidades(atual: PendingCounts, anterior: PendingCounts) {
   if (atual.anuncios > anterior.anuncios) partes.push(`${atual.anuncios - anterior.anuncios} novo(s) anúncio(s) para aprovar`);
   if (atual.destaques > anterior.destaques) partes.push(`${atual.destaques - anterior.destaques} nova(s) solicitação(ões) de destaque`);
   if (atual.patrocinados > anterior.patrocinados) partes.push(`${atual.patrocinados - anterior.patrocinados} novo(s) banner(s) patrocinado(s)`);
+  if (atual.vitrines > anterior.vitrines) partes.push(`${atual.vitrines - anterior.vitrines} nova(s) lojinha(s) para liberar`);
+  if (atual.pagamentos > anterior.pagamentos) partes.push(`${atual.pagamentos - anterior.pagamentos} novo(s) pagamento(s) de vitrine`);
   if (atual.documentos > anterior.documentos) partes.push(`${atual.documentos - anterior.documentos} novo(s) documento(s) para conferir`);
   if (atual.denuncias > anterior.denuncias) partes.push(`${atual.denuncias - anterior.denuncias} nova(s) denúncia(s)`);
   return partes.join(' • ');
@@ -47,7 +53,7 @@ function urlBase64ToUint8Array(base64String: string) {
   const base64 = `${base64String}${padding}`.replace(/-/g, '+').replace(/_/g, '/');
   const rawData = window.atob(base64);
   const outputArray = new Uint8Array(rawData.length);
-  for (let i = 0; i < rawData.length; ++i) outputArray[i] = rawData.charCodeAt(i);
+  for (let i = 0; i < rawData.length; i += 1) outputArray[i] = rawData.charCodeAt(i);
   return outputArray;
 }
 
@@ -69,7 +75,9 @@ function tocarAlerta() {
       oscillator.start();
       oscillator.stop(audio.currentTime + 0.45);
     }
-  } catch {}
+  } catch {
+    // Alguns navegadores bloqueiam áudio sem interação do usuário.
+  }
 
   if ('vibrate' in navigator) navigator.vibrate([250, 120, 250]);
 }
@@ -96,7 +104,7 @@ async function registrarPushNoServidor() {
   const permissao = Notification.permission === 'granted' ? 'granted' : await Notification.requestPermission();
   if (permissao !== 'granted') throw new Error('Permissão de notificação não liberada.');
 
-  await navigator.serviceWorker.register('/push-sw.js');
+  await navigator.serviceWorker.register('/sw.js');
   const registration = await navigator.serviceWorker.ready;
   let subscription = await registration.pushManager.getSubscription();
 
@@ -132,7 +140,7 @@ export default function AdminAlertWatcher() {
   const [isAdmin, setIsAdmin] = useState(false);
   const [enabled, setEnabled] = useState(false);
   const [pushEnabled, setPushEnabled] = useState(false);
-  const [counts, setCounts] = useState<PendingCounts>({ anuncios: 0, destaques: 0, patrocinados: 0, documentos: 0, denuncias: 0 });
+  const [counts, setCounts] = useState<PendingCounts>({ anuncios: 0, destaques: 0, patrocinados: 0, vitrines: 0, pagamentos: 0, documentos: 0, denuncias: 0 });
   const [toast, setToast] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [pushLoading, setPushLoading] = useState(false);
@@ -140,11 +148,13 @@ export default function AdminAlertWatcher() {
   const initializedRef = useRef(false);
 
   const fetchCounts = useCallback(async (silencioso = false) => {
-    const [{ count: anuncios }, { count: destaques }, { count: patrocinados }, { count: documentos }, { count: denuncias }] = await Promise.all([
+    const [{ count: anuncios }, { count: destaques }, { count: patrocinados }, { count: vitrines }, { count: pagamentos }, { count: documentos }, { count: denuncias }] = await Promise.all([
       supabase.from('anuncios').select('id', { count: 'exact', head: true }).eq('status', 'pendente'),
       supabase.from('destaque_solicitacoes').select('id', { count: 'exact', head: true }).eq('status', 'pendente'),
       supabase.from('patrocinados_home').select('id', { count: 'exact', head: true }).in('status', ['pendente_pagamento', 'pendente']),
-      supabase.from('usuarios').select('id', { count: 'exact', head: true }).eq('documento_status', 'pendente'),
+      supabase.from('vitrines').select('id', { count: 'exact', head: true }).eq('assinatura_status', 'pendente_pagamento'),
+      supabase.from('vitrine_pagamentos').select('id', { count: 'exact', head: true }).eq('status', 'pendente'),
+      supabase.from('usuarios').select('id', { count: 'exact', head: true }).or('documento_status.eq.pendente,selfie_status.eq.pendente'),
       supabase.from('denuncias').select('id', { count: 'exact', head: true }).eq('status', 'aberta')
     ]);
 
@@ -152,6 +162,8 @@ export default function AdminAlertWatcher() {
       anuncios: anuncios || 0,
       destaques: destaques || 0,
       patrocinados: patrocinados || 0,
+      vitrines: vitrines || 0,
+      pagamentos: pagamentos || 0,
       documentos: documentos || 0,
       denuncias: denuncias || 0
     };
@@ -272,7 +284,9 @@ export default function AdminAlertWatcher() {
               {counts.anuncios > 0 && <Link className="btn btn-primary btn-full" href="/admin/pendentes">Aprovar anúncios ({counts.anuncios})</Link>}
               {counts.destaques > 0 && <Link className="btn btn-primary btn-full" href="/admin/destaques">Aprovar destaques ({counts.destaques})</Link>}
               {counts.patrocinados > 0 && <Link className="btn btn-primary btn-full" href="/admin/patrocinados">Ver patrocinados ({counts.patrocinados})</Link>}
-              {counts.documentos > 0 && <Link className="btn btn-primary btn-full" href="/admin/usuarios">Ver documentos ({counts.documentos})</Link>}
+              {counts.vitrines > 0 && <Link className="btn btn-primary btn-full" href="/admin/vitrines">Liberar lojinhas ({counts.vitrines})</Link>}
+              {counts.pagamentos > 0 && <Link className="btn btn-primary btn-full" href="/admin/vitrines">Ver pagamentos ({counts.pagamentos})</Link>}
+              {counts.documentos > 0 && <Link className="btn btn-primary btn-full" href="/admin/documentos">Ver documentos ({counts.documentos})</Link>}
               {counts.denuncias > 0 && <Link className="btn btn-primary btn-full" href="/admin/denuncias">Ver denúncias ({counts.denuncias})</Link>}
             </div>
           </div>
@@ -280,7 +294,10 @@ export default function AdminAlertWatcher() {
       </div>
 
       {toast && (
-        <div className="card" style={{ position: 'fixed', left: 12, right: 12, top: 82, zIndex: 900, padding: 14, border: '2px solid #16a34a', boxShadow: '0 20px 55px rgba(0,0,0,.2)' }}>
+        <div
+          className="card"
+          style={{ position: 'fixed', left: 12, right: 12, top: 82, zIndex: 900, padding: 14, border: '2px solid #16a34a', boxShadow: '0 20px 55px rgba(0,0,0,.2)' }}
+        >
           <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'start' }}>
             <div>
               <strong style={{ display: 'flex', gap: 8, alignItems: 'center' }}><BellRing size={18} /> Novo alerta AgroMarket</strong>

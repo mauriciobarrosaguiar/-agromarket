@@ -10,10 +10,10 @@
   },
   "dependencies": {
     "@supabase/supabase-js": "latest",
+    "lucide-react": "latest",
     "next": "latest",
     "react": "latest",
     "react-dom": "latest",
-    "lucide-react": "latest",
     "web-push": "latest"
   },
   "devDependencies": {
