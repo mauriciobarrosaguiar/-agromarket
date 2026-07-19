@@ -3,8 +3,9 @@
 import { FormEvent, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useParams, useSearchParams } from 'next/navigation';
-import { Lock, MapPin, MessageCircle, Search, ShieldCheck, ShoppingBag, Star, Store, Megaphone } from 'lucide-react';
+import { MapPin, MessageCircle, Search, ShieldCheck, ShoppingBag, Star, Store, Megaphone, Pencil } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
+import { getCanonicalSiteUrl } from '@/lib/site-url';
 import type { Anuncio, AvaliacaoVendedor, Vitrine } from '@/types';
 import EmptyState from '@/components/EmptyState';
 import ShareButton from '@/components/ShareButton';
@@ -23,16 +24,11 @@ function resumoAvaliacoes(avaliacoes: AvaliacaoVendedor[]) {
 function vitrineLiberada(vitrine: Vitrine) {
   if (!vitrine.vitrine_ativa) return false;
   const hoje = new Date().toISOString().slice(0, 10);
-
-  if (vitrine.assinatura_status === 'ativa') {
-    return !vitrine.assinatura_vencimento || vitrine.assinatura_vencimento >= hoje;
-  }
-
+  if (vitrine.assinatura_status === 'ativa') return !vitrine.assinatura_vencimento || vitrine.assinatura_vencimento >= hoje;
   if (vitrine.assinatura_status === 'gratis_lancamento') {
     const vencimento = vitrine.gratis_ate || vitrine.assinatura_vencimento;
     return !vencimento || vencimento >= hoje;
   }
-
   return false;
 }
 
@@ -53,16 +49,9 @@ export default function VendedorClient() {
   const [loading, setLoading] = useState(true);
 
   async function carregarAvaliacoes(vitrineId: string, usuarioId?: string | null) {
-    const { data } = await supabase
-      .from('vendedor_avaliacoes')
-      .select('*')
-      .eq('vitrine_id', vitrineId)
-      .eq('status', 'aprovada')
-      .order('updated_at', { ascending: false });
-
+    const { data } = await supabase.from('vendedor_avaliacoes').select('*').eq('vitrine_id', vitrineId).eq('status', 'aprovada').order('updated_at', { ascending: false });
     const lista = (data || []) as AvaliacaoVendedor[];
     setAvaliacoes(lista);
-
     if (usuarioId) {
       const minha = lista.find((item) => item.avaliador_id === usuarioId);
       if (minha) {
@@ -78,52 +67,33 @@ export default function VendedorClient() {
       const usuarioAtual = userData.user?.id || null;
       setUserId(usuarioAtual);
 
-      const { data: vitrineData } = await supabase
-        .from('vitrines')
-        .select('*')
-        .eq('slug', params.slug)
-        .eq('vitrine_ativa', true)
-        .maybeSingle();
-
+      const { data: vitrineData } = await supabase.from('vitrines').select('*').eq('slug', params.slug).eq('vitrine_ativa', true).maybeSingle();
       if (vitrineData && vitrineLiberada(vitrineData as Vitrine)) {
         const vitrineAtual = vitrineData as Vitrine;
         setVitrine(vitrineAtual);
 
-        const { data: ads } = await supabase
-          .from('anuncios')
-          .select('*, categorias(*), fotos_anuncios(*)')
-          .eq('usuario_id', vitrineAtual.usuario_id)
-          .eq('status', 'aprovado')
-          .order('destaque', { ascending: false })
-          .order('created_at', { ascending: false });
-
+        const { data: ads } = await supabase.from('anuncios').select('*, categorias(*), fotos_anuncios(*)').eq('usuario_id', vitrineAtual.usuario_id).eq('status', 'aprovado').order('destaque', { ascending: false }).order('created_at', { ascending: false });
         setAnuncios((ads || []) as AnuncioLoja[]);
         await carregarAvaliacoes(vitrineAtual.id, usuarioAtual);
       }
-
       setLoading(false);
     }
-
     load();
   }, [params.slug]);
 
   async function enviarAvaliacao(e: FormEvent) {
     e.preventDefault();
     if (!vitrine) return;
-
     if (!userId || modoVisitante) {
       setAvaliacaoMsg('Entre na sua conta para avaliar este vendedor.');
       return;
     }
-
     if (userId === vitrine.usuario_id) {
       setAvaliacaoMsg('Você não pode avaliar sua própria vitrine.');
       return;
     }
-
     setAvaliando(true);
     setAvaliacaoMsg(null);
-
     const { error } = await supabase.from('vendedor_avaliacoes').upsert({
       vitrine_id: vitrine.id,
       vendedor_id: vitrine.usuario_id,
@@ -133,13 +103,11 @@ export default function VendedorClient() {
       status: 'aprovada',
       updated_at: new Date().toISOString()
     }, { onConflict: 'vitrine_id,avaliador_id' });
-
     if (error) setAvaliacaoMsg(error.message);
     else {
       setAvaliacaoMsg('Avaliação salva. Obrigado por ajudar outros compradores.');
       await carregarAvaliacoes(vitrine.id, userId);
     }
-
     setAvaliando(false);
   }
 
@@ -163,7 +131,7 @@ export default function VendedorClient() {
   if (!vitrine) return <main className="page"><div className="container"><EmptyState title="Vitrine indisponível" description="Essa lojinha pode estar desativada, vencida ou aguardando pagamento da mensalidade." /></div></main>;
 
   const numero = (vitrine.whatsapp || '').replace(/\D/g, '');
-  const linkVitrine = `https://agromarket-two.vercel.app/vendedor/${vitrine.slug}`;
+  const linkVitrine = `${getCanonicalSiteUrl()}/vendedor/${vitrine.slug}`;
   const whatsapp = numero ? `https://wa.me/${numero}?text=${encodeURIComponent(`Olá, vi sua lojinha no AgroMarket: ${vitrine.nome_vitrine}\n\nLink da vitrine: ${linkVitrine}`)}` : null;
   const logoPosition = vitrine.logo_object_position || 'center';
   const bannerPosition = vitrine.banner_object_position || 'center';
@@ -171,13 +139,15 @@ export default function VendedorClient() {
   const descricaoCurta = (vitrine.descricao || 'Produtos, animais e serviços disponíveis no AgroMarket.').length > 150 ? `${(vitrine.descricao || '').slice(0, 150)}...` : (vitrine.descricao || 'Produtos, animais e serviços disponíveis no AgroMarket.');
   const { total, media, validas } = resumoAvaliacoes(avaliacoes);
   const vendedorEhDono = Boolean(userId && userId === vitrine.usuario_id && !modoVisitante);
-  const podeVerWhatsapp = Boolean(userId && !modoVisitante);
-  const mensagemVitrine = `🌱 Lojinha AgroMarket\n\n🏪 ${vitrine.nome_vitrine}\n⭐ ${total ? `${media.toFixed(1)} de 5 (${total} avaliações)` : 'Ainda sem avaliações'}\n📍 ${localTexto}\n📦 ${anuncios.length} anúncio(s) disponível(is)\n\n${descricaoCurta}\n\nVeja a vitrine:`;
+  const shareVersion = String(vitrine.updated_at || vitrine.id);
+  const shareImagePath = `/api/og/vitrine/${vitrine.slug}?v=${encodeURIComponent(shareVersion)}`;
+  const coverImageUrl = vitrine.banner_url || vitrine.foto_url || null;
+  const mensagemVitrine = `🌱 Lojinha AgroMarket\n\n🏪 ${vitrine.nome_vitrine}\n⭐ ${total ? `${media.toFixed(1)} de 5 (${total} avaliações)` : 'Ainda sem avaliações'}\n📍 ${localTexto}\n📦 ${anuncios.length} anúncio(s) disponível(is)\n\n${descricaoCurta}`;
 
   return (
     <main className="page">
       <div className="container">
-        {modoVisitante && <div className="notice" style={{ marginBottom: 12 }}>Visualização de visitante: esta é a aparência pública da lojinha para quem não está logado.</div>}
+        {modoVisitante && <div className="notice" style={{ marginBottom: 12 }}>Visualização de visitante: esta é a aparência pública da lojinha.</div>}
 
         <section className="card" style={{ padding: 0, overflow: 'hidden' }}>
           <div style={{ minHeight: 220, background: vitrine.banner_url ? `url(${vitrine.banner_url}) ${bannerPosition}/cover` : 'linear-gradient(135deg, #052e16, #166534)', display: 'flex', alignItems: 'end', padding: 18, position: 'relative' }}>
@@ -211,10 +181,10 @@ export default function VendedorClient() {
             </div>
             <p style={{ whiteSpace: 'pre-wrap', lineHeight: 1.55 }}>{vitrine.descricao || 'Vendedor AgroMarket.'}</p>
             <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-              {whatsapp && podeVerWhatsapp ? <a className="btn btn-whatsapp" href={whatsapp} target="_blank" rel="noreferrer"><MessageCircle size={18} /> Chamar vendedor</a> : <Link className="btn btn-primary" href="/login"><Lock size={18} /> Entrar para chamar vendedor</Link>}
-              <ShareButton label="Compartilhar lojinha" title={vitrine.nome_vitrine} message={mensagemVitrine} path={`/vendedor/${vitrine.slug}`} />
+              {whatsapp && <a className="btn btn-whatsapp" href={whatsapp} target="_blank" rel="noreferrer"><MessageCircle size={18} /> Chamar vendedor</a>}
+              <ShareButton label="Compartilhar lojinha" title={vitrine.nome_vitrine} message={mensagemVitrine} path={`/vendedor/${vitrine.slug}`} cacheKey={shareVersion} imagePath={shareImagePath} coverImageUrl={coverImageUrl} />
               {vendedorEhDono && <Link className="btn btn-secondary" href={`/vendedor/${vitrine.slug}?visao=visitante`}>Ver como visitante</Link>}
-              {vendedorEhDono && <Link className="btn btn-secondary" href="/painel/vitrine">Editar vitrine</Link>}
+              {vendedorEhDono && <Link className="btn btn-secondary" href="/painel/vitrine"><Pencil size={18} /> Editar lojinha</Link>}
               {vendedorEhDono && <Link className="btn btn-primary" href="/painel/patrocinado"><Megaphone size={18} /> Contratar patrocinado</Link>}
             </div>
           </div>
@@ -243,7 +213,12 @@ export default function VendedorClient() {
             )}
             {anunciosFiltrados.length ? (
               <div className="grid grid-4">
-                {anunciosFiltrados.map((ad) => <AnuncioCard key={ad.id} anuncio={ad} />)}
+                {anunciosFiltrados.map((ad) => (
+                  <div key={ad.id} style={{ display: 'grid', gap: 8 }}>
+                    <AnuncioCard anuncio={ad} />
+                    {vendedorEhDono && <Link className="btn btn-secondary btn-full" href={`/painel/editar/${ad.id}`}><Pencil size={16} /> Editar anúncio</Link>}
+                  </div>
+                ))}
               </div>
             ) : <EmptyState title="Nenhum anúncio encontrado" description="Tente outro termo de busca dentro da lojinha." />}
           </div>
