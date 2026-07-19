@@ -144,6 +144,7 @@ export default function AdminAlertWatcher() {
   const [toast, setToast] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [pushLoading, setPushLoading] = useState(false);
+  const [dismissedTotal, setDismissedTotal] = useState<number | null>(null);
   const lastCountsRef = useRef<PendingCounts | null>(null);
   const initializedRef = useRef(false);
 
@@ -183,6 +184,8 @@ export default function AdminAlertWatcher() {
     initializedRef.current = true;
     setLoading(false);
   }, [enabled]);
+
+  const total = totalPendencias(counts);
 
   useEffect(() => {
     async function init() {
@@ -228,6 +231,10 @@ export default function AdminAlertWatcher() {
     };
   }, [fetchCounts, isAdmin]);
 
+  useEffect(() => {
+    if (total === 0 && dismissedTotal !== null) setDismissedTotal(null);
+  }, [dismissedTotal, total]);
+
   async function ativarAlertas() {
     localStorage.setItem(STORAGE_KEY, 'true');
     setEnabled(true);
@@ -257,9 +264,14 @@ export default function AdminAlertWatcher() {
 
   if (!isAdmin || loading) return null;
 
-  const total = totalPendencias(counts);
   const mostrarControles = pathname.startsWith('/admin') || pathname.startsWith('/painel');
   if (!mostrarControles) return null;
+
+  const mostrarPendencias = enabled && total > 0 && dismissedTotal !== total;
+  const fecharPendencias = () => {
+    setDismissedTotal(total);
+    setToast(null);
+  };
 
   return (
     <>
@@ -276,18 +288,18 @@ export default function AdminAlertWatcher() {
           </button>
         )}
 
-        {enabled && total > 0 && (
+        {mostrarPendencias && (
           <div className="card" style={{ padding: 12, boxShadow: '0 18px 45px rgba(0,0,0,.16)' }}>
             <strong style={{ display: 'flex', gap: 8, alignItems: 'center' }}><BellRing size={18} /> {total} pendência(s)</strong>
             <p className="muted" style={{ margin: '4px 0 10px' }}>{resumoPendencias(counts)}</p>
             <div style={{ display: 'grid', gap: 8 }}>
-              {counts.anuncios > 0 && <Link className="btn btn-primary btn-full" href="/admin/pendentes">Aprovar anúncios ({counts.anuncios})</Link>}
-              {counts.destaques > 0 && <Link className="btn btn-primary btn-full" href="/admin/destaques">Aprovar destaques ({counts.destaques})</Link>}
-              {counts.patrocinados > 0 && <Link className="btn btn-primary btn-full" href="/admin/patrocinados">Ver patrocinados ({counts.patrocinados})</Link>}
-              {counts.vitrines > 0 && <Link className="btn btn-primary btn-full" href="/admin/vitrines">Liberar lojinhas ({counts.vitrines})</Link>}
-              {counts.pagamentos > 0 && <Link className="btn btn-primary btn-full" href="/admin/vitrines">Ver pagamentos ({counts.pagamentos})</Link>}
-              {counts.documentos > 0 && <Link className="btn btn-primary btn-full" href="/admin/documentos">Ver documentos ({counts.documentos})</Link>}
-              {counts.denuncias > 0 && <Link className="btn btn-primary btn-full" href="/admin/denuncias">Ver denúncias ({counts.denuncias})</Link>}
+              {counts.anuncios > 0 && <Link className="btn btn-primary btn-full" href="/admin/pendentes" onClick={fecharPendencias}>Aprovar anúncios ({counts.anuncios})</Link>}
+              {counts.destaques > 0 && <Link className="btn btn-primary btn-full" href="/admin/destaques" onClick={fecharPendencias}>Aprovar destaques ({counts.destaques})</Link>}
+              {counts.patrocinados > 0 && <Link className="btn btn-primary btn-full" href="/admin/patrocinados" onClick={fecharPendencias}>Ver patrocinados ({counts.patrocinados})</Link>}
+              {counts.vitrines > 0 && <Link className="btn btn-primary btn-full" href="/admin/vitrines" onClick={fecharPendencias}>Liberar lojinhas ({counts.vitrines})</Link>}
+              {counts.pagamentos > 0 && <Link className="btn btn-primary btn-full" href="/admin/vitrines" onClick={fecharPendencias}>Ver pagamentos ({counts.pagamentos})</Link>}
+              {counts.documentos > 0 && <Link className="btn btn-primary btn-full" href="/admin/documentos" onClick={fecharPendencias}>Ver documentos ({counts.documentos})</Link>}
+              {counts.denuncias > 0 && <Link className="btn btn-primary btn-full" href="/admin/denuncias" onClick={fecharPendencias}>Ver denúncias ({counts.denuncias})</Link>}
             </div>
           </div>
         )}
