@@ -29,6 +29,10 @@ function statusColor(status?: string | null) {
   return '#64748b';
 }
 
+function StatusOk({ children }: { children: React.ReactNode }) {
+  return <div className="notice notice-success" style={{ fontWeight: 900 }}><CheckCircle2 size={16} /> {children}</div>;
+}
+
 function DocumentosContent() {
   const [usuarios, setUsuarios] = useState<Usuario[]>([]);
   const [docUrls, setDocUrls] = useState<Record<string, string>>({});
@@ -97,7 +101,7 @@ function DocumentosContent() {
 
     if (error) setMessage(error.message);
     else {
-      setMessage('Documento aprovado. A lojinha ainda depende da selfie aprovada e GPS validado.');
+      setMessage('Documento aprovado.');
       await load();
     }
   }
@@ -115,7 +119,7 @@ function DocumentosContent() {
 
     if (error) setMessage(error.message);
     else {
-      setMessage('Documento recusado. O usuário precisará enviar outro arquivo.');
+      setMessage('Documento recusado.');
       await load();
     }
   }
@@ -139,7 +143,7 @@ function DocumentosContent() {
 
     if (error) setMessage(error.message);
     else {
-      setMessage('Selfie aprovada. Para liberar lojinha, documento também precisa estar aprovado.');
+      setMessage('Selfie aprovada.');
       await load();
     }
   }
@@ -157,7 +161,7 @@ function DocumentosContent() {
 
     if (error) setMessage(error.message);
     else {
-      setMessage('Selfie recusada. O usuário precisará tirar nova selfie.');
+      setMessage('Selfie recusada.');
       await load();
     }
   }
@@ -169,16 +173,12 @@ function DocumentosContent() {
           <div>
             <span className="badge"><ShieldCheck size={14} /> Segurança</span>
             <h1>Aprovar verificações</h1>
-            <p>Confira manualmente documento e selfie. Enviar arquivo não libera lojinha automaticamente.</p>
+            <p>Acompanhe documento e selfie dos responsáveis.</p>
           </div>
           <Link className="btn btn-secondary" href="/admin">Voltar admin</Link>
         </div>
 
         {message && <div className="notice" style={{ marginBottom: 14 }}>{message}</div>}
-
-        <div className="notice" style={{ marginBottom: 14 }}>
-          <strong>Regra:</strong> aprove somente quando o documento estiver legível e a selfie mostrar o responsável. Foto qualquer deve ser recusada.
-        </div>
 
         <div className="stats-grid" style={{ marginBottom: 16 }}>
           <div className="mini-card"><strong>{docsPendentes.length}</strong><br /><span className="muted">docs pendentes</span></div>
@@ -194,6 +194,8 @@ function DocumentosContent() {
               const docStatus = u.documento_status || 'nao_enviado';
               const selfieStatus = u.selfie_status || 'nao_enviada';
               const pendente = docStatus === 'pendente' || selfieStatus === 'pendente';
+              const selfieAprovada = selfieStatus === 'aprovada';
+              const docAprovado = docStatus === 'aprovado';
               return (
                 <article className="card" key={u.id} style={{ border: pendente ? '2px solid rgba(202,138,4,.45)' : undefined }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'start', flexWrap: 'wrap' }}>
@@ -219,8 +221,12 @@ function DocumentosContent() {
                       <div style={{ display: 'flex', gap: 12, alignItems: 'center', marginTop: 10 }}>
                         <img src={u.selfie_url || u.foto_url || ''} alt="Selfie" style={{ width: 96, height: 96, borderRadius: '50%', objectFit: 'cover', border: '1px solid #dfe8d9' }} />
                         <div style={{ display: 'grid', gap: 8, flex: 1 }}>
-                          <button className="btn btn-primary btn-full" type="button" onClick={() => aprovarSelfie(u)}><CheckCircle2 size={16} /> Aprovar selfie</button>
-                          <button className="btn btn-danger btn-full" type="button" onClick={() => recusarSelfie(u)}><XCircle size={16} /> Recusar selfie</button>
+                          {selfieAprovada ? <StatusOk>Selfie aprovada</StatusOk> : (
+                            <>
+                              <button className="btn btn-primary btn-full" type="button" onClick={() => aprovarSelfie(u)}><CheckCircle2 size={16} /> Aprovar selfie</button>
+                              <button className="btn btn-danger btn-full" type="button" onClick={() => recusarSelfie(u)}><XCircle size={16} /> Recusar selfie</button>
+                            </>
+                          )}
                         </div>
                       </div>
                       {u.selfie_motivo_recusa && <div className="notice" style={{ marginTop: 10 }}>Recusa da selfie: {u.selfie_motivo_recusa}</div>}
@@ -240,8 +246,12 @@ function DocumentosContent() {
                       ) : (
                         <div className="notice">Documento ainda não enviado.</div>
                       )}
-                      <button className="btn btn-primary btn-full" type="button" onClick={() => aprovarDocumento(u)}><CheckCircle2 size={16} /> Aprovar documento</button>
-                      <button className="btn btn-danger btn-full" type="button" onClick={() => recusarDocumento(u)}><XCircle size={16} /> Recusar documento</button>
+                      {docAprovado ? <StatusOk>Documento aprovado</StatusOk> : (
+                        <>
+                          <button className="btn btn-primary btn-full" type="button" onClick={() => aprovarDocumento(u)}><CheckCircle2 size={16} /> Aprovar documento</button>
+                          <button className="btn btn-danger btn-full" type="button" onClick={() => recusarDocumento(u)}><XCircle size={16} /> Recusar documento</button>
+                        </>
+                      )}
                     </div>
                   </div>
                 </article>
