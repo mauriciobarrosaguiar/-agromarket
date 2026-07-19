@@ -8,6 +8,7 @@ import AdminAlertWatcher from '@/components/AdminAlertWatcher';
 import DocumentoStatusTextFixer from '@/components/DocumentoStatusTextFixer';
 import LocationAutoUpdater from '@/components/LocationAutoUpdater';
 import VitrineCupomRedeemer from '@/components/VitrineCupomRedeemer';
+import OwnerEditActions from '@/components/OwnerEditActions';
 import SupportButton from '@/components/SupportButton';
 
 export const metadata: Metadata = {
@@ -77,6 +78,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <AdminAlertWatcher />
         <LocationAutoUpdater />
         <VitrineCupomRedeemer />
+        <OwnerEditActions />
         <DocumentoStatusTextFixer />
       </body>
     </html>
