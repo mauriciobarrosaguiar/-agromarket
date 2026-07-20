@@ -9,6 +9,7 @@ import DocumentoStatusTextFixer from '@/components/DocumentoStatusTextFixer';
 import LocationAutoUpdater from '@/components/LocationAutoUpdater';
 import VitrineCupomRedeemer from '@/components/VitrineCupomRedeemer';
 import OwnerEditActions from '@/components/OwnerEditActions';
+import ManualReviewsPublic from '@/components/ManualReviewsPublic';
 import SupportButton from '@/components/SupportButton';
 
 export const metadata: Metadata = {
@@ -34,6 +35,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body>
         <Header />
         {children}
+        <ManualReviewsPublic />
         <footer className="footer">
           <div className="container footer-grid">
             <div className="footer-brand">
