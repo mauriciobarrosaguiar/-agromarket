@@ -85,6 +85,15 @@ function PainelContent() {
           </div>
         </div>
 
+        <div className="card section" style={{ border: '2px solid rgba(242, 169, 0, 0.26)' }}>
+          <span className="badge">Novo</span>
+          <h2>AgroGestão</h2>
+          <p className="muted">Controle produtos, produção, estoque, vendas, clientes e valores a receber sem alterar seus anúncios.</p>
+          <div className="actions" style={{ justifyContent: 'flex-start', flexWrap: 'wrap' }}>
+            <Link className="btn btn-amber" href="/painel/gestao">Abrir estoque e vendas</Link>
+          </div>
+        </div>
+
         <div className="stats-grid">
           <StatCard label="Total de anúncios" value={anuncios.length} />
           <StatCard label="Aprovados" value={anuncios.filter((a) => a.status === 'aprovado').length} />
