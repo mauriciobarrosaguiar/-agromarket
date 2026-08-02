@@ -1,5 +1,5 @@
-import AgroGestaoApp from './AgroGestaoApp';
+import AgroGestaoModalApp from './AgroGestaoModalApp';
 
 export default function AgroGestaoPage() {
-  return <AgroGestaoApp />;
+  return <AgroGestaoModalApp />;
 }
