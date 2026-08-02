@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import type { LucideIcon } from 'lucide-react';
 import { Boxes, PackagePlus, ShoppingCart, UserPlus, X } from 'lucide-react';
 import AgroGestaoApp from './AgroGestaoApp';
@@ -33,6 +34,11 @@ function getForm(id: ModalFormId) {
   return document.getElementById(id) as HTMLFormElement | null;
 }
 
+function getModalHost(form: HTMLFormElement | null) {
+  if (!form) return null;
+  return form.closest('div[class*="viewport"]') as HTMLElement | null;
+}
+
 function findButtonByText(container: ParentNode, text: string) {
   return Array.from(container.querySelectorAll<HTMLButtonElement>('button')).find(
     (button) => button.textContent?.trim() === text
@@ -63,10 +69,12 @@ export default function AgroGestaoModalApp() {
   const [activeForm, setActiveForm] = useState<ModalFormId | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [returnToSale, setReturnToSale] = useState(false);
+  const [modalHost, setModalHost] = useState<HTMLElement | null>(null);
 
   const activeFormRef = useRef<ModalFormId | null>(null);
   const modalOpenRef = useRef(false);
   const returnToSaleRef = useRef(false);
+  const modalHostRef = useRef<HTMLElement | null>(null);
 
   useEffect(() => {
     activeFormRef.current = activeForm;
@@ -79,6 +87,19 @@ export default function AgroGestaoModalApp() {
   useEffect(() => {
     returnToSaleRef.current = returnToSale;
   }, [returnToSale]);
+
+  useEffect(() => {
+    modalHostRef.current = modalHost;
+  }, [modalHost]);
+
+  const updateModalHost = useCallback((form: HTMLFormElement | null) => {
+    const host = getModalHost(form);
+    if (host && host !== modalHostRef.current) {
+      modalHostRef.current = host;
+      setModalHost(host);
+    }
+    return host;
+  }, []);
 
   const waitForForm = useCallback(
     (id: ModalFormId, callback: (form: HTMLFormElement) => void) => {
@@ -137,6 +158,7 @@ export default function AgroGestaoModalApp() {
           getForm(formId)?.classList.remove('agroModalFormOpen')
         );
 
+        updateModalHost(form);
         form.classList.add('agroModalFormOpen');
         document.documentElement.classList.add('agroModalLocked');
         activeFormRef.current = id;
@@ -149,7 +171,7 @@ export default function AgroGestaoModalApp() {
         }
       });
     },
-    [waitForForm]
+    [updateModalHost, waitForForm]
   );
 
   useEffect(() => {
@@ -159,11 +181,14 @@ export default function AgroGestaoModalApp() {
       window.cancelAnimationFrame(frame);
       frame = window.requestAnimationFrame(() => {
         const found = FORM_IDS.find((id) => Boolean(getForm(id))) || null;
+        const foundForm = found ? getForm(found) : null;
 
         if (found !== activeFormRef.current) {
           activeFormRef.current = found;
           setActiveForm(found);
         }
+
+        if (foundForm) updateModalHost(foundForm);
 
         Array.from(document.querySelectorAll<HTMLButtonElement>('button')).forEach(
           (button) => {
@@ -266,10 +291,34 @@ export default function AgroGestaoModalApp() {
       document.documentElement.classList.remove('agroModalLocked');
       FORM_IDS.forEach((id) => getForm(id)?.classList.remove('agroModalFormOpen'));
     };
-  }, [clickNavigation, closeModal, openModal, waitForForm]);
+  }, [clickNavigation, closeModal, openModal, updateModalHost, waitForForm]);
 
   const action = activeForm ? ACTIONS[activeForm] : null;
   const ActionIcon = action?.icon;
+
+  const modalControls = modalOpen ? (
+    <>
+      <button
+        type="button"
+        className={styles.backdrop}
+        aria-label="Fechar formulário"
+        onClick={() => closeModal(true)}
+      />
+      <button
+        type="button"
+        className={styles.closeButton}
+        aria-label="Fechar formulário"
+        onClick={() => closeModal(true)}
+      >
+        <X size={22} />
+      </button>
+      {returnToSale && activeForm === 'cliente-form' && (
+        <div className={styles.returnHint}>
+          Cadastre o cliente. Depois você voltará automaticamente para a venda.
+        </div>
+      )}
+    </>
+  ) : null;
 
   return (
     <div className={styles.wrapper}>
@@ -287,29 +336,9 @@ export default function AgroGestaoModalApp() {
         </button>
       )}
 
-      {modalOpen && (
-        <>
-          <button
-            type="button"
-            className={styles.backdrop}
-            aria-label="Fechar formulário"
-            onClick={() => closeModal(true)}
-          />
-          <button
-            type="button"
-            className={styles.closeButton}
-            aria-label="Fechar formulário"
-            onClick={() => closeModal(true)}
-          >
-            <X size={22} />
-          </button>
-          {returnToSale && activeForm === 'cliente-form' && (
-            <div className={styles.returnHint}>
-              Cadastre o cliente. Depois você voltará automaticamente para a venda.
-            </div>
-          )}
-        </>
-      )}
+      {modalControls && modalHost
+        ? createPortal(modalControls, modalHost)
+        : modalControls}
     </div>
   );
 }
