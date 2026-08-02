@@ -1,0 +1,219 @@
+.wrapper {
+  position: relative;
+}
+
+.actionButton {
+  position: fixed;
+  right: 34px;
+  bottom: 30px;
+  z-index: 2200;
+  min-height: 52px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 0 22px;
+  border: 1px solid rgba(255, 255, 255, .2);
+  border-radius: 999px;
+  color: #fff;
+  background: linear-gradient(135deg, #0d5a36, #094729);
+  font-weight: 900;
+  box-shadow: 0 18px 38px rgba(7, 66, 37, .28);
+  transition: transform .18s ease, box-shadow .18s ease;
+}
+
+.actionButton:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 22px 42px rgba(7, 66, 37, .34);
+}
+
+.backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 3000;
+  border: 0;
+  background: rgba(5, 25, 15, .62);
+  backdrop-filter: blur(5px);
+  animation: backdropIn .18s ease both;
+}
+
+.closeButton {
+  position: fixed;
+  top: max(24px, calc(env(safe-area-inset-top) + 14px));
+  right: max(28px, calc((100vw - 760px) / 2 + 22px));
+  z-index: 3030;
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  border: 1px solid #dce4de;
+  border-radius: 12px;
+  color: #243129;
+  background: rgba(255, 255, 255, .96);
+  box-shadow: 0 10px 28px rgba(5, 35, 19, .18);
+}
+
+.returnHint {
+  position: fixed;
+  left: 50%;
+  bottom: max(24px, calc(env(safe-area-inset-bottom) + 16px));
+  z-index: 3030;
+  width: min(640px, calc(100vw - 44px));
+  transform: translateX(-50%);
+  padding: 12px 18px;
+  border: 1px solid #cfe1d4;
+  border-radius: 12px;
+  color: #174c30;
+  background: #f1f8f3;
+  font-size: 13px;
+  font-weight: 800;
+  text-align: center;
+  box-shadow: 0 12px 30px rgba(8, 53, 30, .12);
+}
+
+:global(#produto-form),
+:global(#estoque-form),
+:global(#venda-form),
+:global(#cliente-form) {
+  display: none !important;
+}
+
+:global(#produto-form.agroModalFormOpen),
+:global(#estoque-form.agroModalFormOpen),
+:global(#venda-form.agroModalFormOpen),
+:global(#cliente-form.agroModalFormOpen) {
+  position: fixed !important;
+  top: max(14px, calc(env(safe-area-inset-top) + 8px)) !important;
+  left: 50% !important;
+  z-index: 3020 !important;
+  width: min(760px, calc(100vw - 30px)) !important;
+  max-height: calc(100dvh - 28px) !important;
+  display: block !important;
+  overflow-x: hidden !important;
+  overflow-y: auto !important;
+  margin: 0 !important;
+  padding-bottom: 26px !important;
+  transform: translateX(-50%) !important;
+  border-radius: 22px !important;
+  border-color: rgba(223, 230, 225, .92) !important;
+  box-shadow: 0 28px 80px rgba(4, 31, 17, .32) !important;
+  overscroll-behavior: contain;
+  animation: modalIn .22s ease both;
+  scrollbar-width: thin;
+  scrollbar-color: #b9c8bd transparent;
+}
+
+:global(#produto-form.agroModalFormOpen::-webkit-scrollbar),
+:global(#estoque-form.agroModalFormOpen::-webkit-scrollbar),
+:global(#venda-form.agroModalFormOpen::-webkit-scrollbar),
+:global(#cliente-form.agroModalFormOpen::-webkit-scrollbar) {
+  width: 8px;
+}
+
+:global(#produto-form.agroModalFormOpen::-webkit-scrollbar-thumb),
+:global(#estoque-form.agroModalFormOpen::-webkit-scrollbar-thumb),
+:global(#venda-form.agroModalFormOpen::-webkit-scrollbar-thumb),
+:global(#cliente-form.agroModalFormOpen::-webkit-scrollbar-thumb) {
+  border-radius: 999px;
+  background: #b9c8bd;
+}
+
+:global(.agroLegacyFloatingHidden) {
+  display: none !important;
+}
+
+:global(.agroInlineClientButton) {
+  width: 100%;
+  min-height: 42px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 10px;
+  padding: 0 14px;
+  border: 1px dashed #73a487;
+  border-radius: 10px;
+  color: #145336;
+  background: #f1f8f3;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+:global(.agroInlineClientButton span) {
+  font-size: 19px;
+  line-height: 1;
+}
+
+:global(html.agroModalLocked) {
+  overflow: hidden !important;
+}
+
+@keyframes modalIn {
+  from {
+    opacity: 0;
+    transform: translate(-50%, 18px) scale(.985);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0) scale(1);
+  }
+}
+
+@keyframes backdropIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@media (max-width: 820px) {
+  .actionButton {
+    right: 18px;
+    bottom: calc(84px + env(safe-area-inset-bottom));
+    min-height: 50px;
+    padding-inline: 20px;
+  }
+
+  .closeButton {
+    top: max(22px, calc(env(safe-area-inset-top) + 12px));
+    right: 26px;
+    width: 42px;
+    height: 42px;
+  }
+
+  :global(#produto-form.agroModalFormOpen),
+  :global(#estoque-form.agroModalFormOpen),
+  :global(#venda-form.agroModalFormOpen),
+  :global(#cliente-form.agroModalFormOpen) {
+    top: max(10px, calc(env(safe-area-inset-top) + 6px)) !important;
+    width: calc(100vw - 20px) !important;
+    max-height: calc(100dvh - 20px) !important;
+    border-radius: 20px !important;
+    padding-bottom: calc(24px + env(safe-area-inset-bottom)) !important;
+  }
+
+  .returnHint {
+    bottom: max(18px, calc(env(safe-area-inset-bottom) + 12px));
+    width: calc(100vw - 34px);
+    font-size: 12px;
+  }
+}
+
+@media (max-width: 430px) {
+  .actionButton {
+    left: 16px;
+    right: 16px;
+    width: auto;
+  }
+
+  .closeButton {
+    right: 22px;
+  }
+
+  :global(#produto-form.agroModalFormOpen),
+  :global(#estoque-form.agroModalFormOpen),
+  :global(#venda-form.agroModalFormOpen),
+  :global(#cliente-form.agroModalFormOpen) {
+    width: calc(100vw - 14px) !important;
+    max-height: calc(100dvh - 14px) !important;
+    border-radius: 18px !important;
+  }
+}
