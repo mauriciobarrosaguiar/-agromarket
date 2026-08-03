@@ -1,0 +1,59 @@
+{
+  "id": "/painel/gestao",
+  "name": "AgroGestão - Estoque e Vendas",
+  "short_name": "AgroGestão",
+  "description": "Gestão de produtos, estoque, vendas, clientes e recebimentos para pequenos produtores.",
+  "start_url": "/painel/gestao?app=1",
+  "scope": "/painel/gestao",
+  "display": "standalone",
+  "display_override": ["standalone", "minimal-ui"],
+  "background_color": "#f4f7f4",
+  "theme_color": "#0b3d25",
+  "orientation": "portrait-primary",
+  "lang": "pt-BR",
+  "categories": ["business", "productivity", "finance"],
+  "icons": [
+    {
+      "src": "/agrogestao-icon-192.svg",
+      "sizes": "192x192",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/agrogestao-icon-512.svg",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Estoque",
+      "short_name": "Estoque",
+      "description": "Abrir o controle de estoque",
+      "url": "/painel/gestao?aba=estoque",
+      "icons": [{ "src": "/agrogestao-icon-192.svg", "sizes": "192x192", "type": "image/svg+xml" }]
+    },
+    {
+      "name": "Nova venda",
+      "short_name": "Vendas",
+      "description": "Abrir o controle de vendas",
+      "url": "/painel/gestao?aba=vendas",
+      "icons": [{ "src": "/agrogestao-icon-192.svg", "sizes": "192x192", "type": "image/svg+xml" }]
+    },
+    {
+      "name": "Produtos",
+      "short_name": "Produtos",
+      "description": "Abrir o cadastro de produtos",
+      "url": "/painel/gestao?aba=produtos",
+      "icons": [{ "src": "/agrogestao-icon-192.svg", "sizes": "192x192", "type": "image/svg+xml" }]
+    },
+    {
+      "name": "Clientes",
+      "short_name": "Clientes",
+      "description": "Abrir o cadastro de clientes",
+      "url": "/painel/gestao?aba=clientes",
+      "icons": [{ "src": "/agrogestao-icon-192.svg", "sizes": "192x192", "type": "image/svg+xml" }]
+    }
+  ]
+}
