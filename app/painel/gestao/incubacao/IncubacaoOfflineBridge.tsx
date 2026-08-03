@@ -1,6 +1,7 @@
 'use client';
 
-import { ReactNode, useEffect, useLayoutEffect, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import type { ReactNode } from 'react';
 import { Cloud, CloudOff, RefreshCw } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 
@@ -11,12 +12,9 @@ type OfflineRecord = Record<string, unknown> & {
   _offline_pending?: boolean;
 };
 
-type IncubacaoCache = {
-  incubacoes: OfflineRecord[];
-  chocadeiras: OfflineRecord[];
-  medicoes: OfflineRecord[];
-  ovoscopias: OfflineRecord[];
-  nascimentos: OfflineRecord[];
+type CacheKey = 'incubacoes' | 'chocadeiras' | 'medicoes' | 'ovoscopias' | 'nascimentos';
+
+type IncubacaoCache = Record<CacheKey, OfflineRecord[]> & {
   updatedAt?: string;
 };
 
@@ -29,9 +27,9 @@ type QueuedRequest = {
   createdAt: string;
 };
 
-const CACHE_KEY = 'agro-incubacao-offline-cache-v1';
-const QUEUE_KEY = 'agro-incubacao-offline-queue-v1';
-const USER_KEY = 'agro-incubacao-offline-user-v1';
+const CACHE_KEY = 'agro-incubacao-offline-cache-v2';
+const QUEUE_KEY = 'agro-incubacao-offline-queue-v2';
+const USER_KEY = 'agro-incubacao-offline-user-v2';
 
 const EMPTY_CACHE: IncubacaoCache = {
   incubacoes: [],
@@ -41,7 +39,7 @@ const EMPTY_CACHE: IncubacaoCache = {
   nascimentos: []
 };
 
-const TABLE_TO_CACHE: Record<string, keyof IncubacaoCache> = {
+const TABLE_TO_CACHE: Record<string, CacheKey> = {
   agro_incubacoes: 'incubacoes',
   agro_chocadeiras: 'chocadeiras',
   agro_incubacao_medicoes: 'medicoes',
@@ -70,7 +68,7 @@ function writeCache(cache: IncubacaoCache) {
   try {
     localStorage.setItem(CACHE_KEY, JSON.stringify({ ...cache, updatedAt: new Date().toISOString() }));
   } catch {
-    // Se o armazenamento estiver cheio, o app continua online normalmente.
+    // O modo online continua disponível quando o armazenamento estiver cheio.
   }
 }
 
@@ -83,7 +81,7 @@ function writeQueue(queue: QueuedRequest[]) {
   try {
     localStorage.setItem(QUEUE_KEY, JSON.stringify(queue));
   } catch {
-    // A falha será exibida pela própria operação do aplicativo.
+    // O erro será tratado pela operação exibida no aplicativo.
   }
 }
 
@@ -132,7 +130,8 @@ function findStoredUser() {
     const key = localStorage.key(index);
     if (!key || !key.startsWith('sb-') || !key.endsWith('-auth-token')) continue;
     const session = safeParse<Record<string, unknown> | null>(localStorage.getItem(key), null);
-    const user = session?.user || (session?.currentSession as Record<string, unknown> | undefined)?.user;
+    const currentSession = session?.currentSession as Record<string, unknown> | undefined;
+    const user = session?.user || currentSession?.user;
     if (user && typeof user === 'object') return user as Record<string, unknown>;
   }
 
@@ -145,7 +144,7 @@ function mergePending(serverRows: OfflineRecord[], localRows: OfflineRecord[]) {
   return [...pending, ...serverRows.filter((item) => !item.id || !pendingIds.has(item.id))];
 }
 
-function relationIncubadora(record: OfflineRecord, cache: IncubacaoCache) {
+function relationIncubadora(record: OfflineRecord, cache: IncubacaoCache): OfflineRecord {
   const chocadeiraId = String(record.chocadeira_id || '');
   const chocadeira = cache.chocadeiras.find((item) => item.id === chocadeiraId);
   if (!chocadeira) return { ...record, agro_chocadeiras: record.agro_chocadeiras || null };
@@ -158,10 +157,10 @@ function relationIncubadora(record: OfflineRecord, cache: IncubacaoCache) {
   };
 }
 
-function offlineRows(table: string, url: URL, cache: IncubacaoCache) {
+function offlineRows(table: string, url: URL, cache: IncubacaoCache): OfflineRecord[] {
   const key = TABLE_TO_CACHE[table];
   if (!key) return [];
-  const source = Array.isArray(cache[key]) ? [...(cache[key] as OfflineRecord[])] : [];
+  const source = [...cache[key]];
 
   if (table === 'agro_chocadeiras') {
     const active = queryEq(url, 'ativo');
@@ -173,15 +172,10 @@ function offlineRows(table: string, url: URL, cache: IncubacaoCache) {
   if (table === 'agro_incubacoes') {
     return source
       .map((item) => relationIncubadora(item, cache))
-      .sort((a, b) => String(b.data_inicio || '').localeCompare(String(a.data_inicio || '')));
+      .sort((a, b) => String(b['data_inicio'] || '').localeCompare(String(a['data_inicio'] || '')));
   }
 
-  const dateField = table === 'agro_incubacao_medicoes'
-    ? 'registrado_em'
-    : table === 'agro_incubacao_ovoscopias'
-      ? 'realizado_em'
-      : 'registrado_em';
-
+  const dateField = table === 'agro_incubacao_ovoscopias' ? 'realizado_em' : 'registrado_em';
   return source.sort((a, b) => String(b[dateField] || '').localeCompare(String(a[dateField] || '')));
 }
 
@@ -199,7 +193,7 @@ function addQueuedRequest(request: Request, body: string | null) {
   return queue.length;
 }
 
-function insertLocal(table: string, input: OfflineRecord, cache: IncubacaoCache) {
+function insertLocal(table: string, input: OfflineRecord, cache: IncubacaoCache): OfflineRecord {
   const key = TABLE_TO_CACHE[table];
   if (!key) return input;
 
@@ -234,8 +228,7 @@ function insertLocal(table: string, input: OfflineRecord, cache: IncubacaoCache)
 
   if (table === 'agro_incubacao_medicoes') record.registrado_em = record.registrado_em || now;
 
-  const rows = cache[key] as OfflineRecord[];
-  cache[key] = [record, ...rows.filter((item) => item.id !== record.id)] as never;
+  cache[key] = [record, ...cache[key].filter((item) => item.id !== record.id)];
   writeCache(cache);
   return table === 'agro_incubacoes' ? relationIncubadora(record, cache) : record;
 }
@@ -245,13 +238,13 @@ function updateLocal(table: string, url: URL, patch: OfflineRecord, cache: Incub
   if (!key) return;
   const id = queryEq(url, 'id');
   if (!id) return;
-  cache[key] = (cache[key] as OfflineRecord[]).map((item) => item.id === id
+  cache[key] = cache[key].map((item) => item.id === id
     ? { ...item, ...patch, updated_at: new Date().toISOString(), _offline_pending: true }
-    : item) as never;
+    : item);
   writeCache(cache);
 }
 
-function applyOfflineOvoscopy(payload: Record<string, unknown>, cache: IncubacaoCache) {
+function applyOfflineOvoscopy(payload: OfflineRecord, cache: IncubacaoCache) {
   const incubationId = String(payload.p_incubacao_id || '');
   const now = new Date().toISOString();
   const removed = Number(payload.p_ovos_nao_ferteis || 0)
@@ -287,7 +280,7 @@ function applyOfflineOvoscopy(payload: Record<string, unknown>, cache: Incubacao
   return id;
 }
 
-function applyOfflineBirth(payload: Record<string, unknown>, cache: IncubacaoCache) {
+function applyOfflineBirth(payload: OfflineRecord, cache: IncubacaoCache) {
   const incubationId = String(payload.p_incubacao_id || '');
   const now = new Date().toISOString();
   const live = Number(payload.p_nascidos_vivos || 0) + Number(payload.p_nascidos_fracos || 0);
@@ -325,7 +318,7 @@ function applyOfflineBirth(payload: Record<string, unknown>, cache: IncubacaoCac
   return id;
 }
 
-function clearPendingMarks(cache: IncubacaoCache) {
+function clearPendingMarks(cache: IncubacaoCache): IncubacaoCache {
   const clean = (rows: OfflineRecord[]) => rows.map(({ _offline_pending: _ignored, ...record }) => record);
   return {
     ...cache,
@@ -341,6 +334,8 @@ export default function IncubacaoOfflineBridge({ children }: { children: ReactNo
   const [online, setOnline] = useState(true);
   const [pending, setPending] = useState(0);
   const [syncing, setSyncing] = useState(false);
+  const originalRestFetchRef = useRef<FetchLike | null>(null);
+  const syncingRef = useRef(false);
 
   useLayoutEffect(() => {
     setOnline(navigator.onLine);
@@ -352,6 +347,7 @@ export default function IncubacaoOfflineBridge({ children }: { children: ReactNo
     const originalAuthFetch = authClient.fetch?.bind(authClient);
 
     if (!originalRestFetch || !originalAuthFetch || !restClient) return;
+    originalRestFetchRef.current = originalRestFetch;
 
     const updatePending = () => setPending(readQueue().length);
 
@@ -373,8 +369,8 @@ export default function IncubacaoOfflineBridge({ children }: { children: ReactNo
 
             const cache = readCache();
             const key = TABLE_TO_CACHE[table];
-            const merged = mergePending(data as OfflineRecord[], cache[key] as OfflineRecord[]);
-            cache[key] = merged as never;
+            const merged = mergePending(data as OfflineRecord[], cache[key]);
+            cache[key] = merged;
             writeCache(cache);
             return jsonResponse(merged, response.status, response.headers);
           } catch {
@@ -382,7 +378,7 @@ export default function IncubacaoOfflineBridge({ children }: { children: ReactNo
           }
         }
 
-        if (table) return jsonResponse(offlineRows(table, url, readCache()));
+        return table ? jsonResponse(offlineRows(table, url, readCache())) : jsonResponse([]);
       }
 
       if (navigator.onLine) {
@@ -393,9 +389,7 @@ export default function IncubacaoOfflineBridge({ children }: { children: ReactNo
         }
       }
 
-      const bodyText = request.method === 'GET' || request.method === 'HEAD'
-        ? null
-        : await request.clone().text();
+      const bodyText = request.method === 'HEAD' ? null : await request.clone().text();
       const payload = safeParse<OfflineRecord>(bodyText, {});
       const cache = readCache();
 
@@ -403,24 +397,24 @@ export default function IncubacaoOfflineBridge({ children }: { children: ReactNo
         const id = applyOfflineOvoscopy(payload, cache);
         addQueuedRequest(request, bodyText);
         updatePending();
-        return jsonResponse(id, 200);
+        return jsonResponse(id);
       }
 
       if (rpc === 'agro_incubacao_registrar_nascimento') {
         const id = applyOfflineBirth(payload, cache);
         addQueuedRequest(request, bodyText);
         updatePending();
-        return jsonResponse(id, 200);
+        return jsonResponse(id);
       }
 
       if (table && request.method === 'POST') {
         const record = insertLocal(table, payload, cache);
-        const queuedBody = JSON.stringify({ ...payload, id: record.id });
-        addQueuedRequest(request, queuedBody);
+        addQueuedRequest(request, JSON.stringify({ ...payload, id: record.id }));
         updatePending();
         const accept = request.headers.get('Accept') || '';
         const wantsObject = accept.includes('vnd.pgrst.object');
-        const wantsRepresentation = url.searchParams.has('select') || (request.headers.get('Prefer') || '').includes('return=representation');
+        const wantsRepresentation = url.searchParams.has('select')
+          || (request.headers.get('Prefer') || '').includes('return=representation');
         if (!wantsRepresentation) return noContent(201);
         return jsonResponse(wantsObject ? record : [record], 201);
       }
@@ -429,7 +423,7 @@ export default function IncubacaoOfflineBridge({ children }: { children: ReactNo
         updateLocal(table, url, payload, cache);
         addQueuedRequest(request, bodyText);
         updatePending();
-        return noContent(204);
+        return noContent();
       }
 
       return jsonResponse({ message: 'Operação guardada para sincronização.' }, 202);
@@ -455,7 +449,7 @@ export default function IncubacaoOfflineBridge({ children }: { children: ReactNo
 
       const user = findStoredUser();
       return user
-        ? jsonResponse(user, 200)
+        ? jsonResponse(user)
         : jsonResponse({ message: 'Abra o módulo uma vez com internet antes de usar offline.' }, 503);
     };
 
@@ -465,6 +459,7 @@ export default function IncubacaoOfflineBridge({ children }: { children: ReactNo
     return () => {
       restClient.fetch = originalRestFetch;
       authClient.fetch = originalAuthFetch;
+      originalRestFetchRef.current = null;
     };
   }, []);
 
@@ -472,21 +467,19 @@ export default function IncubacaoOfflineBridge({ children }: { children: ReactNo
     let cancelled = false;
 
     async function synchronize() {
-      if (!navigator.onLine || syncing) return;
+      if (!navigator.onLine || syncingRef.current) return;
       const queue = readQueue();
-      if (!queue.length) return;
+      const originalFetch = originalRestFetchRef.current;
+      if (!queue.length || !originalFetch) return;
 
-      const restClient = (supabase as unknown as { rest?: { fetch?: FetchLike } }).rest;
-      const activeFetch = restClient?.fetch;
-      if (!activeFetch) return;
-
+      syncingRef.current = true;
       setSyncing(true);
       const remaining: QueuedRequest[] = [];
 
       for (let index = 0; index < queue.length; index += 1) {
         const item = queue[index];
         try {
-          const response = await activeFetch(item.url, {
+          const response = await originalFetch(item.url, {
             method: item.method,
             headers: Object.fromEntries(item.headers),
             body: item.body
@@ -501,15 +494,17 @@ export default function IncubacaoOfflineBridge({ children }: { children: ReactNo
         }
       }
 
-      if (cancelled) return;
-      writeQueue(remaining);
-      setPending(remaining.length);
-      setSyncing(false);
-
-      if (!remaining.length) {
-        writeCache(clearPendingMarks(readCache()));
-        window.setTimeout(() => window.location.reload(), 500);
+      if (!cancelled) {
+        writeQueue(remaining);
+        setPending(remaining.length);
+        if (!remaining.length) {
+          writeCache(clearPendingMarks(readCache()));
+          window.setTimeout(() => window.location.reload(), 500);
+        }
       }
+
+      syncingRef.current = false;
+      if (!cancelled) setSyncing(false);
     }
 
     const onOnline = () => {
@@ -527,7 +522,7 @@ export default function IncubacaoOfflineBridge({ children }: { children: ReactNo
       window.removeEventListener('online', onOnline);
       window.removeEventListener('offline', onOffline);
     };
-  }, [syncing]);
+  }, []);
 
   const visible = !online || pending > 0 || syncing;
 
@@ -552,7 +547,11 @@ export default function IncubacaoOfflineBridge({ children }: { children: ReactNo
           fontSize: 12,
           fontWeight: 800
         }}>
-          {syncing ? <RefreshCw size={17} style={{ animation: 'spin 1s linear infinite' }} /> : online ? <Cloud size={17} /> : <CloudOff size={17} />}
+          {syncing
+            ? <RefreshCw size={17} style={{ animation: 'spin 1s linear infinite' }} />
+            : online
+              ? <Cloud size={17} />
+              : <CloudOff size={17} />}
           <span>
             {syncing
               ? 'Sincronizando dados...'
