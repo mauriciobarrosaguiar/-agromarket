@@ -1,0 +1,160 @@
+.root {
+  min-height: 100%;
+}
+
+.actionPanel {
+  display: grid;
+  gap: 12px;
+  margin: 0 0 18px;
+}
+
+.actionButton {
+  width: 100%;
+  min-height: 74px;
+  display: grid;
+  grid-template-columns: 44px 1fr;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 18px;
+  border: 1px solid #dbe4dc;
+  border-radius: 22px;
+  color: #173322;
+  background: #fff;
+  text-align: left;
+  text-decoration: none;
+  box-shadow: 0 10px 30px rgba(21, 65, 39, .06);
+  transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease;
+}
+
+.actionButton:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 14px 34px rgba(21, 65, 39, .1);
+}
+
+.actionButton > svg {
+  width: 44px;
+  height: 44px;
+  padding: 10px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, .14);
+}
+
+.actionButton span {
+  min-width: 0;
+  display: grid;
+  gap: 3px;
+}
+
+.actionButton strong {
+  font-size: 17px;
+  line-height: 1.15;
+}
+
+.actionButton small {
+  color: #708078;
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.primary {
+  color: #fff;
+  border-color: #0a4a2d;
+  background: linear-gradient(135deg, #0d5a36, #083e25);
+}
+
+.primary small,
+.agro small {
+  color: rgba(255, 255, 255, .76);
+}
+
+.agro {
+  color: #fff;
+  border-color: #8b6418;
+  background: linear-gradient(135deg, #b57d17, #d59a2f);
+}
+
+.configure {
+  cursor: pointer;
+}
+
+.configure > svg,
+.secondary > svg {
+  color: #0d5533;
+  background: #edf6f0;
+}
+
+.configureActive {
+  border-color: #d2a043;
+  background: #fffaf0;
+}
+
+.secondary {
+  background: #fbfdfb;
+}
+
+.root :global(form.form.card) {
+  display: none !important;
+  margin-top: 0;
+  animation: perfilAbrir .22s ease both;
+}
+
+.root :global(form.form.card.perfilConfigFormOpen) {
+  display: grid !important;
+}
+
+.root :global(.perfilSecurityNoticeHidden),
+.root :global(.perfilLegacyActionsHidden) {
+  display: none !important;
+}
+
+.root :global(form.form.card.perfilConfigFormOpen::before) {
+  content: 'Configurar perfil';
+  display: block;
+  margin-bottom: 4px;
+  color: #153421;
+  font-family: Georgia, serif;
+  font-size: 28px;
+  font-weight: 800;
+}
+
+@keyframes perfilAbrir {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (max-width: 640px) {
+  .actionPanel {
+    gap: 10px;
+  }
+
+  .actionButton {
+    min-height: 70px;
+    grid-template-columns: 40px 1fr;
+    padding: 13px 15px;
+    border-radius: 19px;
+  }
+
+  .actionButton > svg {
+    width: 40px;
+    height: 40px;
+    padding: 9px;
+  }
+
+  .actionButton strong {
+    font-size: 16px;
+  }
+
+  .actionButton small {
+    font-size: 11px;
+  }
+
+  .root :global(form.form.card.perfilConfigFormOpen::before) {
+    font-size: 25px;
+  }
+}
