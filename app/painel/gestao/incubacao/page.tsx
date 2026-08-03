@@ -1,5 +1,10 @@
 import IncubacaoApp from './IncubacaoApp';
+import IncubacaoMobileGuard from './IncubacaoMobileGuard';
 
 export default function IncubacaoPage() {
-  return <IncubacaoApp />;
+  return (
+    <IncubacaoMobileGuard>
+      <IncubacaoApp />
+    </IncubacaoMobileGuard>
+  );
 }
