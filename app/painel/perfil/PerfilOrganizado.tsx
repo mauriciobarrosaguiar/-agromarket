@@ -90,7 +90,7 @@ export default function PerfilOrganizado({ children }: { children: React.ReactNo
           {!online && (
             <div className={styles.offlineNotice}>
               <WifiOff size={18} />
-              <span><strong>Modo offline ativo</strong><small>AgroGestão e Incubação continuam disponíveis neste aparelho.</small></span>
+              <span><strong>Modo offline ativo</strong><small>Recursos já liberados continuam disponíveis neste aparelho.</small></span>
             </div>
           )}
 
@@ -106,7 +106,7 @@ export default function PerfilOrganizado({ children }: { children: React.ReactNo
             <Sprout size={22} />
             <span>
               <strong>Abrir AgroGestão</strong>
-              <small>Estoque, vendas, produtos e clientes</small>
+              <small>Incluído no plano Lojinha de R$ 29,90/mês</small>
             </span>
           </a>
 
@@ -117,7 +117,7 @@ export default function PerfilOrganizado({ children }: { children: React.ReactNo
             <Egg size={22} />
             <span>
               <strong>Incubação de ovos</strong>
-              <small>Acompanhe chocadeiras, ovos e nascimentos</small>
+              <small>Incluída no plano Lojinha de R$ 29,90/mês</small>
             </span>
           </a>
 
