@@ -1,30 +1,55 @@
-const CACHE_NAME = 'agromarket-offline-v50';
+const CACHE_NAME = 'agromarket-offline-v51';
 const STATIC_ASSETS = ['/manifest.json', '/icon-192.png', '/icon-512.png', '/offline.html'];
 const OFFLINE_PAGES = ['/painel/perfil', '/painel/gestao', '/painel/gestao/incubacao'];
 
+async function cachePageAndAssets(cache, path) {
+  try {
+    const response = await fetch(path, { credentials: 'include', cache: 'no-store' });
+    if (!response.ok) return;
+
+    const html = await response.clone().text();
+    await cache.put(path, response.clone());
+
+    const assetPaths = new Set();
+    const matcher = /(?:src|href)=["'](\/_next\/static\/[^"']+)["']/g;
+    let match;
+    while ((match = matcher.exec(html)) !== null) assetPaths.add(match[1]);
+
+    await Promise.all(Array.from(assetPaths).map(async (assetPath) => {
+      try {
+        const assetResponse = await fetch(assetPath, { cache: 'no-store' });
+        if (assetResponse.ok) await cache.put(assetPath, assetResponse.clone());
+      } catch {
+        // Mantém os demais arquivos disponíveis mesmo se um recurso falhar.
+      }
+    }));
+  } catch {
+    // Mantém a versão previamente salva quando a internet estiver instável.
+  }
+}
+
+async function cacheOfflinePages() {
+  const cache = await caches.open(CACHE_NAME);
+  await Promise.all(OFFLINE_PAGES.map((path) => cachePageAndAssets(cache, path)));
+}
+
 self.addEventListener('install', (event) => {
-  event.waitUntil(caches.open(CACHE_NAME).then((cache) => cache.addAll(STATIC_ASSETS)));
+  event.waitUntil((async () => {
+    const cache = await caches.open(CACHE_NAME);
+    await cache.addAll(STATIC_ASSETS);
+    await cacheOfflinePages();
+  })());
   self.skipWaiting();
 });
 
 self.addEventListener('activate', (event) => {
-  event.waitUntil(
-    caches.keys().then((keys) => Promise.all(keys.filter((key) => key !== CACHE_NAME).map((key) => caches.delete(key))))
-  );
-  self.clients.claim();
+  event.waitUntil((async () => {
+    const keys = await caches.keys();
+    await Promise.all(keys.filter((key) => key !== CACHE_NAME).map((key) => caches.delete(key)));
+    await self.clients.claim();
+    await cacheOfflinePages();
+  })());
 });
-
-async function cacheOfflinePages() {
-  const cache = await caches.open(CACHE_NAME);
-  await Promise.all(OFFLINE_PAGES.map(async (path) => {
-    try {
-      const response = await fetch(path, { credentials: 'include', cache: 'no-store' });
-      if (response.ok) await cache.put(path, response.clone());
-    } catch {
-      // Mantém a versão já salva quando a internet estiver instável.
-    }
-  }));
-}
 
 self.addEventListener('message', (event) => {
   if (event.data?.type === 'CACHE_OFFLINE_PAGES') {
@@ -48,6 +73,9 @@ self.addEventListener('fetch', (event) => {
         if (response.ok) {
           await cache.put(request, response.clone());
           await cache.put(url.pathname, response.clone());
+          if (OFFLINE_PAGES.includes(url.pathname)) {
+            event.waitUntil(cachePageAndAssets(cache, url.pathname));
+          }
         }
         return response;
       } catch {
