@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useLayoutEffect, useState } from 'react';
 import Link from 'next/link';
 import { supabase } from '@/lib/supabase';
 
@@ -11,7 +11,12 @@ type OfflineAuth = {
 };
 
 const OFFLINE_AUTH_KEY = 'agromarket-offline-auth-v1';
-const AUTH_TIMEOUT_MS = 3500;
+const AUTH_TIMEOUT_MS = 2500;
+const OFFLINE_DATA_KEYS = [
+  'agrogestao-cache-v3',
+  'agro-incubacao-offline-cache-v2',
+  'agro-incubacao-offline-user-v2'
+];
 
 function readOfflineAuth(): OfflineAuth | null {
   if (typeof window === 'undefined') return null;
@@ -42,10 +47,24 @@ function readPersistedSupabaseUserId(): string | null {
       if (typeof userId === 'string' && userId) return userId;
     }
   } catch {
-    // Segue usando apenas a autorização simplificada salva pelo AgroMarket.
+    // Segue usando as outras formas de autorização local.
   }
 
   return null;
+}
+
+function hasOfflineModuleData() {
+  if (typeof window === 'undefined') return false;
+  try {
+    return OFFLINE_DATA_KEYS.some((key) => Boolean(localStorage.getItem(key)));
+  } catch {
+    return false;
+  }
+}
+
+function offlineIdentityAvailable() {
+  const cached = readOfflineAuth();
+  return Boolean(cached?.userId || readPersistedSupabaseUserId() || hasOfflineModuleData());
 }
 
 function saveOfflineAuth(userId: string, isAdmin = false) {
@@ -64,6 +83,14 @@ export default function AuthGuard({ children, adminOnly = false }: { children: R
   const [loading, setLoading] = useState(true);
   const [allowed, setAllowed] = useState(false);
 
+  useLayoutEffect(() => {
+    if (navigator.onLine) return;
+    const cached = readOfflineAuth();
+    const permitted = adminOnly ? cached?.isAdmin === true : offlineIdentityAvailable();
+    setAllowed(permitted);
+    setLoading(false);
+  }, [adminOnly]);
+
   useEffect(() => {
     let active = true;
     let finished = false;
@@ -76,30 +103,23 @@ export default function AuthGuard({ children, adminOnly = false }: { children: R
     };
 
     const cachedAtStart = readOfflineAuth();
-    const persistedUserId = cachedAtStart?.userId || readPersistedSupabaseUserId();
 
-    // No modo offline não aguardamos nenhuma chamada do Supabase.
-    // A autorização previamente salva é aplicada imediatamente.
-    if (!navigator.onLine && persistedUserId) {
-      finish(adminOnly ? cachedAtStart?.isAdmin === true : true);
+    if (!navigator.onLine) {
+      finish(adminOnly ? cachedAtStart?.isAdmin === true : offlineIdentityAvailable());
     }
 
     const timeout = window.setTimeout(() => {
       if (finished) return;
       const cached = readOfflineAuth();
-      const userId = cached?.userId || readPersistedSupabaseUserId();
-      finish(adminOnly ? cached?.isAdmin === true : Boolean(userId));
+      finish(adminOnly ? cached?.isAdmin === true : offlineIdentityAvailable());
     }, AUTH_TIMEOUT_MS);
 
     async function check() {
       if (finished && !navigator.onLine) return;
 
       const cached = readOfflineAuth();
-      const offline = !navigator.onLine;
-
-      if (offline) {
-        const userId = cached?.userId || readPersistedSupabaseUserId();
-        finish(adminOnly ? cached?.isAdmin === true : Boolean(userId));
+      if (!navigator.onLine) {
+        finish(adminOnly ? cached?.isAdmin === true : offlineIdentityAvailable());
         return;
       }
 
@@ -116,8 +136,7 @@ export default function AuthGuard({ children, adminOnly = false }: { children: R
         }
 
         if (!user) {
-          const userId = cached?.userId || readPersistedSupabaseUserId();
-          finish(adminOnly ? cached?.isAdmin === true : Boolean(userId));
+          finish(adminOnly ? cached?.isAdmin === true : offlineIdentityAvailable());
           return;
         }
 
@@ -138,8 +157,7 @@ export default function AuthGuard({ children, adminOnly = false }: { children: R
         finish(isAdmin);
       } catch {
         const fallback = readOfflineAuth();
-        const userId = fallback?.userId || readPersistedSupabaseUserId();
-        finish(adminOnly ? fallback?.isAdmin === true : Boolean(userId));
+        finish(adminOnly ? fallback?.isAdmin === true : offlineIdentityAvailable());
       }
     }
 
@@ -147,7 +165,6 @@ export default function AuthGuard({ children, adminOnly = false }: { children: R
 
     const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
       if (event === 'SIGNED_OUT') {
-        // Uma queda de conexão ou token vencido não deve expulsar o usuário do modo offline.
         if (navigator.onLine) {
           localStorage.removeItem(OFFLINE_AUTH_KEY);
           finish(false);

@@ -1,10 +1,25 @@
-const CACHE_NAME = 'agromarket-offline-v51';
+const CACHE_NAME = 'agromarket-offline-v52';
 const STATIC_ASSETS = ['/manifest.json', '/icon-192.png', '/icon-512.png', '/offline.html'];
 const OFFLINE_PAGES = ['/painel/perfil', '/painel/gestao', '/painel/gestao/incubacao'];
+const NETWORK_TIMEOUT_MS = 4500;
+
+async function fetchWithTimeout(input, init = {}, timeout = NETWORK_TIMEOUT_MS) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeout);
+
+  try {
+    return await fetch(input, { ...init, signal: controller.signal });
+  } finally {
+    clearTimeout(timer);
+  }
+}
 
 async function cachePageAndAssets(cache, path) {
   try {
-    const response = await fetch(path, { credentials: 'include', cache: 'no-store' });
+    const response = await fetchWithTimeout(path, {
+      credentials: 'include',
+      cache: 'no-store'
+    }, 8000);
     if (!response.ok) return;
 
     const html = await response.clone().text();
@@ -17,7 +32,7 @@ async function cachePageAndAssets(cache, path) {
 
     await Promise.all(Array.from(assetPaths).map(async (assetPath) => {
       try {
-        const assetResponse = await fetch(assetPath, { cache: 'no-store' });
+        const assetResponse = await fetchWithTimeout(assetPath, { cache: 'no-store' }, 8000);
         if (assetResponse.ok) await cache.put(assetPath, assetResponse.clone());
       } catch {
         // Mantém os demais arquivos disponíveis mesmo se um recurso falhar.
@@ -31,6 +46,26 @@ async function cachePageAndAssets(cache, path) {
 async function cacheOfflinePages() {
   const cache = await caches.open(CACHE_NAME);
   await Promise.all(OFFLINE_PAGES.map((path) => cachePageAndAssets(cache, path)));
+}
+
+async function notifyAndRefreshClients() {
+  const windows = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+
+  await Promise.all(windows.map(async (client) => {
+    client.postMessage({ type: 'AGROMARKET_UPDATE_READY', version: CACHE_NAME });
+
+    try {
+      const url = new URL(client.url);
+      if (url.origin !== self.location.origin) return;
+      if (!url.pathname.startsWith('/painel')) return;
+      if (url.searchParams.get('__appv') === CACHE_NAME) return;
+
+      url.searchParams.set('__appv', CACHE_NAME);
+      if ('navigate' in client) await client.navigate(url.href);
+    } catch {
+      // A próxima abertura do aplicativo carregará a versão atualizada.
+    }
+  }));
 }
 
 self.addEventListener('install', (event) => {
@@ -48,12 +83,17 @@ self.addEventListener('activate', (event) => {
     await Promise.all(keys.filter((key) => key !== CACHE_NAME).map((key) => caches.delete(key)));
     await self.clients.claim();
     await cacheOfflinePages();
+    await notifyAndRefreshClients();
   })());
 });
 
 self.addEventListener('message', (event) => {
   if (event.data?.type === 'CACHE_OFFLINE_PAGES') {
     event.waitUntil(cacheOfflinePages());
+  }
+
+  if (event.data?.type === 'SKIP_WAITING') {
+    self.skipWaiting();
   }
 });
 
@@ -68,13 +108,14 @@ self.addEventListener('fetch', (event) => {
   if (request.mode === 'navigate' || request.destination === 'document') {
     event.respondWith((async () => {
       const cache = await caches.open(CACHE_NAME);
+
       try {
-        const response = await fetch(request);
+        const response = await fetchWithTimeout(request, { cache: 'no-store' });
         if (response.ok) {
           await cache.put(request, response.clone());
           await cache.put(url.pathname, response.clone());
           if (OFFLINE_PAGES.includes(url.pathname)) {
-            event.waitUntil(cachePageAndAssets(cache, url.pathname));
+            await cachePageAndAssets(cache, url.pathname);
           }
         }
         return response;
@@ -91,16 +132,16 @@ self.addEventListener('fetch', (event) => {
     event.respondWith((async () => {
       const cache = await caches.open(CACHE_NAME);
       const cached = await cache.match(request);
+
       if (cached) {
-        event.waitUntil(fetch(request).then((response) => {
-          if (response.ok) return cache.put(request, response.clone());
-          return undefined;
-        }).catch(() => undefined));
+        fetchWithTimeout(request, { cache: 'no-store' }, 8000)
+          .then((response) => response.ok ? cache.put(request, response.clone()) : undefined)
+          .catch(() => undefined);
         return cached;
       }
 
       try {
-        const response = await fetch(request);
+        const response = await fetchWithTimeout(request, { cache: 'no-store' }, 8000);
         if (response.ok) await cache.put(request, response.clone());
         return response;
       } catch {
@@ -113,7 +154,7 @@ self.addEventListener('fetch', (event) => {
   event.respondWith((async () => {
     const cache = await caches.open(CACHE_NAME);
     try {
-      const response = await fetch(request);
+      const response = await fetchWithTimeout(request);
       if (response.ok) await cache.put(request, response.clone());
       return response;
     } catch {

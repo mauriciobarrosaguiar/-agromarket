@@ -8,6 +8,42 @@
   margin: 0 0 18px;
 }
 
+.offlineNotice {
+  min-height: 64px;
+  display: grid;
+  grid-template-columns: 34px 1fr;
+  align-items: center;
+  gap: 11px;
+  padding: 12px 15px;
+  border: 1px solid #e5c77f;
+  border-radius: 18px;
+  color: #62420e;
+  background: #fff7df;
+}
+
+.offlineNotice > svg {
+  width: 34px;
+  height: 34px;
+  padding: 8px;
+  border-radius: 11px;
+  background: #ffe6a3;
+}
+
+.offlineNotice span {
+  display: grid;
+  gap: 3px;
+}
+
+.offlineNotice strong {
+  font-size: 14px;
+}
+
+.offlineNotice small {
+  color: #7b6a47;
+  font-size: 11px;
+  line-height: 1.35;
+}
+
 .actionButton {
   width: 100%;
   min-height: 74px;
@@ -29,6 +65,13 @@
 .actionButton:hover {
   transform: translateY(-1px);
   box-shadow: 0 14px 34px rgba(21, 65, 39, .1);
+}
+
+.actionButton:disabled {
+  cursor: not-allowed;
+  opacity: .62;
+  transform: none;
+  box-shadow: none;
 }
 
 .actionButton > svg {
@@ -118,7 +161,8 @@
 }
 
 .root :global(.perfilSecurityNoticeHidden),
-.root :global(.perfilLegacyActionsHidden) {
+.root :global(.perfilLegacyActionsHidden),
+.root :global(.perfilLoadingOfflineHidden) {
   display: none !important;
 }
 
