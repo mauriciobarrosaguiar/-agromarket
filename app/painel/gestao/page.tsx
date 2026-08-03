@@ -1,5 +1,10 @@
+import LojinhaFeatureGuard from '@/components/LojinhaFeatureGuard';
 import AgroGestaoClickableApp from './AgroGestaoClickableApp';
 
 export default function AgroGestaoPage() {
-  return <AgroGestaoClickableApp />;
+  return (
+    <LojinhaFeatureGuard recurso="O AgroGestão">
+      <AgroGestaoClickableApp />
+    </LojinhaFeatureGuard>
+  );
 }
