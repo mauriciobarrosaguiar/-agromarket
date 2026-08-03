@@ -11,6 +11,7 @@ import VitrineCupomRedeemer from '@/components/VitrineCupomRedeemer';
 import OwnerEditActions from '@/components/OwnerEditActions';
 import ManualReviewsPublic from '@/components/ManualReviewsPublic';
 import SupportButton from '@/components/SupportButton';
+import PwaOfflineRegister from '@/components/PwaOfflineRegister';
 
 export const metadata: Metadata = {
   title: 'AgroMarket - Produtos, serviços e empregos no Agro',
@@ -82,6 +83,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <VitrineCupomRedeemer />
         <OwnerEditActions />
         <DocumentoStatusTextFixer />
+        <PwaOfflineRegister />
       </body>
     </html>
   );
