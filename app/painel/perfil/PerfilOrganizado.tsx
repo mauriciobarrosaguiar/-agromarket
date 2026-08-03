@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { createPortal } from 'react-dom';
 import { useEffect, useRef, useState } from 'react';
-import { KeyRound, LayoutDashboard, Settings, Sprout, X } from 'lucide-react';
+import { Egg, KeyRound, LayoutDashboard, Settings, Sprout, X } from 'lucide-react';
 import styles from './perfilOrganizado.module.css';
 
 export default function PerfilOrganizado({ children }: { children: React.ReactNode }) {
@@ -77,6 +77,17 @@ export default function PerfilOrganizado({ children }: { children: React.ReactNo
             <span>
               <strong>Abrir AgroGestão</strong>
               <small>Estoque, vendas, produtos e clientes</small>
+            </span>
+          </Link>
+
+          <Link
+            href="/painel/gestao/incubacao"
+            className={`${styles.actionButton} ${styles.incubacao}`}
+          >
+            <Egg size={22} />
+            <span>
+              <strong>Incubação de ovos</strong>
+              <small>Acompanhe chocadeiras, ovos e nascimentos</small>
             </span>
           </Link>
 

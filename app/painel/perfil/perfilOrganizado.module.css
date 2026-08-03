@@ -73,6 +73,21 @@
   background: linear-gradient(135deg, #b57d17, #d59a2f);
 }
 
+.incubacao {
+  color: #23401f;
+  border-color: #dfb34d;
+  background: linear-gradient(135deg, #fff8e7, #f5dda0);
+}
+
+.incubacao > svg {
+  color: #65430b;
+  background: #ffd56d;
+}
+
+.incubacao small {
+  color: #6f6246;
+}
+
 .configure {
   cursor: pointer;
 }
