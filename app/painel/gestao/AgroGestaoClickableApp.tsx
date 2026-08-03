@@ -4,7 +4,7 @@ import { useCallback, useEffect } from 'react';
 import AgroGestaoInstall from './AgroGestaoInstall';
 import AgroGestaoModalApp from './AgroGestaoModalApp';
 
-type NavigationTarget = 'Visão geral' | 'Produtos' | 'Estoque' | 'Vendas' | 'Clientes';
+type NavigationTarget = 'Início' | 'Produtos' | 'Estoque' | 'Vendas' | 'Clientes';
 
 type DashboardAction = {
   label: string;
@@ -19,14 +19,14 @@ const DASHBOARD_ACTIONS: DashboardAction[] = [
     ariaLabel: 'Abrir as vendas do mês'
   },
   {
-    label: 'RECEBIDO',
+    label: 'DINHEIRO RECEBIDO',
     target: 'Vendas',
     ariaLabel: 'Abrir as vendas recebidas'
   },
   {
-    label: 'A RECEBER',
-    target: 'Vendas',
-    ariaLabel: 'Abrir os pedidos a receber'
+    label: 'FALTA RECEBER',
+    target: 'Clientes',
+    ariaLabel: 'Abrir a lista de quem está devendo'
   },
   {
     label: 'ESTOQUE PARA VENDA',
@@ -36,7 +36,7 @@ const DASHBOARD_ACTIONS: DashboardAction[] = [
 ];
 
 const QUERY_TARGETS: Record<string, NavigationTarget> = {
-  resumo: 'Visão geral',
+  resumo: 'Início',
   produtos: 'Produtos',
   estoque: 'Estoque',
   vendas: 'Vendas',
@@ -71,9 +71,7 @@ export default function AgroGestaoClickableApp() {
     let attempts = 0;
     const timer = window.setInterval(() => {
       attempts += 1;
-      if (abrirArea(target) || attempts >= 50) {
-        window.clearInterval(timer);
-      }
+      if (abrirArea(target) || attempts >= 50) window.clearInterval(timer);
     }, 100);
 
     return () => window.clearInterval(timer);
@@ -105,7 +103,6 @@ export default function AgroGestaoClickableApp() {
       const target = event.target as Element | null;
       const card = target?.closest<HTMLElement>('[data-agro-dashboard-target]');
       const destination = card?.dataset.agroDashboardTarget as NavigationTarget | undefined;
-
       if (!destination) return;
       event.preventDefault();
       abrirArea(destination);
@@ -113,11 +110,9 @@ export default function AgroGestaoClickableApp() {
 
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key !== 'Enter' && event.key !== ' ') return;
-
       const target = event.target as Element | null;
       const card = target?.closest<HTMLElement>('[data-agro-dashboard-target]');
       const destination = card?.dataset.agroDashboardTarget as NavigationTarget | undefined;
-
       if (!destination) return;
       event.preventDefault();
       abrirArea(destination);
@@ -149,10 +144,7 @@ export default function AgroGestaoClickableApp() {
           cursor: pointer;
           touch-action: manipulation;
           outline: none;
-          transition:
-            transform 0.18s ease,
-            border-color 0.18s ease,
-            box-shadow 0.18s ease;
+          transition: transform .18s ease, border-color .18s ease, box-shadow .18s ease;
         }
 
         [data-agro-dashboard-card='true']::after {
@@ -176,12 +168,10 @@ export default function AgroGestaoClickableApp() {
         [data-agro-dashboard-card='true']:focus-visible {
           transform: translateY(-2px);
           border-color: #8db39b !important;
-          box-shadow: 0 14px 34px rgba(25, 79, 47, 0.13) !important;
+          box-shadow: 0 14px 34px rgba(25, 79, 47, .13) !important;
         }
 
-        [data-agro-dashboard-card='true']:active {
-          transform: scale(0.985);
-        }
+        [data-agro-dashboard-card='true']:active { transform: scale(.985); }
       `}</style>
     </>
   );
