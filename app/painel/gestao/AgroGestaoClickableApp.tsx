@@ -1,6 +1,9 @@
 'use client';
 
-import { useCallback, useEffect } from 'react';
+import { useCallback, useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
+import Link from 'next/link';
+import { Egg } from 'lucide-react';
 import AgroGestaoInstall from './AgroGestaoInstall';
 import AgroGestaoModalApp from './AgroGestaoModalApp';
 
@@ -50,6 +53,8 @@ function getCardLabel(card: HTMLElement) {
 }
 
 export default function AgroGestaoClickableApp() {
+  const [navHost, setNavHost] = useState<HTMLElement | null>(null);
+
   const abrirArea = useCallback((label: NavigationTarget) => {
     const candidates = Array.from(document.querySelectorAll<HTMLButtonElement>('button')).filter(
       (button) => button.textContent?.trim() === label && !button.closest('form')
@@ -80,9 +85,15 @@ export default function AgroGestaoClickableApp() {
   useEffect(() => {
     let frame = 0;
 
+    const localizarMenu = () => {
+      const host = document.querySelector<HTMLElement>('[class*="sidebarNav"]');
+      if (host) setNavHost((current) => current === host ? current : host);
+    };
+
     const prepararCards = () => {
       window.cancelAnimationFrame(frame);
       frame = window.requestAnimationFrame(() => {
+        localizarMenu();
         const cards = Array.from(document.querySelectorAll<HTMLElement>('article'));
 
         DASHBOARD_ACTIONS.forEach((action) => {
@@ -137,7 +148,49 @@ export default function AgroGestaoClickableApp() {
     <>
       <AgroGestaoModalApp />
       <AgroGestaoInstall />
+      {navHost && createPortal(
+        <Link href="/painel/gestao/incubacao" className="agroIncubacaoNavLink">
+          <Egg size={19} />
+          <span>Incubação de ovos</span>
+          <i />
+        </Link>,
+        navHost
+      )}
       <style jsx global>{`
+        .agroIncubacaoNavLink {
+          position: relative;
+          width: 100%;
+          min-height: 56px;
+          display: flex;
+          align-items: center;
+          gap: 14px;
+          padding: 0 18px;
+          border: 1px solid rgba(239, 174, 61, .2);
+          border-radius: 12px;
+          color: #ffe0a3;
+          background: rgba(239, 174, 61, .08);
+          font-size: 15px;
+          font-weight: 800;
+          text-decoration: none;
+          transition: .18s ease;
+        }
+
+        .agroIncubacaoNavLink:hover,
+        .agroIncubacaoNavLink:focus-visible {
+          color: #fff;
+          background: rgba(239, 174, 61, .16);
+          outline: none;
+        }
+
+        .agroIncubacaoNavLink i {
+          position: absolute;
+          right: 16px;
+          width: 5px;
+          height: 28px;
+          border-radius: 999px;
+          background: #efae3d;
+        }
+
         [data-agro-dashboard-card='true'] {
           position: relative;
           padding-right: 54px !important;
