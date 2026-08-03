@@ -1,11 +1,14 @@
 'use client';
 
 import { useCallback, useEffect } from 'react';
+import AgroGestaoInstall from './AgroGestaoInstall';
 import AgroGestaoModalApp from './AgroGestaoModalApp';
+
+type NavigationTarget = 'Visão geral' | 'Produtos' | 'Estoque' | 'Vendas' | 'Clientes';
 
 type DashboardAction = {
   label: string;
-  target: 'Vendas' | 'Estoque';
+  target: NavigationTarget;
   ariaLabel: string;
 };
 
@@ -32,6 +35,14 @@ const DASHBOARD_ACTIONS: DashboardAction[] = [
   }
 ];
 
+const QUERY_TARGETS: Record<string, NavigationTarget> = {
+  resumo: 'Visão geral',
+  produtos: 'Produtos',
+  estoque: 'Estoque',
+  vendas: 'Vendas',
+  clientes: 'Clientes'
+};
+
 function getCardLabel(card: HTMLElement) {
   return Array.from(card.children)
     .find((child) => child.tagName === 'SPAN')
@@ -39,7 +50,7 @@ function getCardLabel(card: HTMLElement) {
 }
 
 export default function AgroGestaoClickableApp() {
-  const abrirArea = useCallback((label: DashboardAction['target']) => {
+  const abrirArea = useCallback((label: NavigationTarget) => {
     const candidates = Array.from(document.querySelectorAll<HTMLButtonElement>('button')).filter(
       (button) => button.textContent?.trim() === label && !button.closest('form')
     );
@@ -47,9 +58,26 @@ export default function AgroGestaoClickableApp() {
     const visible = candidates.find(
       (button) => button.offsetWidth > 0 && button.offsetHeight > 0
     );
-
-    (visible || candidates[0])?.click();
+    const button = visible || candidates[0];
+    button?.click();
+    return Boolean(button);
   }, []);
+
+  useEffect(() => {
+    const aba = new URLSearchParams(window.location.search).get('aba');
+    const target = aba ? QUERY_TARGETS[aba] : undefined;
+    if (!target) return;
+
+    let attempts = 0;
+    const timer = window.setInterval(() => {
+      attempts += 1;
+      if (abrirArea(target) || attempts >= 50) {
+        window.clearInterval(timer);
+      }
+    }, 100);
+
+    return () => window.clearInterval(timer);
+  }, [abrirArea]);
 
   useEffect(() => {
     let frame = 0;
@@ -76,7 +104,7 @@ export default function AgroGestaoClickableApp() {
     const handleClick = (event: MouseEvent) => {
       const target = event.target as Element | null;
       const card = target?.closest<HTMLElement>('[data-agro-dashboard-target]');
-      const destination = card?.dataset.agroDashboardTarget as DashboardAction['target'] | undefined;
+      const destination = card?.dataset.agroDashboardTarget as NavigationTarget | undefined;
 
       if (!destination) return;
       event.preventDefault();
@@ -88,7 +116,7 @@ export default function AgroGestaoClickableApp() {
 
       const target = event.target as Element | null;
       const card = target?.closest<HTMLElement>('[data-agro-dashboard-target]');
-      const destination = card?.dataset.agroDashboardTarget as DashboardAction['target'] | undefined;
+      const destination = card?.dataset.agroDashboardTarget as NavigationTarget | undefined;
 
       if (!destination) return;
       event.preventDefault();
@@ -113,6 +141,7 @@ export default function AgroGestaoClickableApp() {
   return (
     <>
       <AgroGestaoModalApp />
+      <AgroGestaoInstall />
       <style jsx global>{`
         [data-agro-dashboard-card='true'] {
           position: relative;
