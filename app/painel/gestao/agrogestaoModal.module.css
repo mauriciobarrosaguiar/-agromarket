@@ -6,7 +6,7 @@
   position: fixed;
   right: 34px;
   bottom: 30px;
-  z-index: 2200;
+  z-index: 10;
   min-height: 52px;
   display: inline-flex;
   align-items: center;
