@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512" role="img" aria-label="AgroGestão">
+  <rect width="512" height="512" rx="112" fill="#0b3d25"/>
+  <circle cx="256" cy="256" r="182" fill="#124d31"/>
+  <path d="M163 336v-91c0-14 11-24 24-24h30v115h-54Zm67 0V179c0-14 11-24 24-24h30v181h-54Zm67 0V208c0-14 11-24 24-24h30v152h-54Z" fill="#f2b44b"/>
+  <path d="M181 189c40-59 101-77 163-59-19 51-65 83-132 77" fill="none" stroke="#eaf4ed" stroke-width="24" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M208 207c22-25 51-46 91-60" fill="none" stroke="#eaf4ed" stroke-width="19" stroke-linecap="round"/>
+</svg>
