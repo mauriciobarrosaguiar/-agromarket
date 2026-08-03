@@ -8,7 +8,11 @@ export default function PwaOfflineRegister() {
 
     navigator.serviceWorker
       .register('/sw.js', { scope: '/' })
-      .then((registration) => registration.update())
+      .then(async (registration) => {
+        await registration.update().catch(() => undefined);
+        const ready = await navigator.serviceWorker.ready;
+        ready.active?.postMessage({ type: 'CACHE_OFFLINE_PAGES' });
+      })
       .catch(() => undefined);
   }, []);
 
