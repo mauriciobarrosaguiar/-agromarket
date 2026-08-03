@@ -80,7 +80,7 @@ export default function PerfilOrganizado({ children }: { children: React.ReactNo
             </span>
           </Link>
 
-          <Link
+          <a
             href="/painel/gestao/incubacao"
             className={`${styles.actionButton} ${styles.incubacao}`}
           >
@@ -89,7 +89,7 @@ export default function PerfilOrganizado({ children }: { children: React.ReactNo
               <strong>Incubação de ovos</strong>
               <small>Acompanhe chocadeiras, ovos e nascimentos</small>
             </span>
-          </Link>
+          </a>
 
           <button
             type="button"
